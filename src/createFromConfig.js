@@ -30,6 +30,7 @@ import { Outdent }     from './extensions/formatting/Outdent.js';
 import { MarkdownShortcuts } from './extensions/plugins/MarkdownShortcuts.js';
 import { FindReplace }       from './extensions/plugins/FindReplace.js';
 import { DragReorder }       from './extensions/plugins/DragReorder.js';
+import { FormatPainter }     from './extensions/plugins/FormatPainter.js';
 
 // Map config keys → extension objects
 const BLOCK_MAP = {
@@ -100,13 +101,15 @@ export function createFromConfig(target, config, overrides = {}) {
 
   // Plugins — always on unless explicitly disabled
   if (plugins.markdownShortcuts !== false) extensions.push(MarkdownShortcuts);
-  if (plugins.findReplace  !== false) extensions.push(FindReplace);
-  if (plugins.dragReorder  !== false) extensions.push(DragReorder);
+  if (plugins.findReplace   !== false) extensions.push(FindReplace);
+  if (plugins.dragReorder   !== false) extensions.push(DragReorder);
+  if (plugins.formatPainter !== false) extensions.push(FormatPainter);
 
   // ── Resolve toolbar items (skip disabled features) ─────────
   const enabledNames = new Set([
     ...Object.entries(blocks).filter(([, v]) => v !== false).map(([k]) => k),
     ...Object.entries(marks).filter(([, v]) => v !== false).map(([k]) => k),
+    ...Object.entries(plugins).filter(([, v]) => v !== false).map(([k]) => k),
     'clearFormat', // always available
   ]);
 

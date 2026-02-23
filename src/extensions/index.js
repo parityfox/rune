@@ -36,6 +36,7 @@ export { Outdent }     from './formatting/Outdent.js';
 export { MarkdownShortcuts } from './plugins/MarkdownShortcuts.js';
 export { FindReplace }       from './plugins/FindReplace.js';
 export { DragReorder }       from './plugins/DragReorder.js';
+export { FormatPainter }     from './plugins/FormatPainter.js';
 
 // StarterKit — everything bundled
 import { Bold }           from './marks/Bold.js';
@@ -69,6 +70,7 @@ import { Outdent }     from './formatting/Outdent.js';
 import { MarkdownShortcuts } from './plugins/MarkdownShortcuts.js';
 import { FindReplace }       from './plugins/FindReplace.js';
 import { DragReorder }       from './plugins/DragReorder.js';
+import { FormatPainter }     from './plugins/FormatPainter.js';
 
 export const StarterKit = [
   Paragraph, Heading, BulletList, OrderedList, Blockquote, CodeBlock,
@@ -76,5 +78,5 @@ export const StarterKit = [
   Bold, Italic, Underline, Strike, Code, Link, Superscript, Subscript,
   FontSize, FontFamily, TextColor, TextBackground,
   TextAlign, LineHeight, Indent, Outdent,
-  MarkdownShortcuts, FindReplace, DragReorder,
+  MarkdownShortcuts, FindReplace, DragReorder, FormatPainter,
 ];

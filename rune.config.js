@@ -52,6 +52,7 @@ const config = {
     markdownShortcuts: true,  // auto-format: ## → H2, > → blockquote, etc.
     findReplace:       true,  // Cmd+F floating find & replace panel
     dragReorder:       true,  // drag handle to reorder blocks
+    formatPainter:     true,  // copy format from selection, paint onto another
   },
 
   // ── Toolbar ───────────────────────────────────────────────
@@ -65,7 +66,7 @@ const config = {
       'textAlign', 'lineHeight', '|',
       'outdent', 'indent', '|',
       'link', 'code', '|',
-      'clearFormat',
+      'clearFormat', 'formatPainter',
     ],
   },
 

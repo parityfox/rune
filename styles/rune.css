@@ -1173,6 +1173,13 @@ mark.rune-search-match.is-active {
   opacity: 0.35 !important;
 }
 
+/* ── Format Painter ────────────────────────────────────────── */
+
+.rune-content.rune-painter-active,
+.rune-content.rune-painter-active * {
+  cursor: crosshair !important;
+}
+
 /* ── Tooltip ───────────────────────────────────────────────── */
 
 .rune-tooltip {

@@ -83,7 +83,7 @@ export class Schema {
   getToolbarItems() {
     if (!this._toolbarItemsCache) {
       this._toolbarItemsCache = [];
-      for (const ext of [...this._blocks.values(), ...this._marks.values()]) {
+      for (const ext of [...this._blocks.values(), ...this._marks.values(), ...this._plugins.values()]) {
         if (ext.toolbarItem) this._toolbarItemsCache.push({ ...ext.toolbarItem, extension: ext });
       }
     }

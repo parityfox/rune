@@ -1,69 +1,67 @@
-# ✦ Rune
+<div align="center">
 
-A clean, extensible rich text editor built from scratch — no Tiptap, no Slate, no ProseMirror.
+```
+██████╗ ██╗   ██╗███╗   ██╗███████╗
+██╔══██╗██║   ██║████╗  ██║██╔════╝
+██████╔╝██║   ██║██╔██╗ ██║█████╗
+██╔══██╗██║   ██║██║╚██╗██║██╔══╝
+██║  ██║╚██████╔╝██║ ╚████║███████╗
+╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+```
 
-Rune is **headless by design**. Every pixel is controlled via CSS custom properties, every feature is opt-in via a single config file, and every behaviour can be extended with a plain plugin object.
+**A clean, extensible rich text editor — built from scratch.**
+
+[![npm version](https://img.shields.io/npm/v/rune-editor?style=flat-square&color=2383e2&label=npm)](https://www.npmjs.com/package/rune-editor)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
+[![Zero dependencies](https://img.shields.io/badge/dependencies-zero-blue?style=flat-square)](package.json)
+[![Vanilla JS](https://img.shields.io/badge/built%20with-Vanilla%20JS-f7df1e?style=flat-square&logo=javascript&logoColor=black)](src/)
+
+[**Getting Started**](#-installation) · [**Live Demo**](#-quick-start) · [**API Docs**](#-api) · [**Contribute**](CONTRIBUTING.md)
+
+</div>
 
 ---
 
-## Features
+## ✦ Why Rune?
 
-| Category | Features |
-|---|---|
-| **Block types** | Paragraph, Heading (H1–H3), Bullet list, Ordered list, Blockquote, Code block, Horizontal rule, Callout, Task list, Video embed, Image, Table |
-| **Inline marks** | Bold, Italic, Underline, Strikethrough, Inline code, Link, Superscript, Subscript, Font size, Font family, Text colour, Text background |
-| **Formatting** | Text alignment (L/C/R/Justify), Line height, Indent / Outdent |
-| **Plugins** | Markdown shortcuts, Find & Replace (`⌘F`), Drag-to-reorder blocks, Format Painter |
-| **UI** | Toolbar, Bubble menu, Slash menu (`/`), Tooltips |
-| **Export** | `getHtml()`, `getText()`, `getMarkdown()`, `print()` |
-| **Adapters** | Vanilla JS, React (`useRune` / `<RuneEditor>`), Web Component (`<rune-editor>`) |
-| **DX** | Config-driven, undo/redo, dark mode, CSS custom properties, image upload hook |
+Most rich text editors are either too heavy (ProseMirror, Slate) or too opinionated (Quill). Rune sits in the middle — a **zero-dependency**, headless editor that gives you full control.
+
+- 🏗 **No framework required** — works with Vanilla JS, React, or as a Web Component
+- 🎛 **Config-driven** — enable/disable every feature from a single `rune.config.js`
+- 🎨 **Headless by design** — 100% of styling via CSS custom properties
+- 🔌 **Extension system** — add custom blocks, marks, and plugins with a plain object
+- 🔒 **Security-first** — sanitized paste, blocked `javascript:` URLs, safe HTML output
+- ⚡ **Lightweight** — no build step, no bundler required
 
 ---
 
-## Installation
-
-### npm / yarn / pnpm
+## 📦 Installation
 
 ```bash
+# npm
 npm install rune-editor
-```
 
-```bash
+# yarn
 yarn add rune-editor
-```
 
-```bash
+# pnpm
 pnpm add rune-editor
 ```
 
-Then import the stylesheet once in your app:
+Import the stylesheet once in your app entry point:
 
 ```js
 import 'rune-editor/styles';
 ```
 
-### From source (clone)
-
-```bash
-git clone https://github.com/parityfox/rune.git
-cd rune
-```
-
-Serve the examples with any static file server (ES modules require HTTP):
-
-```bash
-npm run example          # uses npx serve on port 4000
-# or
-python3 -m http.server 4000
-# open http://localhost:4000/examples/
-```
+> **From source:** clone the repo and open `examples/index.html` with any static server (`npx serve . -p 4000`).
 
 ---
 
-## Usage
+## ⚡ Quick Start
 
-### Vanilla JS — config-driven (recommended)
+### Vanilla JS (recommended)
 
 ```js
 import { createFromConfig } from 'rune-editor';
@@ -72,24 +70,7 @@ import 'rune-editor/styles';
 
 const editor = createFromConfig('#app', config, {
   content: '<p>Start writing…</p>',
-  onChange(html) {
-    console.log(html);
-  },
-});
-```
-
-### Vanilla JS — manual setup
-
-```js
-import { Editor, StarterKit } from 'rune-editor';
-import 'rune-editor/styles';
-
-const editor = new Editor('#app', {
-  extensions: StarterKit,
-  content: '<p>Hello world</p>',
-  onChange(html) {
-    console.log(html);
-  },
+  onChange(html) { console.log(html); },
 });
 ```
 
@@ -111,60 +92,78 @@ export default function App() {
 }
 ```
 
-Or use the hook directly for full control:
-
-```jsx
-import { useRune } from 'rune-editor/react';
-import { StarterKit } from 'rune-editor';
-
-export default function App() {
-  const { ref, editor, getHtml } = useRune({
-    extensions: StarterKit,
-    content: '<p>Hello</p>',
-    onChange(html) { console.log(html); },
-  });
-
-  return <div ref={ref} />;
-}
-```
-
 ### Web Component
-
-No framework needed — drop it straight into any HTML page.
 
 ```html
 <link rel="stylesheet" href="node_modules/rune-editor/styles/rune.css">
 <script type="module" src="node_modules/rune-editor/adapters/web-component/rune-editor.js"></script>
 
-<rune-editor
-  content="<p>Hello world</p>"
-  placeholder="Start writing…"
-></rune-editor>
+<rune-editor content="<p>Hello world</p>" placeholder="Start writing…"></rune-editor>
 
 <script>
-  const el = document.querySelector('rune-editor');
-  el.addEventListener('change', (e) => console.log(e.detail)); // e.detail = html
-
-  // Public API
-  el.getHtml();
-  el.setHtml('<p>New content</p>');
-  el.getMarkdown();
-  el.print();
+  document.querySelector('rune-editor').addEventListener('change', (e) => {
+    console.log(e.detail); // html string
+  });
 </script>
 ```
 
-**Attributes:** `content`, `placeholder`, `readonly`
+---
+
+## ✨ Features
+
+### 🧱 Block Types
+
+| Block | Tag | Slash Command |
+|---|---|---|
+| Paragraph | `<p>` | — |
+| Heading | `<h1>` – `<h3>` | `/h1` `/h2` `/h3` |
+| Bullet List | `<ul>` | `/bullet` |
+| Ordered List | `<ol>` | `/ordered` |
+| Blockquote | `<blockquote>` | `/quote` |
+| Code Block | `<pre><code>` | `/code` |
+| Horizontal Rule | `<hr>` | `/divider` |
+| Callout | custom `<div>` | `/callout` |
+| Task List | `<ul data-type>` | `/task` |
+| Video Embed | `<figure>` iframe | `/video` |
+| Image | `<figure><img>` | `/image` |
+| Table | `<table>` | `/table` |
+
+### ✍️ Inline Marks
+
+`Bold` · `Italic` · `Underline` · `Strikethrough` · `Inline Code` · `Link` · `Superscript` · `Subscript` · `Font Size` · `Font Family` · `Text Color` · `Text Background`
+
+### 🎛 Formatting
+
+`Text Alignment` · `Line Height` · `Indent` · `Outdent`
+
+### 🔌 Plugins
+
+| Plugin | Trigger | Description |
+|---|---|---|
+| Markdown Shortcuts | `# ` `> ` `- ` etc. | Converts Markdown syntax on the fly |
+| Find & Replace | `⌘F` | Floating panel with regex support |
+| Drag to Reorder | Drag handle `⠿` | Reorder any block by dragging |
+| Format Painter | Toolbar `🖌` | Copy & paste formatting between selections |
+
+### 📤 Export
+
+```js
+editor.getHtml()       // → sanitized HTML string
+editor.getText()       // → plain text
+editor.getMarkdown()   // → Markdown string
+editor.print()         // → opens clean print dialog
+```
 
 ---
 
-## Configuration
+## ⚙️ Configuration
 
-Edit `rune.config.js` to toggle any feature. Changes automatically propagate to the toolbar, bubble menu, slash menu, and keyboard shortcuts — no other files to touch.
+All features are toggled from `rune.config.js`. A change here automatically updates the toolbar, bubble menu, slash menu, and keyboard shortcuts — no other files need editing.
 
 ```js
+// rune.config.js
 const config = {
 
-  // ── Block Types ───────────────────────────────────────────
   blocks: {
     paragraph:      true,
     heading:        true,   // H1–H3
@@ -173,14 +172,13 @@ const config = {
     blockquote:     true,
     codeBlock:      true,
     horizontalRule: true,
-    callout:        true,   // Notion-style coloured callout box
-    taskList:       true,   // Checklist with click-to-toggle checkboxes
-    videoEmbed:     true,   // YouTube / Vimeo embed
+    callout:        true,
+    taskList:       true,
+    videoEmbed:     true,
     image:          true,
     table:          true,
   },
 
-  // ── Inline Marks ──────────────────────────────────────────
   marks: {
     bold:           true,   // ⌘B
     italic:         true,   // ⌘I
@@ -190,65 +188,47 @@ const config = {
     link:           true,   // ⌘K
     superscript:    true,
     subscript:      true,
-    fontSize:       true,   // em presets + custom px
+    fontSize:       true,
     fontFamily:     true,
     textColor:      true,
     textBackground: true,
-    textAlign:      true,   // L / C / R / Justify per block
-    lineHeight:     true,   // 1.0 → 2.0
+    textAlign:      true,
+    lineHeight:     true,
     indent:         true,
     outdent:        true,
   },
 
-  // ── Plugins ───────────────────────────────────────────────
   plugins: {
-    markdownShortcuts: true, // ## → H2, > → Blockquote, etc.
-    findReplace:       true, // ⌘F floating panel
-    dragReorder:       true, // drag handle in left gutter
-    formatPainter:     true, // copy & paste formatting
+    markdownShortcuts: true,
+    findReplace:       true,
+    dragReorder:       true,
+    formatPainter:     true,
   },
 
-  // ── Toolbar ───────────────────────────────────────────────
   toolbar: {
     enabled: true,
     items: [
-      'bold', 'italic', 'underline', 'strike', 'superscript', 'subscript', '|',
-      'heading', 'bulletList', 'orderedList', 'taskList', 'blockquote',
-      'codeBlock', 'horizontalRule', '|',
-      'callout', 'videoEmbed', 'image', 'table', '|',
-      'fontFamily', 'fontSize', 'textColor', 'textBackground', '|',
-      'textAlign', 'lineHeight', '|',
-      'outdent', 'indent', '|',
-      'link', 'code', '|',
+      'bold', 'italic', 'underline', 'strike', '|',
+      'heading', 'bulletList', 'orderedList', '|',
+      'link', 'image', 'table', '|',
       'clearFormat', 'formatPainter',
     ],
   },
 
-  // ── Bubble Menu ───────────────────────────────────────────
   bubbleMenu: {
     enabled: true,
-    items: ['bold', 'italic', 'underline', 'strike',
-            'superscript', 'subscript', '|',
-            'textColor', 'textBackground', '|', 'link'],
+    items: ['bold', 'italic', 'underline', 'strike', '|', 'link'],
   },
 
-  // ── Slash Menu ────────────────────────────────────────────
-  slashMenu: { enabled: true },
-
-  // ── Editor Behaviour ──────────────────────────────────────
   editor: {
     placeholder: "Write something, or type '/' for commands…",
     spellcheck:  true,
     autofocus:   false,
     readOnly:    false,
-
-    // Optional image upload hook — prevents base64 bloat.
-    // Receives a File, must return Promise<string> (the hosted URL).
-    // uploadImage: (file) => fetch('/upload', { method: 'POST', body: ... })
+    // uploadImage: (file) => fetch('/api/upload', { method: 'POST', body: formData })
     //                          .then(r => r.json()).then(d => d.url),
   },
 
-  // ── History ───────────────────────────────────────────────
   history: {
     enabled:  true,
     maxSteps: 100,
@@ -260,80 +240,73 @@ export default config;
 
 ---
 
-## API
+## 📖 API
+
+### Content
 
 ```js
-// Commands
+editor.getHtml()            // → HTML string
+editor.setHtml('<p>…</p>') // set content
+editor.getText()            // → plain text
+editor.getMarkdown()        // → Markdown string
+editor.isEmpty()            // → boolean
+```
+
+### Commands
+
+```js
 editor.cmd('toggleBold')
 editor.cmd('setTextColor', '#e03e3e')
+editor.cmd('insertBlock', 'callout')
+
+// Chainable API
 editor.chain().toggleBold().toggleItalic().run()
+```
 
-// Content
-editor.getHtml()           // → HTML string
-editor.setHtml('<p>…</p>')
-editor.getText()           // → plain text
-editor.getMarkdown()       // → Markdown string
-editor.isEmpty()           // → boolean
+### State
 
-// Print
-editor.print()             // opens print dialog with clean styles
-
-// State
+```js
 editor.focus()
 editor.blur()
 editor.enable()
 editor.disable()
+editor.isActive('bold')    // → boolean
 editor.destroy()
-
-// Events
-editor.events.on('change',          ({ html }) => { … })
-editor.events.on('selectionchange', () => { … })
-editor.events.on('keydown',         ({ event }) => { … })
-editor.events.on('paste',           ({ event }) => { … })
 ```
 
-### Image upload hook
-
-Prevents base64 data URLs from bloating your HTML. Images show a base64 preview instantly while the upload completes in the background, then the src is swapped.
+### Events
 
 ```js
-const editor = createFromConfig('#app', config, {
-  uploadImage(file) {
-    const form = new FormData();
-    form.append('file', file);
-    return fetch('/api/upload', { method: 'POST', body: form })
-      .then(r => r.json())
-      .then(d => d.url);  // must resolve to a URL string
-  },
-});
+editor.events.on('change',          ({ html }) => { … })
+editor.events.on('selectionchange', ({ editor }) => { … })
+editor.events.on('keydown',         ({ event }) => { … })
+editor.events.on('paste',           ({ editor }) => { … })
 ```
 
 ---
 
-## Keyboard Shortcuts
+## ⌨️ Keyboard Shortcuts
 
-| Shortcut | Action |
-|---|---|
-| `⌘B` | Bold |
-| `⌘I` | Italic |
-| `⌘U` | Underline |
-| `⌘⇧S` | Strikethrough |
-| `⌘E` | Inline code |
-| `⌘K` | Insert / edit link |
-| `⌘Z` | Undo |
-| `⌘⇧Z` | Redo |
-| `⌘F` | Find & Replace |
-| `/` | Slash command menu |
-| `Tab` | Indent list / next table cell |
-| `⇧Tab` | Outdent list / prev table cell |
+| Mac | Windows | Action |
+|---|---|---|
+| `⌘B` | `Ctrl+B` | Bold |
+| `⌘I` | `Ctrl+I` | Italic |
+| `⌘U` | `Ctrl+U` | Underline |
+| `⌘⇧S` | `Ctrl+Shift+S` | Strikethrough |
+| `⌘E` | `Ctrl+E` | Inline code |
+| `⌘K` | `Ctrl+K` | Insert / edit link |
+| `⌘Z` | `Ctrl+Z` | Undo |
+| `⌘⇧Z` | `Ctrl+Shift+Z` | Redo |
+| `⌘F` | `Ctrl+F` | Find & Replace |
+| `/` | `/` | Slash command menu |
 
 ---
 
-## Markdown Shortcuts
+## 📝 Markdown Shortcuts
 
-Type these at the start of a line and press `Space` or `Enter`:
+Type at the start of a line followed by `Space`:
 
-| Type | Result |
+| Input | Result |
 |---|---|
 | `# ` | Heading 1 |
 | `## ` | Heading 2 |
@@ -344,19 +317,19 @@ Type these at the start of a line and press `Space` or `Enter`:
 | ` ``` ` | Code block |
 | `---` | Horizontal rule |
 
-Inline shortcuts (wrap text and press `Space`):
+Inline (wrap text):
 
-| Type | Result |
+| Input | Result |
 |---|---|
-| `**text**` or `__text__` | **Bold** |
-| `*text*` or `_text_` | *Italic* |
-| `` `code` `` | `Inline code` |
+| `**text**` | **Bold** |
+| `*text*` | *Italic* |
+| `` `code` `` | `Code` |
 
 ---
 
-## Theming
+## 🎨 Theming
 
-All colours, sizes, and typography are CSS custom properties. Override any of them on `:root`:
+All colours, sizes, and typography are CSS custom properties. Override on `:root`:
 
 ```css
 :root {
@@ -388,9 +361,10 @@ document.documentElement.dataset.theme = 'dark';
 
 ---
 
-## Writing Custom Extensions
+## 🔌 Writing Extensions
 
-### Block extension
+<details>
+<summary><strong>Block extension</strong></summary>
 
 ```js
 export const MyBlock = {
@@ -404,6 +378,13 @@ export const MyBlock = {
     };
   },
 
+  slashItem: {
+    icon:        '▦',
+    title:       'My Block',
+    description: 'Insert a custom block',
+    action:      (editor) => editor.cmd('insertMyBlock'),
+  },
+
   toolbarItem: {
     name:     'myBlock',
     icon:     '<svg>…</svg>',
@@ -411,17 +392,12 @@ export const MyBlock = {
     action:   'insertMyBlock',
     isActive: (editor) => editor.isActive('myBlock'),
   },
-
-  slashItem: {
-    icon:        '▦',
-    title:       'My Block',
-    description: 'Insert a custom block',
-    action:      (editor) => editor.cmd('insertMyBlock'),
-  },
 };
 ```
+</details>
 
-### Mark extension
+<details>
+<summary><strong>Mark extension</strong></summary>
 
 ```js
 export const MyMark = {
@@ -449,8 +425,10 @@ export const MyMark = {
   },
 };
 ```
+</details>
 
-### Plugin extension
+<details>
+<summary><strong>Plugin extension</strong></summary>
 
 ```js
 export const MyPlugin = {
@@ -459,81 +437,73 @@ export const MyPlugin = {
 
   init(editor) {
     editor.content.addEventListener('keydown', (e) => {
-      // … handle keys, attach behaviours, etc.
+      // handle keys, attach behaviours, etc.
     });
   },
 
   commands(editor) {
     return {
-      myPluginCommand: () => { /* … */ },
+      myCommand: () => { /* … */ },
     };
-  },
-
-  // Plugins can also expose a toolbar button
-  toolbarItem: {
-    name:     'myPlugin',
-    icon:     '<svg>…</svg>',
-    title:    'My Plugin',
-    action:   'myPluginCommand',
-    isActive: (editor) => false,
   },
 };
 ```
+</details>
 
 ---
 
-## Project Structure
+## 🗂 Project Structure
 
 ```
 rune/
 ├── src/
 │   ├── core/
-│   │   ├── Editor.js          main editor class
-│   │   ├── Schema.js          extension registry
-│   │   ├── Commands.js        command registry + chainable API
-│   │   ├── EventBus.js        pub/sub
-│   │   ├── History.js         undo/redo
-│   │   └── Selection.js       caret/selection helpers
+│   │   ├── Editor.js          ← main editor class
+│   │   ├── Schema.js          ← extension registry
+│   │   ├── Commands.js        ← command registry + chainable API
+│   │   ├── EventBus.js        ← pub/sub
+│   │   ├── History.js         ← undo/redo
+│   │   └── Selection.js       ← caret/selection helpers
 │   ├── extensions/
-│   │   ├── blocks/            Paragraph, Heading, BulletList, OrderedList,
-│   │   │                      Blockquote, CodeBlock, HorizontalRule,
-│   │   │                      Callout, TaskList, VideoEmbed, Image, Table
-│   │   ├── marks/             Bold, Italic, Underline, Strike, Code, Link,
-│   │   │                      Superscript, Subscript, FontSize, FontFamily,
-│   │   │                      TextColor, TextBackground
-│   │   ├── formatting/        TextAlign, LineHeight, Indent, Outdent
-│   │   ├── plugins/           MarkdownShortcuts, FindReplace,
-│   │   │                      DragReorder, FormatPainter
-│   │   └── index.js           named exports + StarterKit bundle
+│   │   ├── blocks/            ← Paragraph, Heading, BulletList, …
+│   │   ├── marks/             ← Bold, Italic, Link, FontSize, …
+│   │   ├── formatting/        ← TextAlign, LineHeight, Indent, Outdent
+│   │   └── plugins/           ← MarkdownShortcuts, FindReplace, DragReorder, FormatPainter
 │   ├── ui/
 │   │   ├── Toolbar.js
 │   │   ├── BubbleMenu.js
 │   │   └── SlashMenu.js
 │   ├── utils/
 │   │   ├── dom.js
-│   │   ├── html.js
+│   │   ├── html.js            ← sanitize, normalizeHtml
 │   │   ├── id.js
-│   │   └── markdown.js        HTML → Markdown converter
-│   ├── createFromConfig.js    factory for rune.config.js
-│   └── index.js               main entry point
+│   │   └── markdown.js        ← HTML → Markdown converter
+│   └── createFromConfig.js    ← factory for rune.config.js
 ├── adapters/
-│   ├── react/
-│   │   ├── useRune.js
-│   │   ├── RuneEditor.jsx
-│   │   └── index.js
-│   └── web-component/
-│       └── rune-editor.js     <rune-editor> custom element
+│   ├── react/                 ← useRune hook + RuneEditor component
+│   └── web-component/         ← <rune-editor> custom element
 ├── styles/
 │   └── rune.css
 ├── examples/
 │   └── index.html
-├── rune.config.js
-├── package.json
-└── README.md
+├── rune.config.js             ← feature flags (edit this!)
+└── package.json
 ```
 
 ---
 
-## License
+## 🤝 Contributing
 
-MIT
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
+
+---
+
+## 🔒 Security
+
+Found a vulnerability? Please read our [Security Policy](SECURITY.md) and report privately — do **not** open a public issue.
+
+---
+
+## 📄 License
+
+[MIT](LICENSE) © Rune Contributors

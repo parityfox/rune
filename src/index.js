@@ -29,3 +29,4 @@ export * from './extensions/index.js';
 export * from './utils/dom.js';
 export * from './utils/html.js';
 export * from './utils/id.js';
+export { htmlToMarkdown } from './utils/markdown.js';

@@ -69,10 +69,9 @@
 
 ## 🔌 Ecosystem
 
-- [ ] **Vue adapter** — `useRune` composable + `RuneEditor` component (mirrors React adapter)
-- [ ] **Web Component** — `<rune-editor>` custom element for framework-agnostic drop-in use
-- [ ] **Export: Markdown** — `editor.getMarkdown()` converts HTML → Markdown
-- [ ] **Export: PDF** — `editor.print()` opens browser print dialog with clean print styles
+- [x] **Web Component** — `<rune-editor>` custom element for framework-agnostic drop-in use
+- [x] **Export: Markdown** — `editor.getMarkdown()` converts HTML → Markdown
+- [x] **Export: PDF** — `editor.print()` opens browser print dialog with clean print styles
 
 ---
 

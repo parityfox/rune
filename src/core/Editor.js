@@ -4,6 +4,7 @@ import { Schema } from './Schema.js';
 import { Selection } from './Selection.js';
 import { CommandRegistry, CommandChain } from './Commands.js';
 import { normalizeHtml, sanitize } from '../utils/html.js';
+import { htmlToMarkdown } from '../utils/markdown.js';
 import { el, getBlockElement } from '../utils/dom.js';
 import { uid } from '../utils/id.js';
 
@@ -420,6 +421,46 @@ export class Editor {
   /** Get plain text. */
   getText() {
     return this.content.innerText;
+  }
+
+  /** Convert editor content to Markdown. */
+  getMarkdown() {
+    return htmlToMarkdown(this.getHtml());
+  }
+
+  /** Open browser print dialog with clean editor styles. */
+  print() {
+    const html   = this.getHtml();
+    const styles = [...document.styleSheets]
+      .map(ss => {
+        try { return [...ss.cssRules].map(r => r.cssText).join('\n'); }
+        catch { return ''; }
+      }).join('\n');
+
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Print</title>
+  <style>
+    ${styles}
+    body { margin: 0; background: #fff; }
+    .rune-editor { box-shadow: none !important; border: none !important; }
+    .rune-toolbar, .rune-bubble-menu, .rune-slash-menu,
+    .rune-drag-handle, .rune-drop-indicator, .rune-fr-panel { display: none !important; }
+    .rune-content { padding: 40px 60px !important; max-width: 100% !important; }
+    @media print { @page { margin: 20mm; } body { print-color-adjust: exact; } }
+  </style>
+</head>
+<body>
+  <div class="rune-editor">
+    <div class="rune-content">${html}</div>
+  </div>
+  <script>window.onload = () => { window.print(); window.close(); }<\/script>
+</body>
+</html>`);
+    win.document.close();
   }
 
   /** Check if editor is empty. */

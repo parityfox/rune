@@ -86,6 +86,13 @@ const config = {
     spellcheck:  true,
     autofocus:   false,
     readOnly:    false,
+
+    // Optional image upload hook — prevents base64 bloat.
+    // Receives a File object, must return Promise<string> (the hosted URL).
+    // If omitted, images are embedded as base64 data URLs.
+    //
+    // uploadImage: (file) => fetch('/api/upload', { method: 'POST', body: ... })
+    //                          .then(r => r.json()).then(d => d.url),
   },
 
   // ── History ───────────────────────────────────────────────

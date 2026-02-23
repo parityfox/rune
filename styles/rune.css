@@ -737,6 +737,15 @@
   color: var(--rune-color-border);
   pointer-events: none;
 }
+.rune-content figure.rune-image-block.is-uploading {
+  opacity: 0.5;
+  pointer-events: none;
+  animation: rune-pulse 1.2s ease-in-out infinite;
+}
+@keyframes rune-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 0.25; }
+}
 
 /* ── Callout block ─────────────────────────────────────────── */
 

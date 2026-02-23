@@ -1,6 +1,37 @@
 import { el } from '../../utils/dom.js';
 import { uid } from '../../utils/id.js';
 
+/**
+ * Read a File, insert it as a base64 preview immediately, then swap
+ * the src for a real URL if editor.options.uploadImage is provided.
+ *
+ * editor.options.uploadImage = (file) => Promise<string>
+ */
+function _handleFile(editor, file, close) {
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const figure = editor.cmd('insertImage', ev.target.result, file.name);
+    close?.();
+
+    const uploadFn = editor.options.uploadImage;
+    if (typeof uploadFn === 'function' && figure) {
+      figure.classList.add('is-uploading');
+      uploadFn(file)
+        .then(url => {
+          const img = figure.querySelector('img');
+          if (img) img.src = url;
+          figure.classList.remove('is-uploading');
+          editor._notifyChange();
+        })
+        .catch(err => {
+          console.error('[Rune] uploadImage hook failed:', err);
+          figure.classList.remove('is-uploading');
+        });
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
 export const Image = {
   name: 'image',
   type: 'block',
@@ -47,6 +78,8 @@ export const Image = {
         editor.content.insertBefore(p, figure.nextSibling || null);
         editor.selection.setAtStart(p);
         editor._notifyChange();
+
+        return figure; // returned so upload hook can swap src later
       },
     };
   },
@@ -81,12 +114,7 @@ export const Image = {
       fileInput.addEventListener('change', () => {
         const file = fileInput.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          editor.cmd('insertImage', e.target.result, file.name);
-          close();
-        };
-        reader.readAsDataURL(file);
+        _handleFile(editor, file, close);
       });
 
       // ── URL tab ───────────────────────────────────────────
@@ -132,9 +160,7 @@ export const Image = {
       input.onchange = () => {
         const file = input.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => editor.cmd('insertImage', e.target.result, file.name);
-        reader.readAsDataURL(file);
+        _handleFile(editor, file, null);
       };
       input.click();
     },

@@ -91,7 +91,7 @@
 - [x] `_updateActive()` in Toolbar creates new spread objects on each call — `_el` refs not preserved; active-state highlighting does not update
 - [x] BubbleMenu panel items (textColor, textBackground) indicator not synced with Toolbar indicator
 - [ ] `clearFontSize` / background removal uses `querySelectorAll` on possible text nodes (guarded with `?.` but could be smarter)
-- [ ] Image `insertImage` base64 embeds can bloat HTML — should offer upload-to-URL hook
+- [x] Image `insertImage` base64 embeds can bloat HTML — should offer upload-to-URL hook
 
 ---
 

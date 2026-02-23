@@ -44,6 +44,7 @@ export class Toolbar {
   // ─── Render ────────────────────────────────────────────────
 
   _render() {
+    this._items = []; // stable refs — used by _updateActive
     const toolbarOpts = this.editor.options.toolbar;
     const allItems    = this.editor.schema.getToolbarItems();
     const itemNames   = (toolbarOpts && Array.isArray(toolbarOpts.items))
@@ -53,6 +54,7 @@ export class Toolbar {
       if (name === '|') { this.el.appendChild(el('div', { class: 'rune-toolbar-divider', 'aria-hidden': 'true' })); continue; }
       const item = allItems.find(i => i.name === name);
       if (!item) continue;
+      this._items.push(item);
       if (item.type === 'panel') this._renderPanelButton(item);
       else if (item.dropdown)   this._renderDropdownButton(item);
       else                      this._renderButton(item);
@@ -188,7 +190,7 @@ export class Toolbar {
   }
 
   _updateActive() {
-    for (const item of this.editor.schema.getToolbarItems()) {
+    for (const item of this._items) {
       if (!item._el || !item.isActive) continue;
       const active = !!item.isActive(this.editor);
       item._el.classList.toggle('is-active', active);

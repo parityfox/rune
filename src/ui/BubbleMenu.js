@@ -21,6 +21,7 @@ export class BubbleMenu {
   }
 
   _render() {
+    this._items = []; // stable refs — used by _updateActive
     const { editor } = this;
     const bubbleOpts = editor.options.bubbleMenu;
     const allItems = editor.schema.getToolbarItems();
@@ -36,6 +37,7 @@ export class BubbleMenu {
       }
       const item = allItems.find(i => i.name === name);
       if (!item) continue;
+      this._items.push(item);
 
       if (item.type === 'panel') {
         this._renderPanelBtn(item);
@@ -204,8 +206,7 @@ export class BubbleMenu {
 
   _updateActive() {
     const { editor } = this;
-    const items = editor.schema.getToolbarItems();
-    for (const item of items) {
+    for (const item of this._items) {
       if (!item._bubbleEl || !item.isActive) continue;
       item._bubbleEl.classList.toggle('is-active', !!item.isActive(editor));
     }

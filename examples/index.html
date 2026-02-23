@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rune Editor</title>
+  <link rel="stylesheet" href="../styles/rune.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+      background: #ffffff;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    /* ── Top nav ── */
+    .nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid #e9e9e7;
+      z-index: 100;
+    }
+    .nav-brand {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #1a1a1a;
+    }
+    .nav-brand span { opacity: 0.4; font-weight: 400; }
+    .nav-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .nav-btn {
+      padding: 4px 12px;
+      border-radius: 5px;
+      border: 1px solid #e9e9e7;
+      background: white;
+      font-size: 12px;
+      font-weight: 500;
+      color: #4a4a4a;
+      cursor: pointer;
+      transition: background 100ms;
+    }
+    .nav-btn:hover { background: #f7f7f5; }
+    .nav-btn.primary {
+      background: #1a1a1a;
+      color: white;
+      border-color: #1a1a1a;
+    }
+    .nav-btn.primary:hover { background: #333; }
+
+    /* ── Page layout ── */
+    .page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 80px 60px 120px;
+    }
+
+    /* ── Page cover ── */
+    .page-cover {
+      height: 160px;
+      background: linear-gradient(135deg, #f5f0ff 0%, #e8f4fd 50%, #f0fdf4 100%);
+      margin: 44px -60px 0;
+      display: flex;
+      align-items: flex-end;
+      padding: 0 60px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .page-cover::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 20% 50%, rgba(120,119,198,0.1) 0%, transparent 60%),
+                  radial-gradient(ellipse at 80% 20%, rgba(37,182,130,0.08) 0%, transparent 60%);
+    }
+    .page-emoji {
+      font-size: 52px;
+      line-height: 1;
+      position: relative;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
+    }
+
+    /* ── Page title ── */
+    .page-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin: 24px 0 4px;
+      outline: none;
+      border: none;
+      color: #1a1a1a;
+      caret-color: #1a1a1a;
+    }
+    .page-title:empty::before {
+      content: 'Untitled';
+      color: #c7c7c5;
+    }
+    .page-title:focus::before { display: none; }
+
+    .page-meta {
+      font-size: 12.5px;
+      color: #9b9b9b;
+      margin-bottom: 32px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .page-meta-dot { opacity: 0.4; }
+
+    /* ── Editor area ── */
+    #editor { position: relative; }
+
+    /* Notion-style: no border by default, subtle on focus */
+    #editor .rune-wrapper {
+      border: none !important;
+    }
+    #editor .rune-content {
+      padding: 2px 2px 80px;
+      font-size: 16px;
+      line-height: 1.75;
+      min-height: 240px;
+    }
+    #editor .rune-toolbar {
+      background: transparent;
+      border-bottom: 1px solid #e9e9e7;
+      margin-bottom: 8px;
+      border-radius: 0;
+      padding-left: 2px;
+    }
+
+    /* ── HTML output panel ── */
+    .output-panel {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #1a1a1a;
+      color: #a8d8a8;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 11.5px;
+      line-height: 1.6;
+      padding: 10px 16px;
+      max-height: 120px;
+      overflow-y: auto;
+      border-top: 1px solid #2f2f2f;
+      display: none;
+    }
+    .output-panel.is-open { display: block; }
+    .output-toggle {
+      position: fixed;
+      bottom: 12px;
+      right: 16px;
+      padding: 5px 12px;
+      border-radius: 99px;
+      background: #1a1a1a;
+      color: #f1f1ef;
+      font-size: 11.5px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      transition: background 100ms;
+      z-index: 200;
+    }
+    .output-toggle:hover { background: #333; }
+
+    /* Dark mode */
+    [data-theme="dark"] body,
+    body[data-theme="dark"] {
+      background: #191919;
+      color: #e8e8e6;
+    }
+    [data-theme="dark"] .nav {
+      background: rgba(25,25,25,0.85);
+      border-color: #2f2f2f;
+    }
+    [data-theme="dark"] .nav-brand { color: #e8e8e6; }
+    [data-theme="dark"] .nav-btn { background: #2a2a2a; border-color: #3a3a3a; color: #c8c8c6; }
+    [data-theme="dark"] .page-title { color: #e8e8e6; caret-color: #e8e8e6; }
+    [data-theme="dark"] #editor .rune-toolbar { border-color: #2f2f2f; }
+    [data-theme="dark"] #editor .rune-content { caret-color: #e8e8e6; }
+    [data-theme="dark"] .page-cover {
+      background: linear-gradient(135deg, #1e1a2e 0%, #131d2e 50%, #141f1a 100%);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="nav-brand">
+      ✦ Rune <span>/ Untitled</span>
+    </div>
+    <div class="nav-actions">
+      <button class="nav-btn" id="btnGetHtml">HTML</button>
+      <button class="nav-btn" id="btnSetHtml">Reset</button>
+      <button class="nav-btn" id="btnDisable">Lock</button>
+      <button class="nav-btn" id="btnEnable">Unlock</button>
+      <button class="nav-btn" id="themeToggle">🌙</button>
+    </div>
+  </nav>
+
+  <!-- Page -->
+  <div class="page">
+
+    <!-- Cover -->
+    <div class="page-cover">
+      <span class="page-emoji">✦</span>
+    </div>
+
+    <!-- Title -->
+    <h1
+      class="page-title"
+      contenteditable="true"
+      spellcheck="false"
+      id="pageTitle"
+    >Getting started with Rune</h1>
+
+    <div class="page-meta">
+      <span>Rune Editor</span>
+      <span class="page-meta-dot">·</span>
+      <span id="wordCount">0 words</span>
+      <span class="page-meta-dot">·</span>
+      <span>Type <kbd style="font-family:monospace;font-size:11px;background:#f1f1ef;padding:1px 5px;border-radius:3px;border:1px solid #e9e9e7;">/</kbd> for commands</span>
+    </div>
+
+    <!-- Editor -->
+    <div id="editor"></div>
+
+  </div>
+
+  <!-- Output panel -->
+  <div class="output-panel" id="outputPanel"></div>
+  <button class="output-toggle" id="outputToggle">{ } HTML</button>
+
+  <script type="module">
+    import { createFromConfig } from '../src/createFromConfig.js';
+    import config               from '../rune.config.js';
+
+    // ─── Editor ─────────────────────────────────────────────
+    const editor = createFromConfig('#editor', config, {
+      content: `<h2>Welcome to Rune ✦</h2>
+<p>A clean, extensible rich text editor built from scratch — no Tiptap, no Slate, no ProseMirror.</p>
+<h3>What you can do</h3>
+<ul>
+  <li>Use the <strong>toolbar</strong> above for formatting</li>
+  <li>Select text to see the <strong>bubble menu</strong></li>
+  <li>Type <code>/</code> anywhere to open the <strong>command palette</strong></li>
+  <li>Use <strong>⌘B</strong>, <strong>⌘I</strong>, <strong>⌘K</strong> for quick shortcuts</li>
+</ul>
+<blockquote>Rune is headless by design — customise every pixel with CSS variables.</blockquote>
+<p>Try the <code>rune.config.js</code> file to toggle features on and off.</p>`,
+      onChange(html) {
+        const panel = document.getElementById('outputPanel');
+        if (panel.classList.contains('is-open')) panel.textContent = html;
+        updateWordCount();
+      },
+    });
+
+    // ─── Word count ─────────────────────────────────────────
+    function updateWordCount() {
+      const text = editor.getText().trim();
+      const words = text ? text.split(/\s+/).length : 0;
+      document.getElementById('wordCount').textContent = `${words} word${words !== 1 ? 's' : ''}`;
+    }
+    updateWordCount();
+
+    // ─── Title sync ──────────────────────────────────────────
+    document.getElementById('pageTitle').addEventListener('input', (e) => {
+      const title = e.target.textContent.trim() || 'Untitled';
+      document.querySelector('.nav-brand span').textContent = `/ ${title}`;
+      document.title = title + ' — Rune';
+    });
+
+    // ─── Nav buttons ────────────────────────────────────────
+    document.getElementById('btnGetHtml').onclick = () => {
+      const panel = document.getElementById('outputPanel');
+      panel.classList.toggle('is-open');
+      if (panel.classList.contains('is-open')) panel.textContent = editor.getHtml();
+    };
+    document.getElementById('btnSetHtml').onclick = () => {
+      editor.setHtml('<h2>Reset!</h2><p>Content was replaced via <code>editor.setHtml()</code>.</p>');
+    };
+    document.getElementById('btnDisable').onclick = () => editor.disable();
+    document.getElementById('btnEnable').onclick  = () => editor.enable();
+
+    document.getElementById('outputToggle').onclick = () => {
+      const panel = document.getElementById('outputPanel');
+      panel.classList.toggle('is-open');
+      if (panel.classList.contains('is-open')) panel.textContent = editor.getHtml();
+    };
+
+    // ─── Theme toggle ────────────────────────────────────────
+    document.getElementById('themeToggle').onclick = function() {
+      const isDark = document.documentElement.dataset.theme === 'dark';
+      document.documentElement.dataset.theme = isDark ? '' : 'dark';
+      document.body.dataset.theme = isDark ? '' : 'dark';
+      // Also apply dark class to editor root for CSS var scoping
+      document.querySelector('#editor').classList.toggle('rune-dark', !isDark);
+      this.textContent = isDark ? '🌙' : '☀️';
+    };
+  </script>
+</body>
+</html>

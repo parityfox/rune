@@ -1,0 +1,95 @@
+/**
+ * Schema — registry for block types, mark types, and plugin extensions.
+ *
+ * Every extension must have:
+ *   name      {string}   - unique identifier
+ *   type      {string}   - 'block' | 'mark' | 'plugin'
+ *
+ * Block extensions also have:
+ *   tag       {string}   - HTML tag to create  (e.g. 'p', 'h1', 'ul')
+ *   commands  {object}   - { commandName: fn(editor, ...args) }
+ *   keymap    {object}   - { 'Mod-b': fn(editor) }
+ *   toolbarItem {object} - { icon, title, action, isActive }
+ *   slashItem   {object} - { icon, title, description, action }
+ *
+ * Mark extensions also have:
+ *   tag       {string}   - inline tag (e.g. 'strong', 'em')
+ *   execCommand {string} - legacy execCommand name (if applicable)
+ */
+export class Schema {
+  constructor() {
+    this._blocks = new Map();
+    this._marks = new Map();
+    this._plugins = new Map();
+  }
+
+  register(extension) {
+    const { name, type } = extension;
+    if (!name) throw new Error('[Rune] Extension must have a name.');
+    if (!type) throw new Error(`[Rune] Extension "${name}" must have a type.`);
+
+    if (type === 'block') this._blocks.set(name, extension);
+    else if (type === 'mark') this._marks.set(name, extension);
+    else if (type === 'plugin') this._plugins.set(name, extension);
+    else throw new Error(`[Rune] Unknown extension type "${type}".`);
+
+    return this;
+  }
+
+  getBlock(name) { return this._blocks.get(name); }
+  getMark(name) { return this._marks.get(name); }
+  getPlugin(name) { return this._plugins.get(name); }
+
+  get blocks() { return [...this._blocks.values()]; }
+  get marks() { return [...this._marks.values()]; }
+  get plugins() { return [...this._plugins.values()]; }
+
+  /** Resolve a DOM node to its block extension (by tag match). */
+  resolveBlock(el) {
+    if (!el) return null;
+    const tag = el.tagName?.toLowerCase();
+    for (const block of this._blocks.values()) {
+      if (Array.isArray(block.tag) ? block.tag.includes(tag) : block.tag === tag) {
+        return block;
+      }
+    }
+    return null;
+  }
+
+  /** Resolve a DOM node to its mark extension (by tag match). */
+  resolveMark(el) {
+    if (!el) return null;
+    const tag = el.tagName?.toLowerCase();
+    for (const mark of this._marks.values()) {
+      if (mark.tag === tag) return mark;
+    }
+    return null;
+  }
+
+  /** Collect all keymaps from all registered extensions. */
+  getKeymap() {
+    const map = {};
+    for (const ext of [...this._blocks.values(), ...this._marks.values(), ...this._plugins.values()]) {
+      if (ext.keymap) Object.assign(map, ext.keymap);
+    }
+    return map;
+  }
+
+  /** Collect all toolbar items. */
+  getToolbarItems() {
+    const items = [];
+    for (const ext of [...this._blocks.values(), ...this._marks.values()]) {
+      if (ext.toolbarItem) items.push({ ...ext.toolbarItem, extension: ext });
+    }
+    return items;
+  }
+
+  /** Collect all slash menu items. */
+  getSlashItems() {
+    const items = [];
+    for (const ext of this._blocks.values()) {
+      if (ext.slashItem) items.push({ ...ext.slashItem, extension: ext });
+    }
+    return items;
+  }
+}

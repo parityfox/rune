@@ -1,0 +1,16 @@
+{
+  "name": "rune-editor",
+  "version": "1.0.0",
+  "description": "A lightweight, extensible rich text editor. Framework-agnostic, headless by design.",
+  "main": "src/index.js",
+  "exports": {
+    ".":          "./src/index.js",
+    "./react":    "./adapters/react/index.js",
+    "./styles":   "./styles/rune.css"
+  },
+  "keywords": ["rich-text-editor", "rte", "wysiwyg", "contenteditable", "rune"],
+  "license": "MIT",
+  "scripts": {
+    "example": "npx serve examples -p 4000"
+  }
+}

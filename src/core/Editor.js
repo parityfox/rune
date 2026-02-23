@@ -45,8 +45,8 @@ export class Editor {
     this._destroyed = false;
     this._slashQuery = '';
 
-    this._registerExtensions();
     this._mount();
+    this._registerExtensions();
     this._bindEvents();
     this._initPlugins();
     this._initUI();

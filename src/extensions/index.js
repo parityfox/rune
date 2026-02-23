@@ -20,7 +20,13 @@ export { OrderedList }      from './blocks/OrderedList.js';
 export { Blockquote }       from './blocks/Blockquote.js';
 export { CodeBlock }        from './blocks/CodeBlock.js';
 export { HorizontalRule }   from './blocks/HorizontalRule.js';
+export { Callout }          from './blocks/Callout.js';
+export { TaskList }         from './blocks/TaskList.js';
+export { VideoEmbed }       from './blocks/VideoEmbed.js';
 export { Image }            from './blocks/Image.js';
+
+// Plugins
+export { MarkdownShortcuts } from './plugins/MarkdownShortcuts.js';
 
 // StarterKit — everything bundled
 import { Bold }           from './marks/Bold.js';
@@ -35,17 +41,23 @@ import { FontSize }       from './marks/FontSize.js';
 import { FontFamily }     from './marks/FontFamily.js';
 import { TextColor }      from './marks/TextColor.js';
 import { TextBackground } from './marks/TextBackground.js';
-import { Paragraph }      from './blocks/Paragraph.js';
-import { Heading }        from './blocks/Heading.js';
-import { BulletList }     from './blocks/BulletList.js';
-import { OrderedList }    from './blocks/OrderedList.js';
-import { Blockquote }     from './blocks/Blockquote.js';
-import { CodeBlock }      from './blocks/CodeBlock.js';
-import { HorizontalRule } from './blocks/HorizontalRule.js';
-import { Image }          from './blocks/Image.js';
+import { Paragraph }        from './blocks/Paragraph.js';
+import { Heading }          from './blocks/Heading.js';
+import { BulletList }       from './blocks/BulletList.js';
+import { OrderedList }      from './blocks/OrderedList.js';
+import { Blockquote }       from './blocks/Blockquote.js';
+import { CodeBlock }        from './blocks/CodeBlock.js';
+import { HorizontalRule }   from './blocks/HorizontalRule.js';
+import { Callout }          from './blocks/Callout.js';
+import { TaskList }         from './blocks/TaskList.js';
+import { VideoEmbed }       from './blocks/VideoEmbed.js';
+import { Image }            from './blocks/Image.js';
+import { MarkdownShortcuts } from './plugins/MarkdownShortcuts.js';
 
 export const StarterKit = [
-  Paragraph, Heading, BulletList, OrderedList, Blockquote, CodeBlock, HorizontalRule, Image,
+  Paragraph, Heading, BulletList, OrderedList, Blockquote, CodeBlock,
+  HorizontalRule, Callout, TaskList, VideoEmbed, Image,
   Bold, Italic, Underline, Strike, Code, Link, Superscript, Subscript,
   FontSize, FontFamily, TextColor, TextBackground,
+  MarkdownShortcuts,
 ];

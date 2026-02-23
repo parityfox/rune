@@ -19,6 +19,9 @@ const config = {
     blockquote:     true,   // <blockquote>
     codeBlock:      true,   // <pre><code>
     horizontalRule: true,   // <hr>
+    callout:        true,   // highlighted callout box
+    taskList:       true,   // checklist
+    videoEmbed:     true,   // YouTube / Vimeo embed
     image:          true,   // <figure><img>
   },
 
@@ -39,13 +42,20 @@ const config = {
   },
 
   // ── Toolbar ───────────────────────────────────────────────
+  // ── Plugins ──────────────────────────────────────────────
+  plugins: {
+    markdownShortcuts: true,  // auto-format: ## → H2, > → blockquote, etc.
+  },
+
+  // ── Toolbar ───────────────────────────────────────────────
   toolbar: {
     enabled: true,
     items: [
       'bold', 'italic', 'underline', 'strike', 'superscript', 'subscript', '|',
-      'heading', 'bulletList', 'orderedList', 'blockquote', 'codeBlock', 'horizontalRule', '|',
+      'heading', 'bulletList', 'orderedList', 'taskList', 'blockquote', 'codeBlock', 'horizontalRule', '|',
+      'callout', 'videoEmbed', 'image', '|',
       'fontFamily', 'fontSize', 'textColor', 'textBackground', '|',
-      'link', 'code', 'image', '|',
+      'link', 'code', '|',
       'clearFormat',
     ],
   },

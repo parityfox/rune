@@ -35,9 +35,9 @@
 
 ## 🧱 New Block Types
 
-- [ ] **Callout** — Notion-style colored box with emoji icon; slash `/callout`; emoji picker in panel
-- [ ] **Task list / Checklist** — `<ul>` with `<li>` containing `<input type="checkbox">`; slash `/todo`; clicking checkbox toggles done state
-- [ ] **Video embed** — paste YouTube / Vimeo URL → `<iframe>` block; same panel as image (URL input + preview); slash `/video`
+- [x] **Callout** — Notion-style colored box with emoji icon; slash `/callout`; emoji picker in panel; click icon to change emoji
+- [x] **Task list / Checklist** — checklist with click-to-toggle checkboxes; Enter adds item, Backspace on empty exits; slash `/todo`
+- [x] **Video embed** — paste YouTube / Vimeo URL → responsive 16:9 iframe; slash `/video`
 - [ ] **Table** — insert rows/columns, Tab to navigate cells, add/remove rows & columns from context menu; slash `/table`
 
 ---
@@ -52,7 +52,7 @@
 
 ## ⚡ Editor Behaviour
 
-- [ ] **Markdown shortcuts** — auto-format on `Space` / `Enter`:
+- [x] **Markdown shortcuts** — auto-format on `Space` / `Enter`:
   - `## ` → H2, `### ` → H3
   - `**text**` or `__text__` → Bold
   - `*text*` or `_text_` → Italic

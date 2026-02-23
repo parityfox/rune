@@ -18,7 +18,11 @@ import { OrderedList }     from './extensions/blocks/OrderedList.js';
 import { Blockquote }      from './extensions/blocks/Blockquote.js';
 import { CodeBlock }       from './extensions/blocks/CodeBlock.js';
 import { HorizontalRule }  from './extensions/blocks/HorizontalRule.js';
+import { Callout }         from './extensions/blocks/Callout.js';
+import { TaskList }        from './extensions/blocks/TaskList.js';
+import { VideoEmbed }      from './extensions/blocks/VideoEmbed.js';
 import { Image }           from './extensions/blocks/Image.js';
+import { MarkdownShortcuts } from './extensions/plugins/MarkdownShortcuts.js';
 
 // Map config keys → extension objects
 const BLOCK_MAP = {
@@ -29,6 +33,9 @@ const BLOCK_MAP = {
   blockquote:     Blockquote,
   codeBlock:      CodeBlock,
   horizontalRule: HorizontalRule,
+  callout:        Callout,
+  taskList:       TaskList,
+  videoEmbed:     VideoEmbed,
   image:          Image,
 };
 
@@ -67,7 +74,7 @@ const MARK_MAP = {
  *   });
  */
 export function createFromConfig(target, config, overrides = {}) {
-  const { blocks = {}, marks = {}, toolbar = {}, bubbleMenu = {}, slashMenu = {}, editor: editorCfg = {}, history: historyCfg = {} } = config;
+  const { blocks = {}, marks = {}, plugins = {}, toolbar = {}, bubbleMenu = {}, slashMenu = {}, editor: editorCfg = {}, history: historyCfg = {} } = config;
 
   // ── Resolve enabled extensions ─────────────────────────────
   const extensions = [];
@@ -78,6 +85,9 @@ export function createFromConfig(target, config, overrides = {}) {
   for (const [key, ext] of Object.entries(MARK_MAP)) {
     if (marks[key] !== false) extensions.push(ext);
   }
+
+  // Plugins — always on unless explicitly disabled
+  if (plugins.markdownShortcuts !== false) extensions.push(MarkdownShortcuts);
 
   // ── Resolve toolbar items (skip disabled features) ─────────
   const enabledNames = new Set([

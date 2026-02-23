@@ -25,14 +25,15 @@ export const TextBackground = {
         if (!sel || sel.isCollapsed) return;
 
         if (color === 'transparent' || !color) {
-          // Remove existing background spans in selection
+          // Extract → modify within fragment (always an element) → re-insert
           const range = sel.getRangeAt(0);
-          const spans = [...range.commonAncestorContainer.querySelectorAll?.('span[style*="background"]') || []];
-          spans.forEach(s => {
+          const frag = range.extractContents();
+          frag.querySelectorAll('span[style*="background"]').forEach(s => {
             s.style.background = '';
             s.style.backgroundColor = '';
-            if (!s.getAttribute('style').trim()) s.replaceWith(...s.childNodes);
+            if (!s.getAttribute('style')?.trim()) s.replaceWith(...s.childNodes);
           });
+          range.insertNode(frag);
         } else {
           document.execCommand('hiliteColor', false, color);
           // fallback for browsers that don't support hiliteColor

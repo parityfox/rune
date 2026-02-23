@@ -36,12 +36,16 @@ export const FontSize = {
         editor._notifyChange();
       },
       clearFontSize() {
-        // Remove font-size style from all spans in selection
         const sel = window.getSelection();
         if (!sel || sel.isCollapsed) return;
         const range = sel.getRangeAt(0);
-        const spans = range.commonAncestorContainer.querySelectorAll?.('span[style*="font-size"]') || [];
-        spans.forEach(s => { s.style.fontSize = ''; if (!s.getAttribute('style').trim()) s.replaceWith(...s.childNodes); });
+        // Extract → modify within the fragment (always an element) → re-insert
+        const frag = range.extractContents();
+        frag.querySelectorAll('span[style*="font-size"]').forEach(s => {
+          s.style.fontSize = '';
+          if (!s.getAttribute('style')?.trim()) s.replaceWith(...s.childNodes);
+        });
+        range.insertNode(frag);
         editor._notifyChange();
       },
     };

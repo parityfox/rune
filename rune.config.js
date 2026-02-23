@@ -46,7 +46,6 @@ const config = {
     outdent:        true,   // decrease block indent
   },
 
-  // ── Toolbar ───────────────────────────────────────────────
   // ── Plugins ──────────────────────────────────────────────
   plugins: {
     markdownShortcuts: true,  // auto-format: ## → H2, > → blockquote, etc.

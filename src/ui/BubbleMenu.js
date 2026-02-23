@@ -166,6 +166,12 @@ export class BubbleMenu {
       return;
     }
 
+    // Don't show while format painter is armed
+    if (this.editor.content.classList.contains('rune-painter-active')) {
+      this._hide();
+      return;
+    }
+
     this._show();
     this._position();
     this._updateActive();

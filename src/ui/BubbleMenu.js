@@ -82,7 +82,7 @@ export class BubbleMenu {
       const bar = el('span', { class: 'rune-toolbar-indicator' });
       bar.style.background = item.defaultColor || '#1a1a1a';
       btn.appendChild(bar);
-      item._indicatorEl = bar;
+      item._bubbleIndicatorEl = bar;
     }
 
     btn.addEventListener('mousedown', (e) => {

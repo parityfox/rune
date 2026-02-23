@@ -75,13 +75,19 @@ export class Schema {
     return map;
   }
 
-  /** Collect all toolbar items. */
+  /** Collect all toolbar items.
+   *  Returns the same object instances on every call so that DOM refs
+   *  (_el, _bubbleEl, _toolbarIndicatorEl, _bubbleIndicatorEl) set during
+   *  render are visible to _updateActive() and panel callbacks later.
+   */
   getToolbarItems() {
-    const items = [];
-    for (const ext of [...this._blocks.values(), ...this._marks.values()]) {
-      if (ext.toolbarItem) items.push({ ...ext.toolbarItem, extension: ext });
+    if (!this._toolbarItemsCache) {
+      this._toolbarItemsCache = [];
+      for (const ext of [...this._blocks.values(), ...this._marks.values()]) {
+        if (ext.toolbarItem) this._toolbarItemsCache.push({ ...ext.toolbarItem, extension: ext });
+      }
     }
-    return items;
+    return this._toolbarItemsCache;
   }
 
   /** Collect all slash menu items. */

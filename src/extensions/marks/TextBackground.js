@@ -84,10 +84,14 @@ export const TextBackground = {
           e.preventDefault();
           restoreSelection();
           editor.cmd('setTextBackground', c.value);
-          if (item._indicatorEl) {
-            const bg = c.swatch || 'transparent';
-            item._indicatorEl.style.background = bg;
-            item._el.style.setProperty('--rune-bg-indicator-color', bg);
+          const bg = c.swatch || 'transparent';
+          if (item._toolbarIndicatorEl) {
+            item._toolbarIndicatorEl.style.background = bg;
+            item._el?.style.setProperty('--rune-bg-indicator-color', bg);
+          }
+          if (item._bubbleIndicatorEl) {
+            item._bubbleIndicatorEl.style.background = bg;
+            item._bubbleEl?.style.setProperty('--rune-bg-indicator-color', bg);
           }
           close();
         });

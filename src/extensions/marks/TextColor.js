@@ -71,9 +71,14 @@ export const TextColor = {
           e.preventDefault();
           restoreSelection();
           editor.cmd('setTextColor', c.value);
-          if (item._indicatorEl) {
-            item._indicatorEl.style.background = c.value === 'inherit' ? '#1a1a1a' : c.swatch;
-            item._el.style.setProperty('--rune-indicator-color', c.value === 'inherit' ? '#1a1a1a' : c.swatch);
+          const color = c.value === 'inherit' ? '#1a1a1a' : c.swatch;
+          if (item._toolbarIndicatorEl) {
+            item._toolbarIndicatorEl.style.background = color;
+            item._el?.style.setProperty('--rune-indicator-color', color);
+          }
+          if (item._bubbleIndicatorEl) {
+            item._bubbleIndicatorEl.style.background = color;
+            item._bubbleEl?.style.setProperty('--rune-indicator-color', color);
           }
           close();
         });

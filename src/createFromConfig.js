@@ -22,11 +22,14 @@ import { Callout }         from './extensions/blocks/Callout.js';
 import { TaskList }        from './extensions/blocks/TaskList.js';
 import { VideoEmbed }      from './extensions/blocks/VideoEmbed.js';
 import { Image }           from './extensions/blocks/Image.js';
+import { Table }           from './extensions/blocks/Table.js';
 import { TextAlign }   from './extensions/formatting/TextAlign.js';
 import { LineHeight }  from './extensions/formatting/LineHeight.js';
 import { Indent }      from './extensions/formatting/Indent.js';
 import { Outdent }     from './extensions/formatting/Outdent.js';
 import { MarkdownShortcuts } from './extensions/plugins/MarkdownShortcuts.js';
+import { FindReplace }       from './extensions/plugins/FindReplace.js';
+import { DragReorder }       from './extensions/plugins/DragReorder.js';
 
 // Map config keys → extension objects
 const BLOCK_MAP = {
@@ -41,6 +44,7 @@ const BLOCK_MAP = {
   taskList:       TaskList,
   videoEmbed:     VideoEmbed,
   image:          Image,
+  table:          Table,
 };
 
 const MARK_MAP = {
@@ -96,6 +100,8 @@ export function createFromConfig(target, config, overrides = {}) {
 
   // Plugins — always on unless explicitly disabled
   if (plugins.markdownShortcuts !== false) extensions.push(MarkdownShortcuts);
+  if (plugins.findReplace  !== false) extensions.push(FindReplace);
+  if (plugins.dragReorder  !== false) extensions.push(DragReorder);
 
   // ── Resolve toolbar items (skip disabled features) ─────────
   const enabledNames = new Set([

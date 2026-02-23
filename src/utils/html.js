@@ -3,7 +3,8 @@
  */
 
 const BLOCK_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-  'blockquote', 'pre', 'ul', 'ol', 'li', 'div', 'hr']);
+  'blockquote', 'pre', 'ul', 'ol', 'li', 'div', 'hr',
+  'table', 'figure']);
 
 /**
  * Sanitize pasted HTML — keep structure but strip dangerous attrs.
@@ -25,7 +26,8 @@ function _cleanNode(node) {
 }
 
 const ALLOWED_ATTRS = new Set(['href', 'target', 'rel', 'src', 'alt', 'class',
-  'data-rune-block', 'data-rune-type', 'data-id']);
+  'data-rune-block', 'data-rune-type', 'data-id', 'data-type', 'data-checked',
+  'frameborder', 'allowfullscreen', 'style', 'colspan', 'rowspan']);
 
 function _stripAttrs(el) {
   const toRemove = [];

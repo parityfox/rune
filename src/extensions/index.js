@@ -24,6 +24,7 @@ export { Callout }          from './blocks/Callout.js';
 export { TaskList }         from './blocks/TaskList.js';
 export { VideoEmbed }       from './blocks/VideoEmbed.js';
 export { Image }            from './blocks/Image.js';
+export { Table }            from './blocks/Table.js';
 
 // Formatting (block-level)
 export { TextAlign }   from './formatting/TextAlign.js';
@@ -33,6 +34,8 @@ export { Outdent }     from './formatting/Outdent.js';
 
 // Plugins
 export { MarkdownShortcuts } from './plugins/MarkdownShortcuts.js';
+export { FindReplace }       from './plugins/FindReplace.js';
+export { DragReorder }       from './plugins/DragReorder.js';
 
 // StarterKit — everything bundled
 import { Bold }           from './marks/Bold.js';
@@ -58,17 +61,20 @@ import { Callout }          from './blocks/Callout.js';
 import { TaskList }         from './blocks/TaskList.js';
 import { VideoEmbed }       from './blocks/VideoEmbed.js';
 import { Image }            from './blocks/Image.js';
+import { Table }        from './blocks/Table.js';
 import { TextAlign }   from './formatting/TextAlign.js';
 import { LineHeight }  from './formatting/LineHeight.js';
 import { Indent }      from './formatting/Indent.js';
 import { Outdent }     from './formatting/Outdent.js';
 import { MarkdownShortcuts } from './plugins/MarkdownShortcuts.js';
+import { FindReplace }       from './plugins/FindReplace.js';
+import { DragReorder }       from './plugins/DragReorder.js';
 
 export const StarterKit = [
   Paragraph, Heading, BulletList, OrderedList, Blockquote, CodeBlock,
-  HorizontalRule, Callout, TaskList, VideoEmbed, Image,
+  HorizontalRule, Callout, TaskList, VideoEmbed, Image, Table,
   Bold, Italic, Underline, Strike, Code, Link, Superscript, Subscript,
   FontSize, FontFamily, TextColor, TextBackground,
   TextAlign, LineHeight, Indent, Outdent,
-  MarkdownShortcuts,
+  MarkdownShortcuts, FindReplace, DragReorder,
 ];

@@ -23,6 +23,7 @@ const config = {
     taskList:       true,   // checklist
     videoEmbed:     true,   // YouTube / Vimeo embed
     image:          true,   // <figure><img>
+    table:          true,   // <table>
   },
 
   // ── Inline Marks ─────────────────────────────────────────
@@ -49,6 +50,8 @@ const config = {
   // ── Plugins ──────────────────────────────────────────────
   plugins: {
     markdownShortcuts: true,  // auto-format: ## → H2, > → blockquote, etc.
+    findReplace:       true,  // Cmd+F floating find & replace panel
+    dragReorder:       true,  // drag handle to reorder blocks
   },
 
   // ── Toolbar ───────────────────────────────────────────────
@@ -57,7 +60,7 @@ const config = {
     items: [
       'bold', 'italic', 'underline', 'strike', 'superscript', 'subscript', '|',
       'heading', 'bulletList', 'orderedList', 'taskList', 'blockquote', 'codeBlock', 'horizontalRule', '|',
-      'callout', 'videoEmbed', 'image', '|',
+      'callout', 'videoEmbed', 'image', 'table', '|',
       'fontFamily', 'fontSize', 'textColor', 'textBackground', '|',
       'textAlign', 'lineHeight', '|',
       'outdent', 'indent', '|',

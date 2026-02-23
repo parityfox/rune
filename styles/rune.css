@@ -944,6 +944,226 @@
 .rune-panel-lh-item.is-active .rune-panel-lh-label { font-weight: 500; }
 .rune-panel-lh-item.is-active .rune-panel-lh-value { color: var(--rune-color-active-fg); }
 
+/* ── Table ─────────────────────────────────────────────────── */
+
+.rune-content table.rune-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  background: none !important;
+  table-layout: fixed;
+}
+
+.rune-table-cell {
+  border: 1px solid var(--rune-color-border);
+  padding: 7px 12px;
+  min-width: 80px;
+  vertical-align: top;
+  font-size: 14px;
+  outline: none;
+  word-break: break-word;
+  transition: background 80ms;
+}
+
+thead .rune-table-cell {
+  background: var(--rune-color-surface);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--rune-color-fg);
+}
+
+.rune-table-cell:focus {
+  box-shadow: inset 0 0 0 2px var(--rune-color-accent);
+  background: var(--rune-color-active-bg);
+}
+
+/* Table context menu */
+.rune-table-menu {
+  position: fixed;
+  z-index: 700;
+  background: var(--rune-color-bg);
+  border: 1px solid var(--rune-color-border);
+  border-radius: var(--rune-radius);
+  box-shadow: var(--rune-shadow-lg);
+  padding: 4px;
+  min-width: 184px;
+  opacity: 0;
+  transform: scale(0.96) translateY(-4px);
+  transform-origin: top left;
+  transition: opacity 120ms ease, transform 120ms ease;
+  pointer-events: none;
+}
+.rune-table-menu.is-open {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  pointer-events: auto;
+}
+.rune-table-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--rune-radius-sm);
+  font-size: 13px;
+  color: var(--rune-color-fg);
+  cursor: pointer;
+  transition: background 80ms;
+}
+.rune-table-menu-item:hover     { background: var(--rune-color-hover); }
+.rune-table-menu-item.is-danger { color: #e03e3e; }
+.rune-table-menu-item.is-danger:hover { background: #fde8e3; }
+.rune-table-menu-divider {
+  height: 1px;
+  background: var(--rune-color-border);
+  margin: 3px 0;
+}
+
+/* ── Find & Replace panel ─────────────────────────────────── */
+
+.rune-fr-panel {
+  position: fixed;
+  top: 54px;
+  right: 20px;
+  z-index: 800;
+  background: var(--rune-color-bg);
+  border: 1px solid var(--rune-color-border);
+  border-radius: var(--rune-radius);
+  box-shadow: var(--rune-shadow-lg);
+  padding: 8px;
+  width: 340px;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 150ms ease, transform 150ms ease;
+  pointer-events: none;
+}
+.rune-fr-panel.is-open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.rune-fr-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.rune-fr-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--rune-color-border);
+  border-radius: var(--rune-radius-sm);
+  font-size: 13px;
+  font-family: var(--rune-font-family);
+  color: var(--rune-color-fg);
+  background: var(--rune-color-bg);
+  outline: none;
+  transition: border-color 100ms;
+}
+.rune-fr-input:focus { border-color: var(--rune-color-accent); }
+.rune-fr-input::placeholder { color: var(--rune-color-muted); }
+
+.rune-fr-count {
+  font-size: 11px;
+  color: var(--rune-color-muted);
+  white-space: nowrap;
+  min-width: 34px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.rune-fr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  border-radius: var(--rune-radius-sm);
+  color: var(--rune-color-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 80ms, color 80ms;
+}
+.rune-fr-btn:hover { background: var(--rune-color-hover); color: var(--rune-color-fg); }
+.rune-fr-btn--text {
+  width: auto;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--rune-color-border);
+  background: var(--rune-color-surface);
+  height: 26px;
+  border-radius: var(--rune-radius-sm);
+}
+.rune-fr-btn--text:hover { background: var(--rune-color-hover); color: var(--rune-color-fg); }
+
+/* Search match highlights */
+mark.rune-search-match {
+  background: #fff176;
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+mark.rune-search-match.is-active {
+  background: #ff9800;
+  color: #fff;
+}
+
+/* ── Drag handle & drop indicator ─────────────────────────── */
+
+.rune-drag-handle {
+  position: fixed;
+  z-index: 300;
+  width: 22px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--rune-radius-sm);
+  color: var(--rune-color-muted);
+  cursor: grab;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease, background 80ms ease, color 80ms ease;
+}
+.rune-drag-handle:hover {
+  background: var(--rune-color-hover);
+  color: var(--rune-color-fg);
+}
+.rune-drag-handle:active { cursor: grabbing; }
+
+.rune-drop-indicator {
+  position: fixed;
+  z-index: 300;
+  height: 2px;
+  background: var(--rune-color-accent);
+  border-radius: 1px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 80ms ease, top 60ms ease;
+}
+.rune-drop-indicator::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rune-color-accent);
+}
+
+.rune-dragging {
+  opacity: 0.35 !important;
+}
+
 /* ── Tooltip ───────────────────────────────────────────────── */
 
 .rune-tooltip {

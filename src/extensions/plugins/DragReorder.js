@@ -1,0 +1,168 @@
+export const DragReorder = {
+  name: 'dragReorder',
+  type: 'plugin',
+
+  init(editor) {
+    let _targetBlock = null;
+    let _dragging    = null;
+    let _dropBlock   = null;
+    let _dropPos     = 'after';
+    let _active      = false; // true once drag threshold crossed
+    let _startY      = 0;
+    let _hideTimer   = null;
+
+    // ── Floating elements ───────────────────────────────────────
+
+    const _handle = document.createElement('div');
+    _handle.className = 'rune-drag-handle';
+    _handle.innerHTML = `<svg viewBox="0 0 10 16" fill="currentColor" width="10" height="16">
+      <circle cx="3" cy="2"  r="1.4"/>
+      <circle cx="7" cy="2"  r="1.4"/>
+      <circle cx="3" cy="8"  r="1.4"/>
+      <circle cx="7" cy="8"  r="1.4"/>
+      <circle cx="3" cy="14" r="1.4"/>
+      <circle cx="7" cy="14" r="1.4"/>
+    </svg>`;
+    document.body.appendChild(_handle);
+
+    const _indicator = document.createElement('div');
+    _indicator.className = 'rune-drop-indicator';
+    document.body.appendChild(_indicator);
+
+    // ── Show handle on block hover ──────────────────────────────
+
+    editor.content.addEventListener('mousemove', (e) => {
+      if (_active) return;
+      const block = _getDirectChild(e.target);
+      if (!block) return;
+      _targetBlock = block;
+      _positionHandle(block);
+    });
+
+    editor.content.addEventListener('mouseleave', () => {
+      if (_active) return;
+      _scheduleHide();
+    });
+
+    _handle.addEventListener('mouseenter', () => {
+      clearTimeout(_hideTimer);
+      _handle.style.opacity       = '1';
+      _handle.style.pointerEvents = 'auto';
+    });
+
+    _handle.addEventListener('mouseleave', () => {
+      if (!_active) _scheduleHide();
+    });
+
+    // ── Drag via mousedown / mousemove / mouseup ────────────────
+
+    _handle.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || !_targetBlock) return;
+      e.preventDefault(); // prevent text selection
+
+      _dragging = _targetBlock;
+      _startY   = e.clientY;
+      _active   = false;
+
+      document.addEventListener('mousemove', _onMove);
+      document.addEventListener('mouseup',   _onUp);
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor     = 'grabbing';
+    });
+
+    function _onMove(e) {
+      if (!_dragging) return;
+
+      // Activate after crossing 4px threshold
+      if (!_active) {
+        if (Math.abs(e.clientY - _startY) < 4) return;
+        _active = true;
+        _dragging.classList.add('rune-dragging');
+        _hideHandle();
+      }
+
+      // Find nearest sibling block by cursor Y
+      const blocks = [...editor.content.children].filter(b => b !== _dragging);
+      if (blocks.length === 0) return;
+
+      let best = null, bestDist = Infinity;
+      for (const block of blocks) {
+        const rect = block.getBoundingClientRect();
+        const mid  = rect.top + rect.height / 2;
+        const dist = Math.abs(e.clientY - mid);
+        if (dist < bestDist) { bestDist = dist; best = block; }
+      }
+      if (!best) return;
+
+      const rect = best.getBoundingClientRect();
+      _dropPos   = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+      _dropBlock = best;
+      _showIndicator(best, _dropPos);
+    }
+
+    function _onUp() {
+      document.removeEventListener('mousemove', _onMove);
+      document.removeEventListener('mouseup',   _onUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor     = '';
+
+      if (_active && _dropBlock && _dropBlock !== _dragging) {
+        editor.history.saveNow();
+        editor.content.insertBefore(
+          _dragging,
+          _dropPos === 'before' ? _dropBlock : _dropBlock.nextSibling
+        );
+        editor._notifyChange();
+      }
+
+      _dragging?.classList.remove('rune-dragging');
+      _dragging  = null;
+      _dropBlock = null;
+      _active    = false;
+      _hideIndicator();
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────
+
+    function _getDirectChild(target) {
+      let node = target;
+      while (node && node !== editor.content) {
+        if (node.parentElement === editor.content) return node;
+        node = node.parentElement;
+      }
+      return null;
+    }
+
+    function _positionHandle(block) {
+      const rect = block.getBoundingClientRect();
+      _handle.style.top           = `${rect.top + rect.height / 2 - 12}px`;
+      _handle.style.left          = `${rect.left - 28}px`;
+      _handle.style.opacity       = '1';
+      _handle.style.pointerEvents = 'auto';
+    }
+
+    function _hideHandle() {
+      _handle.style.opacity       = '0';
+      _handle.style.pointerEvents = 'none';
+    }
+
+    function _scheduleHide() {
+      clearTimeout(_hideTimer);
+      _hideTimer = setTimeout(_hideHandle, 150);
+    }
+
+    function _showIndicator(block, position) {
+      const br = block.getBoundingClientRect();
+      const cr = editor.content.getBoundingClientRect();
+      const y  = position === 'before' ? br.top - 1 : br.bottom + 1;
+      _indicator.style.top     = `${y}px`;
+      _indicator.style.left    = `${cr.left}px`;
+      _indicator.style.width   = `${cr.width}px`;
+      _indicator.style.opacity = '1';
+    }
+
+    function _hideIndicator() {
+      _indicator.style.opacity = '0';
+    }
+  },
+};

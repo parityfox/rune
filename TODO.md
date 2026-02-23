@@ -44,9 +44,9 @@
 
 ## ✍️ Formatting
 
-- [ ] **Text alignment** — Left / Center / Right / Justify per block; toolbar button group or dropdown; stored as `style="text-align:..."`
-- [ ] **Line height** — panel picker (1.0 / 1.25 / 1.5 / 1.75 / 2.0); applied as inline style on the block
-- [ ] **Indent / Outdent** — increase/decrease left padding on any block (not just lists)
+- [x] **Text alignment** — Left / Center / Right / Justify per block; toolbar button group or dropdown; stored as `style="text-align:..."`
+- [x] **Line height** — panel picker (1.0 / 1.25 / 1.5 / 1.75 / 2.0); applied as inline style on the block
+- [x] **Indent / Outdent** — increase/decrease left padding on any block (not just lists)
 
 ---
 

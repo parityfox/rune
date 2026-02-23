@@ -22,6 +22,10 @@ import { Callout }         from './extensions/blocks/Callout.js';
 import { TaskList }        from './extensions/blocks/TaskList.js';
 import { VideoEmbed }      from './extensions/blocks/VideoEmbed.js';
 import { Image }           from './extensions/blocks/Image.js';
+import { TextAlign }   from './extensions/formatting/TextAlign.js';
+import { LineHeight }  from './extensions/formatting/LineHeight.js';
+import { Indent }      from './extensions/formatting/Indent.js';
+import { Outdent }     from './extensions/formatting/Outdent.js';
 import { MarkdownShortcuts } from './extensions/plugins/MarkdownShortcuts.js';
 
 // Map config keys → extension objects
@@ -52,6 +56,10 @@ const MARK_MAP = {
   fontFamily:     FontFamily,
   textColor:      TextColor,
   textBackground: TextBackground,
+  textAlign:      TextAlign,
+  lineHeight:     LineHeight,
+  indent:         Indent,
+  outdent:        Outdent,
 };
 
 /**

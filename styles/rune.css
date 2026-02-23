@@ -28,7 +28,7 @@
   --rune-radius-lg: 10px;
 
   /* Toolbar */
-  --rune-toolbar-height:   40px;
+  --rune-toolbar-height:   auto;
   --rune-toolbar-bg:       rgba(255,255,255,0.95);
   --rune-toolbar-border:   #e9e9e7;
   --rune-toolbar-btn-size: 30px;
@@ -89,16 +89,14 @@
   align-items: center;
   gap: 1px;
   padding: 4px 8px;
-  height: var(--rune-toolbar-height);
+  min-height: 40px;
   background: var(--rune-toolbar-bg);
   border-bottom: 1px solid var(--rune-color-border);
   border-radius: var(--rune-radius-lg) var(--rune-radius-lg) 0 0;
   flex-wrap: wrap;
-  overflow-x: auto;
-  scrollbar-width: none;
+  row-gap: 2px;
   backdrop-filter: blur(8px);
 }
-.rune-toolbar::-webkit-scrollbar { display: none; }
 
 .rune-toolbar-divider {
   width: 1px;
@@ -882,6 +880,69 @@
   color: var(--rune-color-muted);
   margin-top: 6px;
 }
+
+/* ── Text Align panel ─────────────────────────────────────── */
+
+.rune-panel-align { width: 196px; }
+
+.rune-panel-align-row {
+  display: flex;
+  gap: 5px;
+}
+
+.rune-panel-align-btn {
+  flex: 1;
+  height: 36px;
+  border: 1.5px solid var(--rune-color-border);
+  background: transparent;
+  border-radius: var(--rune-radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--rune-color-muted);
+  transition: background 80ms, border-color 80ms, color 80ms;
+}
+.rune-panel-align-btn svg { width: 16px; height: 16px; }
+.rune-panel-align-btn:hover {
+  background: var(--rune-color-hover);
+  color: var(--rune-color-fg);
+}
+.rune-panel-align-btn.is-active {
+  background: var(--rune-color-active-bg);
+  border-color: var(--rune-color-accent);
+  color: var(--rune-color-active-fg);
+}
+
+/* ── Line Height panel ────────────────────────────────────── */
+
+.rune-panel-lineheight { width: 180px; }
+
+.rune-panel-lh-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--rune-radius-sm);
+  cursor: pointer;
+  transition: background 80ms;
+}
+.rune-panel-lh-item:hover { background: var(--rune-color-hover); }
+.rune-panel-lh-item.is-active {
+  background: var(--rune-color-active-bg);
+  color: var(--rune-color-active-fg);
+}
+.rune-panel-lh-label { font-size: 12.5px; }
+.rune-panel-lh-value {
+  font-size: 11px;
+  color: var(--rune-color-muted);
+  font-family: var(--rune-font-mono);
+}
+.rune-panel-lh-item.is-active .rune-panel-lh-label { font-weight: 500; }
+.rune-panel-lh-item.is-active .rune-panel-lh-value { color: var(--rune-color-active-fg); }
 
 /* ── Tooltip ───────────────────────────────────────────────── */
 

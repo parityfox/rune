@@ -39,6 +39,10 @@ const config = {
     fontFamily:     true,   // font family picker
     textColor:      true,   // text color palette
     textBackground: true,   // highlight / background color
+    textAlign:      true,   // text alignment (L/C/R/justify)
+    lineHeight:     true,   // line height picker
+    indent:         true,   // increase block indent
+    outdent:        true,   // decrease block indent
   },
 
   // ── Toolbar ───────────────────────────────────────────────
@@ -55,6 +59,8 @@ const config = {
       'heading', 'bulletList', 'orderedList', 'taskList', 'blockquote', 'codeBlock', 'horizontalRule', '|',
       'callout', 'videoEmbed', 'image', '|',
       'fontFamily', 'fontSize', 'textColor', 'textBackground', '|',
+      'textAlign', 'lineHeight', '|',
+      'outdent', 'indent', '|',
       'link', 'code', '|',
       'clearFormat',
     ],

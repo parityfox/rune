@@ -25,6 +25,12 @@ export { TaskList }         from './blocks/TaskList.js';
 export { VideoEmbed }       from './blocks/VideoEmbed.js';
 export { Image }            from './blocks/Image.js';
 
+// Formatting (block-level)
+export { TextAlign }   from './formatting/TextAlign.js';
+export { LineHeight }  from './formatting/LineHeight.js';
+export { Indent }      from './formatting/Indent.js';
+export { Outdent }     from './formatting/Outdent.js';
+
 // Plugins
 export { MarkdownShortcuts } from './plugins/MarkdownShortcuts.js';
 
@@ -52,6 +58,10 @@ import { Callout }          from './blocks/Callout.js';
 import { TaskList }         from './blocks/TaskList.js';
 import { VideoEmbed }       from './blocks/VideoEmbed.js';
 import { Image }            from './blocks/Image.js';
+import { TextAlign }   from './formatting/TextAlign.js';
+import { LineHeight }  from './formatting/LineHeight.js';
+import { Indent }      from './formatting/Indent.js';
+import { Outdent }     from './formatting/Outdent.js';
 import { MarkdownShortcuts } from './plugins/MarkdownShortcuts.js';
 
 export const StarterKit = [
@@ -59,5 +69,6 @@ export const StarterKit = [
   HorizontalRule, Callout, TaskList, VideoEmbed, Image,
   Bold, Italic, Underline, Strike, Code, Link, Superscript, Subscript,
   FontSize, FontFamily, TextColor, TextBackground,
+  TextAlign, LineHeight, Indent, Outdent,
   MarkdownShortcuts,
 ];

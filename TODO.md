@@ -21,77 +21,142 @@
 - [x] React adapter (`useRune` hook + `RuneEditor` component)
 - [x] Dark mode via CSS custom properties
 - [x] Selection preservation when panels are open
-
----
-
-## 🚀 Quick Wins
-
-- [x] **Horizontal rule** — `<hr>` block; slash command `/divider`
-- [x] **Superscript** — `<sup>` mark, toolbar button, `execCommand('superscript')`
-- [x] **Subscript** — `<sub>` mark, toolbar button, `execCommand('subscript')`
-- [x] **Font family** — panel picker (same pattern as FontSize); curated font list with web-safe + Google Fonts options
+- [x] Horizontal rule, Superscript, Subscript, Font family
+- [x] Callout, Task list, Video embed, Table
+- [x] Text alignment, Line height, Indent / Outdent
+- [x] Markdown shortcuts, Find & Replace, Drag to reorder blocks
+- [x] Web Component (`<rune-editor>`), Markdown export, PDF print
+- [x] Format Painter (copy & paste formatting)
+- [x] Security hardening (javascript: URL blocking, sanitizer improvements)
 
 ---
 
 ## 🧱 New Block Types
 
-- [x] **Callout** — Notion-style colored box with emoji icon; slash `/callout`; emoji picker in panel; click icon to change emoji
-- [x] **Task list / Checklist** — checklist with click-to-toggle checkboxes; Enter adds item, Backspace on empty exits; slash `/todo`
-- [x] **Video embed** — paste YouTube / Vimeo URL → responsive 16:9 iframe; slash `/video`
-- [x] **Table** — insert rows/columns, Tab to navigate cells, add/remove rows & columns from context menu; slash `/table`
+- [ ] **Toggle / Accordion** — collapsible section with a title and hidden body; click to expand/collapse; slash `/toggle`
+- [ ] **Columns** — multi-column layout (2 or 3 cols); drag blocks between columns; slash `/columns`
+- [ ] **Math block** — full-width LaTeX equation via KaTeX (no server needed); slash `/math`
+- [ ] **Code block with language switcher** — upgrade existing CodeBlock with language selector dropdown + syntax highlighting via Prism/highlight.js
+- [ ] **File attachment** — upload a file, render as a download card (icon + name + size); slash `/file`; uses uploadFile hook
+- [ ] **Embed / Bookmark** — paste any URL → fetch Open Graph metadata → render as a rich link card (title, description, image, domain); slash `/embed`
+- [ ] **Quote with attribution** — styled blockquote with author name + source link; slash `/quote`
+- [ ] **Progress bar** — simple visual bar with a percentage value; slash `/progress`
+- [ ] **Divider with label** — `<hr>` variant with centred text label; slash `/divider-label`
+- [ ] **Button** — styled clickable button with configurable text + URL; slash `/button`
+- [ ] **Audio** — upload or embed audio with a minimal player (play/pause/scrub); slash `/audio`
+- [ ] **Gallery** — multi-image grid; click to add images; lightbox on click; slash `/gallery`
 
 ---
 
-## ✍️ Formatting
+## ✍️ Inline Marks
 
-- [x] **Text alignment** — Left / Center / Right / Justify per block; toolbar button group or dropdown; stored as `style="text-align:..."`
-- [x] **Line height** — panel picker (1.0 / 1.25 / 1.5 / 1.75 / 2.0); applied as inline style on the block
-- [x] **Indent / Outdent** — increase/decrease left padding on any block (not just lists)
+- [ ] **Highlight** — marker-pen yellow/green/pink highlight distinct from background colour; toolbar button
+- [ ] **Keyboard shortcut** — `<kbd>` tag for rendering key names (e.g. `⌘K`); slash or toolbar
+- [ ] **Abbreviation** — `<abbr title="…">` with tooltip on hover; useful for technical docs
+- [ ] **Inline math** — LaTeX math wrapped in `$...$`; renders via KaTeX inline
+- [ ] **Footnote** — inline `[1]` marker that links to a footnote section auto-generated at the bottom
 
 ---
 
 ## ⚡ Editor Behaviour
 
-- [x] **Markdown shortcuts** — auto-format on `Space` / `Enter`:
-  - `## ` → H2, `### ` → H3
-  - `**text**` or `__text__` → Bold
-  - `*text*` or `_text_` → Italic
-  - `` `code` `` → inline Code
-  - `> ` → Blockquote
-  - ` ``` ` → CodeBlock
-  - `- ` or `* ` → BulletList
-  - `1. ` → OrderedList
-  - `---` → Horizontal rule
-- [x] **Find & Replace** — floating panel (`Cmd+F`); highlight all matches; step through; replace one / all
-- [x] **Drag to reorder blocks** — drag handle appears on block hover (left gutter); drag-and-drop to reorder
+- [ ] **Word / character count** — live counter in footer bar (words, characters, reading time)
+- [ ] **Auto-save** — debounced save with configurable interval; visual "Saved" / "Saving…" indicator; `onAutoSave` hook
+- [ ] **Focus mode** — dims everything outside the current paragraph; toggle via toolbar or `⌘⇧F`
+- [ ] **Typewriter mode** — keeps active line vertically centred; toggle via toolbar
+- [ ] **Fullscreen mode** — hides browser chrome; `⌘⇧↵` or toolbar button
+- [ ] **Block duplication** — duplicate any block with a button on the drag handle or `⌘D`
+- [ ] **Smart typography** — auto-convert `"quotes"` → `"curly"`, `--` → `—`, `...` → `…`
+- [ ] **Paste as plain text** — `⌘⇧V` strips all formatting on paste
+- [ ] **Table of contents** — auto-generated panel listing all headings with anchor links; `editor.getToc()`
+- [ ] **Snippet / template system** — user-defined text shortcuts that expand on trigger (e.g. `/sig` → signature block)
+- [ ] **Block selection mode** — click margin to select whole block; Shift+click to range-select; bulk delete/move/format
+- [ ] **Drag to select multiple blocks** — drag in left gutter to select a range of blocks
+- [ ] **Image resize** — drag handles on image corners to resize; aspect-ratio locked
+- [ ] **Image alignment** — float left / float right / full-width options on image context menu
+- [ ] **Custom placeholder per block type** — configurable placeholder text for each block type, not just the editor-level one
 
 ---
 
 ## 🔌 Ecosystem
 
-- [x] **Web Component** — `<rune-editor>` custom element for framework-agnostic drop-in use
-- [x] **Export: Markdown** — `editor.getMarkdown()` converts HTML → Markdown
-- [x] **Export: PDF** — `editor.print()` opens browser print dialog with clean print styles
+- [ ] **Vue adapter** — `useRune` composable + `RuneEditor` component (mirrors React adapter)
+- [ ] **Svelte adapter** — `useRune` action + `RuneEditor` component
+- [ ] **Export: DOCX** — `editor.getDocx()` converts HTML → .docx via docx.js (client-side)
+- [ ] **Import: Markdown** — `editor.setMarkdown(md)` parses Markdown → editor HTML
+- [ ] **Import: DOCX** — drag & drop or file picker to import a .docx file
+- [ ] **SSR / server-side rendering** — safe initialisation when `document` is not available (Next.js, Nuxt)
 
 ---
 
-## 💡 Future / Nice-to-have
+## 👥 Collaboration & Social
 
-- [ ] **Mention** — `@username` triggers autocomplete dropdown; configurable data source
-- [ ] **Emoji picker** — `:smile:` shortcode autocomplete or toolbar panel
-- [ ] **Collaborative editing** — OT or CRDT-based multi-user sync (big lift)
-- [ ] **Comments / annotations** — highlight a range, attach a comment thread
-- [ ] **Version history** — snapshot named versions, diff and restore
+- [ ] **Mention** — `@username` triggers an autocomplete dropdown; configurable data source via `fetchMentions` hook
+- [ ] **Hashtag** — `#tag` auto-links; configurable `onHashtag` hook
+- [ ] **Comments / annotations** — highlight a text range, attach a threaded comment; comments panel on the right
+- [ ] **Track changes** — show insertions/deletions with author colour; accept / reject individual changes
+- [ ] **Collaborative editing** — real-time multi-user sync via Yjs CRDT + WebSocket/WebRTC provider
+- [ ] **Presence indicators** — show other users' cursors and selections with name labels
+
+---
+
+## 🕓 History & Versions
+
+- [ ] **Version history** — named snapshots (manual + auto); diff view between any two versions; one-click restore
+- [ ] **Local persistence** — `localStorage` / `IndexedDB` adapter so content survives page refresh automatically
+- [ ] **Change log** — append-only log of who changed what and when (requires auth integration)
+
+---
+
+## 🤖 AI Features
+
+- [ ] **AI completion** — ghost text inline suggestion as user types; `Tab` to accept; configurable AI provider hook
+- [ ] **AI rewrite** — select text → bubble menu → "Improve", "Shorten", "Expand", "Formal", "Casual"
+- [ ] **AI summarise** — summarise the whole document or selection into a callout block
+- [ ] **AI generate** — `/ai` slash command opens a prompt input; generates content inline
+- [ ] **AI translate** — select text → translate to any language via AI provider
+- [ ] **AI grammar fix** — underline grammar issues; click to see suggestions (like Grammarly)
+
+---
+
+## ♿ Accessibility
+
+- [ ] **Full ARIA roles and labels** — audit and fill gaps in toolbar, menus, panels
+- [ ] **Screen reader announcements** — live region updates when formatting changes
+- [ ] **High contrast mode** — `data-theme="high-contrast"` CSS layer
+- [ ] **Keyboard-only operation** — every toolbar action reachable without a mouse; logical tab order
+- [ ] **Focus management** — trap focus inside open panels/modals; restore on close
+
+---
+
+## 📱 Mobile & Touch
+
+- [ ] **Touch-optimised toolbar** — larger tap targets; scrollable on small screens
+- [ ] **Touch drag-to-reorder** — replace mousedown drag with pointer events for touch support
+- [ ] **Selection handles** — native-style selection handles on mobile for text selection
+- [ ] **Virtual keyboard handling** — reposition toolbar above virtual keyboard when it appears
+
+---
+
+## 🎨 Theming & Customisation
+
+- [ ] **Theme presets** — built-in themes: Minimal, Academic, Technical, Newspaper
+- [ ] **Custom theme builder panel** — live CSS variable editor in-browser
+- [ ] **Per-block background** — set a background colour on any block (not just callouts)
+- [ ] **Editor width presets** — Narrow / Normal / Wide / Full — configurable per editor instance
+- [ ] **Custom toolbar position** — top (default), bottom, floating, or hidden
 
 ---
 
 ## 🐛 Known Issues / Tech Debt
 
-- [x] `_updateActive()` in Toolbar creates new spread objects on each call — `_el` refs not preserved; active-state highlighting does not update
-- [x] BubbleMenu panel items (textColor, textBackground) indicator not synced with Toolbar indicator
-- [x] `clearFontSize` / background removal uses `querySelectorAll` on possible text nodes (guarded with `?.` but could be smarter)
-- [x] Image `insertImage` base64 embeds can bloat HTML — should offer upload-to-URL hook
+- [ ] Table: missing keyboard support for adding rows with Enter in last cell on some browsers
+- [ ] Slash menu: no fuzzy search — requires exact prefix match
+- [ ] Image upload: no progress indicator during upload (only a pulse animation)
+- [ ] `getMarkdown()`: nested lists not yet converted (only top-level `<li>`)
+- [ ] `print()`: uses `document.write()` — consider blob URL approach for stricter CSP compatibility
+- [ ] Mobile: bubble menu positioning breaks when virtual keyboard is open
 
 ---
 
-*Last updated: 2026-02-22*
+*Last updated: 2026-02-23*

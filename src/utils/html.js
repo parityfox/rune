@@ -32,9 +32,27 @@ const ALLOWED_ATTRS = new Set(['href', 'target', 'rel', 'src', 'alt', 'class',
 function _stripAttrs(el) {
   const toRemove = [];
   for (const attr of el.attributes) {
-    if (!ALLOWED_ATTRS.has(attr.name)) toRemove.push(attr.name);
+    if (!ALLOWED_ATTRS.has(attr.name)) {
+      toRemove.push(attr.name);
+    }
   }
   toRemove.forEach(a => el.removeAttribute(a));
+
+  // Reject javascript: and data: URIs in href / src
+  for (const attr of ['href', 'src']) {
+    const val = el.getAttribute(attr);
+    if (val && _isDangerousUrl(val)) el.removeAttribute(attr);
+  }
+
+  // Strip javascript: from inline style (e.g. url(javascript:...))
+  const style = el.getAttribute('style');
+  if (style && /javascript\s*:/i.test(style)) el.removeAttribute('style');
+}
+
+function _isDangerousUrl(url) {
+  // Strip whitespace and null bytes that can be used to bypass checks
+  const stripped = url.replace(/[\s\u0000-\u001F]/g, '').toLowerCase();
+  return stripped.startsWith('javascript:') || stripped.startsWith('data:text/html') || stripped.startsWith('vbscript:');
 }
 
 /**

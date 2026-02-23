@@ -86,6 +86,9 @@ export class Editor {
 
       // Links
       setLink(href, text) {
+        // Reject dangerous protocols before touching the DOM
+        const stripped = (href || '').replace(/[\s\u0000-\u001F]/g, '').toLowerCase();
+        if (stripped.startsWith('javascript:') || stripped.startsWith('vbscript:') || stripped.startsWith('data:text/html')) return;
         self.history.saveNow();
         const sel = self.selection.native;
         if (sel && !sel.isCollapsed) {

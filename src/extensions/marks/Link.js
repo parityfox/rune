@@ -1,3 +1,8 @@
+function _isSafeUrl(url) {
+  const stripped = url.replace(/[\s\u0000-\u001F]/g, '').toLowerCase();
+  return !stripped.startsWith('javascript:') && !stripped.startsWith('vbscript:') && !stripped.startsWith('data:text/html');
+}
+
 export const Link = {
   name: 'link',
   type: 'mark',
@@ -19,7 +24,7 @@ export const Link = {
           editor.cmd('unsetLink');
         } else {
           const url = prompt('Enter URL:', 'https://');
-          if (url) editor.cmd('setLink', url);
+          if (url && _isSafeUrl(url)) editor.cmd('setLink', url);
         }
       },
     };

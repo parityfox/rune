@@ -3,7 +3,8 @@ import { uid } from '../../utils/id.js';
 export const TaskList = {
   name: 'taskList',
   type: 'block',
-  tag: 'ul',  // shares tag with BulletList — resolved by data-type attribute
+  tag: 'ul',  // shares tag with BulletList — resolved by match function
+  match: (el) => el.classList.contains('rune-task-list'),
 
   commands(editor) {
     // Toggle checkbox on click

@@ -26,6 +26,20 @@ describe('_isDangerousUrl', () => {
 
   it('allows data:image URIs', () => {
     expect(_isDangerousUrl('data:image/png;base64,abc')).toBe(false);
+    expect(_isDangerousUrl('data:image/jpeg;base64,abc')).toBe(false);
+  });
+
+  it('blocks non-image data: URIs', () => {
+    expect(_isDangerousUrl('data:application/javascript,alert(1)')).toBe(true);
+    expect(_isDangerousUrl('data:text/css,body{}')).toBe(true);
+  });
+
+  it('blocks data:image/svg+xml URIs', () => {
+    expect(_isDangerousUrl('data:image/svg+xml,<svg onload="alert(1)">')).toBe(true);
+  });
+
+  it('blocks URLs with null-byte injection', () => {
+    expect(_isDangerousUrl('java\x00script:alert(1)')).toBe(true);
   });
 });
 
@@ -83,6 +97,53 @@ describe('sanitize', () => {
     const result = sanitize('<div data-rune-block="1" data-id="abc">text</div>');
     expect(result).toContain('data-rune-block');
     expect(result).toContain('data-id');
+  });
+
+  it('strips script tags', () => {
+    const result = sanitize('<p>safe</p><script>alert(1)</script>');
+    expect(result).not.toContain('<script');
+    expect(result).not.toContain('alert');
+    expect(result).toContain('safe');
+  });
+
+  it('strips iframe tags', () => {
+    const result = sanitize('<iframe src="https://evil.com"></iframe><p>ok</p>');
+    expect(result).not.toContain('<iframe');
+    expect(result).toContain('ok');
+  });
+
+  it('strips object and embed tags', () => {
+    const result = sanitize('<object data="evil.swf"></object><embed src="evil.swf"><p>ok</p>');
+    expect(result).not.toContain('<object');
+    expect(result).not.toContain('<embed');
+  });
+
+  it('strips form, base, meta, style, link tags', () => {
+    const result = sanitize('<form action="/steal"><input></form><base href="/">' +
+      '<meta http-equiv="refresh"><style>body{}</style><link rel="stylesheet"><p>ok</p>');
+    expect(result).not.toContain('<form');
+    expect(result).not.toContain('<base');
+    expect(result).not.toContain('<meta');
+    expect(result).not.toContain('<style');
+    expect(result).not.toContain('<link');
+  });
+
+  it('strips svg and math tags', () => {
+    const result = sanitize('<svg onload="alert(1)"><circle/></svg><math><mi>x</mi></math><p>ok</p>');
+    expect(result).not.toContain('<svg');
+    expect(result).not.toContain('<math');
+  });
+
+  it('strips nested dangerous tags', () => {
+    const result = sanitize('<div><script><script>inner</script></script></div>');
+    expect(result).not.toContain('<script');
+    expect(result).not.toContain('inner');
+  });
+
+  it('strips uppercase dangerous tags', () => {
+    const result = sanitize('<SCRIPT>alert(1)</SCRIPT><p>ok</p>');
+    expect(result).not.toContain('alert');
+    expect(result).toContain('ok');
   });
 });
 

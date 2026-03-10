@@ -16,9 +16,20 @@ export function sanitize(html) {
   return div.innerHTML;
 }
 
+const DANGEROUS_TAGS = new Set([
+  'script', 'iframe', 'object', 'embed', 'form',
+  'base', 'meta', 'style', 'link', 'noscript',
+  'svg', 'math',
+]);
+
 function _cleanNode(node) {
   for (const child of [...node.childNodes]) {
     if (child.nodeType === Node.ELEMENT_NODE) {
+      // Remove entire subtree — intentionally drops child content (e.g. script body text)
+      if (DANGEROUS_TAGS.has(child.tagName.toLowerCase())) {
+        child.remove();
+        continue;
+      }
       _stripAttrs(child);
       _cleanNode(child);
     }
@@ -27,7 +38,7 @@ function _cleanNode(node) {
 
 const ALLOWED_ATTRS = new Set(['href', 'target', 'rel', 'src', 'alt', 'class',
   'data-rune-block', 'data-rune-type', 'data-id', 'data-type', 'data-checked',
-  'frameborder', 'allowfullscreen', 'style', 'colspan', 'rowspan']);
+  'style', 'colspan', 'rowspan']);
 
 function _stripAttrs(el) {
   const toRemove = [];
@@ -54,16 +65,20 @@ function _isDangerousStyle(css) {
   return normalized.includes('javascript:') ||
     normalized.includes('expression(') ||
     normalized.includes('-moz-binding') ||
-    normalized.includes('url(') && (
+    // Block url() with data: or remote http(s): — prevents tracking pixels via pasted CSS
+    (normalized.includes('url(') && (
       /url\(["']?data:/i.test(normalized) ||
       /url\(["']?https?:\/\//i.test(normalized)
-    );
+    ));
 }
 
 export function _isDangerousUrl(url) {
   // Strip whitespace and null bytes that can be used to bypass checks
   const stripped = url.replace(/[\s\u0000-\u001F]/g, '').toLowerCase();
-  return stripped.startsWith('javascript:') || stripped.startsWith('data:text/html') || stripped.startsWith('vbscript:');
+  return stripped.startsWith('javascript:') ||
+    stripped.startsWith('vbscript:') ||
+    (stripped.startsWith('data:') && !stripped.startsWith('data:image/')) ||
+    stripped.startsWith('data:image/svg');
 }
 
 /**

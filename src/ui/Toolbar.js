@@ -200,6 +200,10 @@ export class Toolbar {
   destroy() {
     this._closePopup();
     document.removeEventListener('mousedown', this._outsideClick);
+    // Shared singleton tooltip — safe for single-editor pages.
+    // Multi-editor pages: next hover silently recreates via getTooltip().
+    if (_tip) { _tip.remove(); _tip = null; }
+    clearTimeout(_tipTimer);
     this.el.remove();
   }
 }

@@ -16,6 +16,7 @@ export const Callout = {
   name: 'callout',
   type: 'block',
   tag: 'div',
+  match: (el) => el.dataset?.type === 'callout',
 
   commands(editor) {
     // Click icon to change emoji

@@ -188,7 +188,8 @@ export class SlashMenu {
     try {
       const sel = window.getSelection();
       const range = sel.getRangeAt(0).cloneRange();
-      range.setStart(this._triggerRange.startContainer, this._triggerRange.startOffset - 1);
+      const offset = Math.max(0, this._triggerRange.startOffset - 1);
+      range.setStart(this._triggerRange.startContainer, offset);
       range.deleteContents();
       sel.removeAllRanges();
       sel.addRange(range);

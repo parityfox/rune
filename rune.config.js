@@ -40,6 +40,10 @@ const config = {
     fontFamily:     true,   // font family picker
     textColor:      true,   // text color palette
     textBackground: true,   // highlight / background color
+  },
+
+  // ── Formatting ─────────────────────────────────────────
+  formatting: {
     textAlign:      true,   // text alignment (L/C/R/justify)
     lineHeight:     true,   // line height picker
     indent:         true,   // increase block indent

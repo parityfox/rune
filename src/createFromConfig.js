@@ -61,6 +61,9 @@ const MARK_MAP = {
   fontFamily:     FontFamily,
   textColor:      TextColor,
   textBackground: TextBackground,
+};
+
+const FORMATTING_MAP = {
   textAlign:      TextAlign,
   lineHeight:     LineHeight,
   indent:         Indent,
@@ -87,7 +90,7 @@ const MARK_MAP = {
  *   });
  */
 export function createFromConfig(target, config, overrides = {}) {
-  const { blocks = {}, marks = {}, plugins = {}, toolbar = {}, bubbleMenu = {}, slashMenu = {}, editor: editorCfg = {}, history: historyCfg = {} } = config;
+  const { blocks = {}, marks = {}, formatting = {}, plugins = {}, toolbar = {}, bubbleMenu = {}, slashMenu = {}, editor: editorCfg = {}, history: historyCfg = {} } = config;
 
   // ── Resolve enabled extensions ─────────────────────────────
   const extensions = [];
@@ -97,6 +100,9 @@ export function createFromConfig(target, config, overrides = {}) {
   }
   for (const [key, ext] of Object.entries(MARK_MAP)) {
     if (marks[key] !== false) extensions.push(ext);
+  }
+  for (const [key, ext] of Object.entries(FORMATTING_MAP)) {
+    if (formatting[key] !== false) extensions.push(ext);
   }
 
   // Plugins — always on unless explicitly disabled
@@ -109,6 +115,7 @@ export function createFromConfig(target, config, overrides = {}) {
   const enabledNames = new Set([
     ...Object.entries(blocks).filter(([, v]) => v !== false).map(([k]) => k),
     ...Object.entries(marks).filter(([, v]) => v !== false).map(([k]) => k),
+    ...Object.entries(formatting).filter(([, v]) => v !== false).map(([k]) => k),
     ...Object.entries(plugins).filter(([, v]) => v !== false).map(([k]) => k),
     'clearFormat', // always available
   ]);

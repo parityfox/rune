@@ -50,12 +50,14 @@ function _stripAttrs(el) {
 }
 
 function _isDangerousStyle(css) {
-  const lower = css.toLowerCase().replace(/\s/g, '');
-  return /javascript\s*:/i.test(css) ||
-    /expression\s*\(/i.test(css) ||
-    /-moz-binding/i.test(css) ||
-    /url\s*\(\s*["']?\s*data:/i.test(css) ||
-    /url\s*\(\s*["']?\s*https?:\/\//i.test(lower);
+  const normalized = css.toLowerCase().replace(/\s/g, '');
+  return normalized.includes('javascript:') ||
+    normalized.includes('expression(') ||
+    normalized.includes('-moz-binding') ||
+    normalized.includes('url(') && (
+      /url\(["']?data:/i.test(normalized) ||
+      /url\(["']?https?:\/\//i.test(normalized)
+    );
 }
 
 export function _isDangerousUrl(url) {

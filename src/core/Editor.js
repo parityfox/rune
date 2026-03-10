@@ -436,7 +436,7 @@ export class Editor {
 
   /** Open browser print dialog with clean editor styles. */
   print() {
-    const html   = this.getHtml();
+    const html   = sanitize(this.getHtml()).replace(/<script[\s>][\s\S]*?<\/script>/gi, '');
     const styles = [...document.styleSheets]
       .map(ss => {
         try { return [...ss.cssRules].map(r => r.cssText).join('\n'); }
@@ -444,6 +444,7 @@ export class Editor {
       }).join('\n').replace(/<\/style/gi, '<\\/style');
 
     const win = window.open('', '_blank');
+    if (!win) return;
     win.document.write(`<!DOCTYPE html>
 <html>
 <head>

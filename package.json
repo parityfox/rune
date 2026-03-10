@@ -2,6 +2,7 @@
   "name": "rune-editor",
   "version": "1.0.0",
   "description": "A lightweight, extensible rich text editor. Framework-agnostic, headless by design.",
+  "type": "module",
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js",

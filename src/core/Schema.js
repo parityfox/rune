@@ -1,9 +1,9 @@
 /**
- * Schema — registry for block types, mark types, and plugin extensions.
+ * Schema — registry for block types, mark types, formatting, and plugin extensions.
  *
  * Every extension must have:
  *   name      {string}   - unique identifier
- *   type      {string}   - 'block' | 'mark' | 'plugin'
+ *   type      {string}   - 'block' | 'mark' | 'formatting' | 'plugin'
  *
  * Block extensions also have:
  *   tag       {string}   - HTML tag to create  (e.g. 'p', 'h1', 'ul')
@@ -15,11 +15,14 @@
  * Mark extensions also have:
  *   tag       {string}   - inline tag (e.g. 'strong', 'em')
  *   execCommand {string} - legacy execCommand name (if applicable)
+ *
+ * Formatting extensions operate on block-level styles (alignment, line height, indent).
  */
 export class Schema {
   constructor() {
     this._blocks = new Map();
     this._marks = new Map();
+    this._formatting = new Map();
     this._plugins = new Map();
   }
 
@@ -30,6 +33,7 @@ export class Schema {
 
     if (type === 'block') this._blocks.set(name, extension);
     else if (type === 'mark') this._marks.set(name, extension);
+    else if (type === 'formatting') this._formatting.set(name, extension);
     else if (type === 'plugin') this._plugins.set(name, extension);
     else throw new Error(`[Rune] Unknown extension type "${type}".`);
 
@@ -42,18 +46,26 @@ export class Schema {
 
   get blocks() { return [...this._blocks.values()]; }
   get marks() { return [...this._marks.values()]; }
+  get formatting() { return [...this._formatting.values()]; }
   get plugins() { return [...this._plugins.values()]; }
 
-  /** Resolve a DOM node to its block extension (by tag match). */
+  /** Resolve a DOM node to its block extension (by tag + optional match function). */
   resolveBlock(el) {
     if (!el) return null;
     const tag = el.tagName?.toLowerCase();
+    let fallback = null;
     for (const block of this._blocks.values()) {
-      if (Array.isArray(block.tag) ? block.tag.includes(tag) : block.tag === tag) {
-        return block;
+      const tagMatch = Array.isArray(block.tag) ? block.tag.includes(tag) : block.tag === tag;
+      if (!tagMatch) continue;
+      // Prefer extensions with a specific match function
+      if (typeof block.match === 'function') {
+        if (block.match(el)) return block;
+      } else {
+        // First tag-only match as fallback (in case no match() extension claims it)
+        if (!fallback) fallback = block;
       }
     }
-    return null;
+    return fallback;
   }
 
   /** Resolve a DOM node to its mark extension (by tag match). */
@@ -69,7 +81,7 @@ export class Schema {
   /** Collect all keymaps from all registered extensions. */
   getKeymap() {
     const map = {};
-    for (const ext of [...this._blocks.values(), ...this._marks.values(), ...this._plugins.values()]) {
+    for (const ext of [...this._blocks.values(), ...this._marks.values(), ...this._formatting.values(), ...this._plugins.values()]) {
       if (ext.keymap) Object.assign(map, ext.keymap);
     }
     return map;
@@ -83,7 +95,7 @@ export class Schema {
   getToolbarItems() {
     if (!this._toolbarItemsCache) {
       this._toolbarItemsCache = [];
-      for (const ext of [...this._blocks.values(), ...this._marks.values(), ...this._plugins.values()]) {
+      for (const ext of [...this._blocks.values(), ...this._marks.values(), ...this._formatting.values(), ...this._plugins.values()]) {
         if (ext.toolbarItem) this._toolbarItemsCache.push({ ...ext.toolbarItem, extension: ext });
       }
     }

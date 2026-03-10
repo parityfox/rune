@@ -4,12 +4,6 @@ export const Italic = {
   tag: 'em',
   execCommand: 'italic',
 
-  commands(editor) {
-    return {
-      toggleItalic: () => editor.cmd('toggleItalic'),
-    };
-  },
-
   keymap: {
     'Meta+i':    (editor) => editor.chain().toggleItalic().run(),
     'Control+i': (editor) => editor.chain().toggleItalic().run(),

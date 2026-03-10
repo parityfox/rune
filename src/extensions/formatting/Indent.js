@@ -3,7 +3,7 @@ const MAX_INDENT  = 240;
 
 export const Indent = {
   name: 'indent',
-  type: 'mark',
+  type: 'formatting',
 
   commands(editor) {
     return {

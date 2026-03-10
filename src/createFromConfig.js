@@ -154,8 +154,9 @@ export function createFromConfig(target, config, overrides = {}) {
   // History limits
   if (historyCfg.enabled === false) {
     ed.history.maxSize = 0;
-  } else if (historyCfg.maxSteps) {
-    ed.history.maxSize = historyCfg.maxSteps;
+  } else {
+    if (historyCfg.maxSteps) ed.history.maxSize = historyCfg.maxSteps;
+    if (historyCfg.maxBytes) ed.history._maxBytes = historyCfg.maxBytes;
   }
 
   return ed;

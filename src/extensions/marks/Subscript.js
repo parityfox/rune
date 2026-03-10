@@ -4,12 +4,6 @@ export const Subscript = {
   tag: 'sub',
   execCommand: 'subscript',
 
-  commands(editor) {
-    return {
-      toggleSubscript: () => editor.cmd('toggleSubscript'),
-    };
-  },
-
   toolbarItem: {
     name: 'subscript',
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

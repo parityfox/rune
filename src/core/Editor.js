@@ -61,6 +61,15 @@ export class Editor {
   _registerExtensions() {
     for (const ext of this.options.extensions) {
       this.schema.register(ext);
+
+      // Auto-register toggle command for marks that declare execCommand.
+      // Uses ext.toggleCommand if specified, otherwise derives from ext.name.
+      if (ext.type === 'mark' && ext.execCommand) {
+        const cmd = ext.execCommand;
+        const name = ext.toggleCommand || ('toggle' + ext.name.charAt(0).toUpperCase() + ext.name.slice(1));
+        this.commands.register(name, () => this._execFormat(cmd));
+      }
+
       if (ext.commands) this.commands.registerAll(ext.commands(this));
     }
     // Always register built-in commands
@@ -71,14 +80,6 @@ export class Editor {
     const self = this;
 
     this.commands.registerAll({
-      // Inline marks via execCommand
-      toggleBold:          () => self._execFormat('bold'),
-      toggleItalic:        () => self._execFormat('italic'),
-      toggleUnderline:     () => self._execFormat('underline'),
-      toggleStrikethrough: () => self._execFormat('strikeThrough'),
-      toggleSubscript:     () => self._execFormat('subscript'),
-      toggleSuperscript:   () => self._execFormat('superscript'),
-
       // Remove all formatting in selection
       clearFormat: () => {
         self.history.saveNow();

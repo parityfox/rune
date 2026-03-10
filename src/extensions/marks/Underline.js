@@ -4,12 +4,6 @@ export const Underline = {
   tag: 'u',
   execCommand: 'underline',
 
-  commands(editor) {
-    return {
-      toggleUnderline: () => editor.cmd('toggleUnderline'),
-    };
-  },
-
   keymap: {
     'Meta+u':    (editor) => editor.chain().toggleUnderline().run(),
     'Control+u': (editor) => editor.chain().toggleUnderline().run(),

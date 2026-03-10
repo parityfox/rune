@@ -4,15 +4,9 @@ export const Strike = {
   tag: 's',
   execCommand: 'strikeThrough',
 
-  commands(editor) {
-    return {
-      toggleStrike: () => editor.cmd('toggleStrikethrough'),
-    };
-  },
-
   keymap: {
-    'Meta+Shift+s':    (editor) => editor.chain().toggleStrikethrough().run(),
-    'Control+Shift+s': (editor) => editor.chain().toggleStrikethrough().run(),
+    'Meta+Shift+s':    (editor) => editor.chain().toggleStrike().run(),
+    'Control+Shift+s': (editor) => editor.chain().toggleStrike().run(),
   },
 
   toolbarItem: {

@@ -4,12 +4,6 @@ export const Bold = {
   tag: 'strong',
   execCommand: 'bold',
 
-  commands(editor) {
-    return {
-      toggleBold: () => editor.cmd('toggleBold'),
-    };
-  },
-
   keymap: {
     'Meta+b':    (editor) => editor.chain().toggleBold().run(),
     'Control+b': (editor) => editor.chain().toggleBold().run(),

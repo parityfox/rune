@@ -4,12 +4,6 @@ export const Superscript = {
   tag: 'sup',
   execCommand: 'superscript',
 
-  commands(editor) {
-    return {
-      toggleSuperscript: () => editor.cmd('toggleSuperscript'),
-    };
-  },
-
   toolbarItem: {
     name: 'superscript',
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

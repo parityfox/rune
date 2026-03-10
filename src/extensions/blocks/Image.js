@@ -37,6 +37,7 @@ export const Image = {
   name: 'image',
   type: 'block',
   tag: 'figure',
+  match: (el) => el.classList.contains('rune-image-block'),
 
   commands(editor) {
     return {

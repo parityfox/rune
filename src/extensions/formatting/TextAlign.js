@@ -45,7 +45,7 @@ const ALIGNMENTS = [
 
 export const TextAlign = {
   name: 'textAlign',
-  type: 'mark',
+  type: 'formatting',
 
   commands(editor) {
     return {

@@ -18,6 +18,7 @@ export const VideoEmbed = {
   name: 'videoEmbed',
   type: 'block',
   tag: 'figure',
+  match: (el) => el.classList.contains('rune-video-block'),
 
   commands(editor) {
     return {

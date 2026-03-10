@@ -10,7 +10,7 @@ const LINE_HEIGHTS = [
 
 export const LineHeight = {
   name: 'lineHeight',
-  type: 'mark',
+  type: 'formatting',
 
   commands(editor) {
     return {

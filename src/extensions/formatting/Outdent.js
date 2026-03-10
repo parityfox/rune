@@ -2,7 +2,7 @@ const INDENT_STEP = 24; // must match Indent.js
 
 export const Outdent = {
   name: 'outdent',
-  type: 'mark',
+  type: 'formatting',
 
   commands(editor) {
     return {

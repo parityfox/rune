@@ -41,7 +41,12 @@ class RuneEditorElement extends HTMLElement {
     if (this._editor) return; // already mounted (e.g. moved in DOM)
 
     // Build a config copy so we don't mutate the shared default
-    const config = JSON.parse(JSON.stringify(defaultConfig));
+    // Use nested spread to preserve function values (e.g. uploadImage)
+    const config = Object.fromEntries(
+      Object.entries(defaultConfig).map(([k, v]) =>
+        [k, v && typeof v === 'object' ? { ...v } : v]
+      )
+    );
 
     if (this.hasAttribute('placeholder')) {
       config.editor.placeholder = this.getAttribute('placeholder');

@@ -8,7 +8,10 @@ import { htmlToMarkdown } from '../utils/markdown.js';
 import { el, getBlockElement } from '../utils/dom.js';
 import { uid } from '../utils/id.js';
 
-const MOD = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? 'Meta' : 'Control';
+const _isMac = navigator.userAgentData
+  ? navigator.userAgentData.platform === 'macOS'
+  : /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+const MOD = _isMac ? 'Meta' : 'Control';
 
 /**
  * Rune Editor
@@ -93,6 +96,13 @@ export class Editor {
         const sel = self.selection.native;
         if (sel && !sel.isCollapsed) {
           document.execCommand('createLink', false, href);
+          // Add security attrs to links created via execCommand
+          const anchor = sel.anchorNode?.parentElement?.closest('a') ||
+            self.content.querySelector(`a[href="${CSS.escape(href)}"]`);
+          if (anchor) {
+            anchor.setAttribute('target', '_blank');
+            anchor.setAttribute('rel', 'noopener');
+          }
         } else {
           const a = el('a', { href, target: '_blank', rel: 'noopener' }, text || href);
           self._insertNode(a);
@@ -260,7 +270,7 @@ export class Editor {
       this.chain().undo().run();
       return;
     }
-    if (key === `${MOD === 'Meta' ? 'Meta' : 'Control'}+shift+z` ||
+    if (key === `${MOD === 'Meta' ? 'Meta' : 'Control'}+Shift+z` ||
         key === `${MOD === 'Meta' ? 'Meta' : 'Control'}+y`) {
       e.preventDefault();
       this.chain().redo().run();
@@ -272,14 +282,6 @@ export class Editor {
       this._slashQuery = '';
       this.events.emit('slash:open', { editor: this });
     }
-    if (this.options.slashMenu && this._slashActive) {
-      if (e.key === 'Escape') {
-        this.events.emit('slash:close');
-      } else if (e.key === 'Backspace' && this._slashQuery === '') {
-        this.events.emit('slash:close');
-      }
-    }
-
     // Enter in empty block — convert back to paragraph
     if (e.key === 'Enter' && !e.shiftKey) {
       const block = this.selection.getBlock();
@@ -329,7 +331,7 @@ export class Editor {
     if (e.metaKey) parts.push('Meta');
     if (e.ctrlKey) parts.push('Control');
     if (e.altKey) parts.push('Alt');
-    if (e.shiftKey) parts.push('shift');
+    if (e.shiftKey) parts.push('Shift');
     if (e.key && e.key !== 'Meta' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Shift') {
       parts.push(e.key);
     }
@@ -438,7 +440,7 @@ export class Editor {
       .map(ss => {
         try { return [...ss.cssRules].map(r => r.cssText).join('\n'); }
         catch { return ''; }
-      }).join('\n');
+      }).join('\n').replace(/<\/style/gi, '<\\/style');
 
     const win = window.open('', '_blank');
     win.document.write(`<!DOCTYPE html>
@@ -500,6 +502,7 @@ export class Editor {
   /** Destroy the editor and clean up. */
   destroy() {
     this._destroyed = true;
+    this.events.emit('destroy');
     this.content.removeEventListener('input',   this._handlers.input);
     this.content.removeEventListener('keydown', this._handlers.keydown);
     this.content.removeEventListener('paste',   this._handlers.paste);

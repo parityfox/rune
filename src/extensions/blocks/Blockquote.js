@@ -27,8 +27,8 @@ export const Blockquote = {
   },
 
   keymap: {
-    'Meta+shift+b':    (editor) => editor.cmd('toggleBlockquote'),
-    'Control+shift+b': (editor) => editor.cmd('toggleBlockquote'),
+    'Meta+Shift+b':    (editor) => editor.cmd('toggleBlockquote'),
+    'Control+Shift+b': (editor) => editor.cmd('toggleBlockquote'),
   },
 
   toolbarItem: {

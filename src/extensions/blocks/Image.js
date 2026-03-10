@@ -1,5 +1,6 @@
 import { el } from '../../utils/dom.js';
 import { uid } from '../../utils/id.js';
+import { _isDangerousUrl } from '../../utils/html.js';
 
 /**
  * Read a File, insert it as a base64 preview immediately, then swap
@@ -40,7 +41,7 @@ export const Image = {
   commands(editor) {
     return {
       insertImage(src, alt = '', caption = '') {
-        if (!src) return;
+        if (!src || _isDangerousUrl(src)) return;
         editor.history.saveNow();
 
         const figure = document.createElement('figure');

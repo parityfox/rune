@@ -60,7 +60,7 @@ export class History {
   _apply(html) {
     this._ignoreNext = true;
     this.editor.content.innerHTML = html;
-    this.editor.events.emit('change', this.editor);
+    this.editor.events.emit('change', { editor: this.editor, html });
     this.editor._ensureContent();
   }
 

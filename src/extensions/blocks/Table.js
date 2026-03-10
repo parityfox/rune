@@ -44,6 +44,12 @@ export const Table = {
     };
     document.addEventListener('mousedown', _onDocMousedown);
 
+    // Clean up on editor destroy
+    editor.events.on('destroy', () => {
+      document.removeEventListener('mousedown', _onDocMousedown);
+      _closeCtxMenu();
+    });
+
     return {
       insertTable(rows = 3, cols = 3) {
         editor.history.saveNow();

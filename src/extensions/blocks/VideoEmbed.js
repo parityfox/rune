@@ -37,6 +37,7 @@ export const VideoEmbed = {
         iframe.src = embedUrl;
         iframe.setAttribute('frameborder', '0');
         iframe.setAttribute('allowfullscreen', '');
+        iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
         iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
 
         wrap.appendChild(iframe);

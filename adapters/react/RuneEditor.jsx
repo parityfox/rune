@@ -35,6 +35,7 @@ export default function RuneEditor({
     toolbar,
     bubbleMenu,
     slashMenu,
+    readOnly,
   });
 
   return (
@@ -42,7 +43,6 @@ export default function RuneEditor({
       ref={ref}
       className={`rune-editor-container ${className}`}
       style={style}
-      data-readonly={readOnly || undefined}
     />
   );
 }

@@ -164,5 +164,11 @@ export const DragReorder = {
     function _hideIndicator() {
       _indicator.style.opacity = '0';
     }
+
+    // Clean up on editor destroy
+    editor.events.on('destroy', () => {
+      _handle.remove();
+      _indicator.remove();
+    });
   },
 };

@@ -26,8 +26,8 @@ export const OrderedList = {
   },
 
   keymap: {
-    'Meta+shift+7':    (editor) => editor.cmd('toggleOrderedList'),
-    'Control+shift+7': (editor) => editor.cmd('toggleOrderedList'),
+    'Meta+Shift+7':    (editor) => editor.cmd('toggleOrderedList'),
+    'Control+Shift+7': (editor) => editor.cmd('toggleOrderedList'),
   },
 
   toolbarItem: {

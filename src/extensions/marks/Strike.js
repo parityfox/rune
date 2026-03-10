@@ -11,8 +11,8 @@ export const Strike = {
   },
 
   keymap: {
-    'Meta+shift+s':    (editor) => editor.chain().toggleStrikethrough().run(),
-    'Control+shift+s': (editor) => editor.chain().toggleStrikethrough().run(),
+    'Meta+Shift+s':    (editor) => editor.chain().toggleStrikethrough().run(),
+    'Control+Shift+s': (editor) => editor.chain().toggleStrikethrough().run(),
   },
 
   toolbarItem: {

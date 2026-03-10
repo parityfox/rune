@@ -40,6 +40,13 @@ export function useRune(options = {}) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sync readOnly prop
+  const readOnly = options.readOnly;
+  useEffect(() => {
+    if (!editorRef.current) return;
+    readOnly ? editorRef.current.disable() : editorRef.current.enable();
+  }, [readOnly]);
+
   const getHtml = useCallback(() => editorRef.current?.getHtml() ?? '', []);
   const setHtml = useCallback((html) => editorRef.current?.setHtml(html), []);
   const cmd     = useCallback((name, ...args) => editorRef.current?.cmd(name, ...args), []);

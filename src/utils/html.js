@@ -44,12 +44,21 @@ function _stripAttrs(el) {
     if (val && _isDangerousUrl(val)) el.removeAttribute(attr);
   }
 
-  // Strip javascript: from inline style (e.g. url(javascript:...))
+  // Strip dangerous patterns from inline style
   const style = el.getAttribute('style');
-  if (style && /javascript\s*:/i.test(style)) el.removeAttribute('style');
+  if (style && _isDangerousStyle(style)) el.removeAttribute('style');
 }
 
-function _isDangerousUrl(url) {
+function _isDangerousStyle(css) {
+  const lower = css.toLowerCase().replace(/\s/g, '');
+  return /javascript\s*:/i.test(css) ||
+    /expression\s*\(/i.test(css) ||
+    /-moz-binding/i.test(css) ||
+    /url\s*\(\s*["']?\s*data:/i.test(css) ||
+    /url\s*\(\s*["']?\s*https?:\/\//i.test(lower);
+}
+
+export function _isDangerousUrl(url) {
   // Strip whitespace and null bytes that can be used to bypass checks
   const stripped = url.replace(/[\s\u0000-\u001F]/g, '').toLowerCase();
   return stripped.startsWith('javascript:') || stripped.startsWith('data:text/html') || stripped.startsWith('vbscript:');

@@ -29,8 +29,8 @@ export const CodeBlock = {
   },
 
   keymap: {
-    'Meta+shift+c':    (editor) => editor.cmd('toggleCodeBlock'),
-    'Control+shift+c': (editor) => editor.cmd('toggleCodeBlock'),
+    'Meta+Shift+c':    (editor) => editor.cmd('toggleCodeBlock'),
+    'Control+Shift+c': (editor) => editor.cmd('toggleCodeBlock'),
   },
 
   toolbarItem: {

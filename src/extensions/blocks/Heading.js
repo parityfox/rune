@@ -50,13 +50,3 @@ export const Heading = {
 
   slashItem: null, // heading uses individual slash items below
 };
-
-/** Convenience: individual heading slash items */
-export function headingSlashItems() {
-  return [1, 2, 3].map(level => ({
-    icon: `H${level}`,
-    title: `Heading ${level}`,
-    description: `Large section heading`,
-    action: (editor) => editor.cmd('setHeading', level),
-  }));
-}

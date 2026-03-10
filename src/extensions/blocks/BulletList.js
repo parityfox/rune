@@ -27,8 +27,8 @@ export const BulletList = {
   },
 
   keymap: {
-    'Meta+shift+8':    (editor) => editor.cmd('toggleBulletList'),
-    'Control+shift+8': (editor) => editor.cmd('toggleBulletList'),
+    'Meta+Shift+8':    (editor) => editor.cmd('toggleBulletList'),
+    'Control+Shift+8': (editor) => editor.cmd('toggleBulletList'),
   },
 
   toolbarItem: {

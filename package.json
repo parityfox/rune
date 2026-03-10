@@ -4,14 +4,26 @@
   "description": "A lightweight, extensible rich text editor. Framework-agnostic, headless by design.",
   "main": "src/index.js",
   "exports": {
-    ".":               "./src/index.js",
-    "./react":         "./adapters/react/index.js",
+    ".": "./src/index.js",
+    "./react": "./adapters/react/index.js",
     "./web-component": "./adapters/web-component/rune-editor.js",
-    "./styles":        "./styles/rune.css"
+    "./styles": "./styles/rune.css"
   },
-  "keywords": ["rich-text-editor", "rte", "wysiwyg", "contenteditable", "rune"],
+  "keywords": [
+    "rich-text-editor",
+    "rte",
+    "wysiwyg",
+    "contenteditable",
+    "rune"
+  ],
   "license": "MIT",
   "scripts": {
-    "example": "npx serve examples -p 4000"
+    "example": "npx serve examples -p 4000",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.8.3",
+    "vitest": "^4.0.18"
   }
 }

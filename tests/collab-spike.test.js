@@ -11,6 +11,7 @@ import { bindParagraphSpike } from '../collab/paragraph-binding.js';
 // Proves (a) convergence under concurrent edits and (b) caret preservation.
 
 const childPs = (ed) => [...ed.content.children].filter((e) => e.tagName === 'P');
+const clean = (h) => h.replace(/ data-id="[^"]*"/g, '');  // ids are random; compare structure
 
 function makeEditor(content) {
   const target = document.createElement('div');
@@ -58,7 +59,7 @@ describe('collab spike: two-editor convergence + caret', () => {
   });
 
   it('initial state syncs A -> B', () => {
-    expect(edB.getHtml()).toBe('<p>hello</p>');
+    expect(clean(edB.getHtml())).toBe('<p>hello</p>');
   });
 
   it('converges under concurrent edits in the same paragraph', () => {
@@ -68,7 +69,7 @@ describe('collab spike: two-editor convergence + caret', () => {
     hub.resume();                         // exchange state -> CRDT merges both
 
     expect(edA.getHtml()).toBe(edB.getHtml());
-    expect(edA.getHtml()).toBe('<p>XhelloY</p>');
+    expect(clean(edA.getHtml())).toBe('<p>XhelloY</p>');
   });
 
   it('converges with concurrent edits in different paragraphs', () => {
@@ -84,32 +85,32 @@ describe('collab spike: two-editor convergence + caret', () => {
     hub.resume();
 
     expect(edA.getHtml()).toBe(edB.getHtml());
-    expect(edA.getHtml()).toBe('<p>ONE</p><p>TWO</p>');
+    expect(clean(edA.getHtml())).toBe('<p>ONE</p><p>TWO</p>');
   });
 
   it('syncs bold/italic marks', () => {
     editPara(edA, 0, 'a<strong>b</strong><em>c</em>');
-    expect(edB.getHtml()).toBe('<p>a<strong>b</strong><em>c</em></p>');
+    expect(clean(edB.getHtml())).toBe('<p>a<strong>b</strong><em>c</em></p>');
   });
 
   it('syncs underline / strike / code marks', () => {
     editPara(edA, 0, '<u>u</u><s>s</s><code>c</code>');
-    expect(edB.getHtml()).toBe('<p><u>u</u><s>s</s><code>c</code></p>');
+    expect(clean(edB.getHtml())).toBe('<p><u>u</u><s>s</s><code>c</code></p>');
   });
 
   it('syncs headings and blockquote (block types)', () => {
     setContent(edA, '<h2>Title</h2><p>body</p><blockquote>quote</blockquote>');
-    expect(edB.getHtml()).toBe('<h2>Title</h2><p>body</p><blockquote>quote</blockquote>');
+    expect(clean(edB.getHtml())).toBe('<h2>Title</h2><p>body</p><blockquote>quote</blockquote>');
   });
 
   it('syncs bullet and ordered lists (consecutive items grouped)', () => {
     setContent(edA, '<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>');
-    expect(edB.getHtml()).toBe('<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>');
+    expect(clean(edB.getHtml())).toBe('<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>');
   });
 
   it('converges on concurrent edits inside two list items', () => {
     setContent(edA, '<ul><li>one</li><li>two</li></ul>');
-    expect(edB.getHtml()).toBe('<ul><li>one</li><li>two</li></ul>');
+    expect(clean(edB.getHtml())).toBe('<ul><li>one</li><li>two</li></ul>');
     hub.pause();
     // A edits item 1, B edits item 2 (concurrent)
     const liA = edA.content.querySelectorAll('li')[0]; liA.textContent = 'ONE';
@@ -118,7 +119,7 @@ describe('collab spike: two-editor convergence + caret', () => {
     edB.content.dispatchEvent(new Event('input', { bubbles: true }));
     hub.resume();
     expect(edA.getHtml()).toBe(edB.getHtml());
-    expect(edA.getHtml()).toBe('<ul><li>ONE</li><li>TWO</li></ul>');
+    expect(clean(edA.getHtml())).toBe('<ul><li>ONE</li><li>TWO</li></ul>');
   });
 
   it('changing a paragraph to a heading syncs as an attribute change', () => {
@@ -126,7 +127,37 @@ describe('collab spike: two-editor convergence + caret', () => {
     // promote to h1 (type change, text unchanged)
     edA.content.innerHTML = '<h1>Heading text</h1>';
     edA.content.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(edB.getHtml()).toBe('<h1>Heading text</h1>');
+    expect(clean(edB.getHtml())).toBe('<h1>Heading text</h1>');
+  });
+
+  it('id-keying: concurrent middle-insert + edit-elsewhere lands on the right block', () => {
+    setContent(edA, '<p>one</p><p>two</p>');
+    expect(clean(edB.getHtml())).toBe('<p>one</p><p>two</p>');   // both now carry matching data-ids
+
+    hub.pause();
+    // A inserts a new paragraph BETWEEN the two existing ones (existing ids kept)
+    edA.content.querySelectorAll('p')[0].insertAdjacentHTML('afterend', '<p>mid</p>');
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    // B concurrently edits the SECOND paragraph's text (keeps its data-id)
+    edB.content.querySelectorAll('p')[1].textContent = 'two!';
+    edB.content.dispatchEvent(new Event('input', { bubbles: true }));
+    hub.resume();
+
+    expect(edA.getHtml()).toBe(edB.getHtml());
+    // B's edit followed the block by id — not clobbered by A's structural insert
+    expect(clean(edA.getHtml())).toBe('<p>one</p><p>mid</p><p>two!</p>');
+  });
+
+  it('id-keying: concurrent block delete + edit-elsewhere converges', () => {
+    setContent(edA, '<p>a</p><p>b</p><p>c</p>');
+    hub.pause();
+    edA.content.querySelectorAll('p')[1].remove();             // A deletes the middle block
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    edB.content.querySelectorAll('p')[2].textContent = 'C!';   // B edits the last block
+    edB.content.dispatchEvent(new Event('input', { bubbles: true }));
+    hub.resume();
+    expect(edA.getHtml()).toBe(edB.getHtml());
+    expect(clean(edA.getHtml())).toBe('<p>a</p><p>C!</p>');
   });
 
   it('syncs safe links and drops dangerous hrefs', () => {
@@ -152,7 +183,7 @@ describe('collab spike: two-editor convergence + caret', () => {
     editPara(edB, 0, 'Xhello');
 
     // A converged and the caret tracked the same character (now index 4)
-    expect(edA.getHtml()).toBe('<p>Xhello</p>');
+    expect(clean(edA.getHtml())).toBe('<p>Xhello</p>');
     const got = window.getSelection().getRangeAt(0);
     expect(got.startContainer.textContent).toBe('Xhello');
     expect(got.startOffset).toBe(4);      // "Xhel|lo" — still right after the original "hel"

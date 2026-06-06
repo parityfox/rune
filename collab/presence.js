@@ -32,8 +32,6 @@ export function bindPresence(editor, doc, { name = 'Anon', color = '#888', onCha
   layer.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5;';
   wrapper.appendChild(layer);
 
-  const textOfBlock = (i) => blocks.get(i)?.get('text');
-
   let typing = false, typingTimer = null, selThrottle = null;
 
   function writeSelf() {
@@ -44,8 +42,9 @@ export function bindPresence(editor, doc, { name = 'Anon', color = '#888', onCha
       const b = content.contains(r.startContainer) ? blockHostAt(content, r.startContainer) : null;
       if (b && b.index < blocks.length) {
         const idx = textIndexInHost(b.host, r.startContainer, r.startOffset);
-        const yt = textOfBlock(b.index);
-        if (idx >= 0 && yt) { entry.block = b.index; entry.rel = Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(yt, idx)); }
+        const block = blocks.get(b.index);
+        const yt = block?.get('text');
+        if (idx >= 0 && yt) { entry.block = block.get('id'); entry.rel = Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(yt, idx)); }
       }
     }
     presence.set(meId, entry);
@@ -63,7 +62,7 @@ export function bindPresence(editor, doc, { name = 'Anon', color = '#888', onCha
       if (isSelf || stale || entry.rel == null) return;
 
       const abs = Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(entry.rel), doc);
-      const host = hosts[entry.block ?? 0]?.host;
+      const host = hosts.find((h) => h.host.getAttribute('data-id') === entry.block)?.host;
       if (!abs || !host) return;
       const pt = domPointInHost(host, abs.index);
       let rect;

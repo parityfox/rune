@@ -1,5 +1,6 @@
 import * as Y from 'yjs';
 import { _isDangerousUrl } from '../src/utils/html.js';
+import { uid } from '../src/utils/id.js';
 
 /**
  * Collab spike binding (#11) — paragraphs, headings, blockquote, lists + marks.
@@ -9,9 +10,11 @@ import { _isDangerousUrl } from '../src/utils/html.js';
  *   attributes on `text` (bold/italic/underline/strike/code/link). Consecutive
  *   `li` blocks with the same `listType` render as one <ul>/<ol>.
  *
- * NOT production: blocks are keyed by index (no data-id), and remote changes
+ * Blocks are keyed by a stable `data-id` (assigned on first sight), so concurrent
+ * block insert/delete/reorder reconciles by id — a peer's edit follows its block
+ * even as others restructure around it. Remaining spike gap: remote changes still
  * rebuild the block-level DOM wholesale (caret restored via RelativePosition)
- * rather than minimal-patching. Those are full-#11 concerns.
+ * rather than minimal-patching — a full-#11 concern.
  */
 
 const LOCAL = 'local';
@@ -185,28 +188,65 @@ export function bindParagraphSpike(editor, doc) {
   const getSel = () => cdoc.defaultView?.getSelection?.() || cdoc.getSelection?.();
   let applyingRemote = false;
 
-  const newBlock = (type = 'p', listType = null) => {
+  const newBlock = (d) => {
     const m = new Y.Map();
-    m.set('type', type);
-    if (listType) m.set('listType', listType);
+    m.set('id', d.id);
+    m.set('type', d.type || 'p');
+    if (d.listType) m.set('listType', d.listType);
     m.set('text', new Y.Text());
     return m;
   };
 
-  // ---- DOM -> Y --------------------------------------------------------------
+  // Reorder needs delete+reinsert (Yjs Array has no move); clone the block.
+  // Rare, and it loses that block's concurrent-merge history — documented.
+  const cloneBlock = (m) => {
+    const n = new Y.Map();
+    n.set('id', m.get('id'));
+    n.set('type', m.get('type'));
+    if (m.get('listType')) n.set('listType', m.get('listType'));
+    const t = new Y.Text();
+    let pos = 0;
+    for (const op of m.get('text').toDelta()) { t.insert(pos, op.insert, op.attributes || {}); pos += op.insert.length; }
+    n.set('text', t);
+    return n;
+  };
+
+  // Read DOM blocks, assigning a fresh data-id to any block that lacks one or
+  // duplicates another (e.g. a contenteditable split that cloned an id).
+  function readDescs() {
+    const seen = new Set();
+    return flattenHosts(content).map((h) => {
+      let id = h.host.getAttribute('data-id');
+      if (!id || seen.has(id)) { id = uid(); h.host.setAttribute('data-id', id); }
+      seen.add(id);
+      return { id, type: h.type, listType: h.listType, delta: serializeInline(h.host) };
+    });
+  }
+
+  // ---- DOM -> Y (id-keyed structural reconcile) -----------------------------
   function reconcileFromDom() {
-    const descs = flattenHosts(content).map((h) => ({ type: h.type, listType: h.listType, delta: serializeInline(h.host) }));
-    if (!descs.length) descs.push({ type: 'p', listType: null, delta: [] });
+    let descs = readDescs();
+    if (!descs.length) descs = [{ id: uid(), type: 'p', listType: null, delta: [] }];
     doc.transact(() => {
-      while (blocks.length < descs.length) blocks.push([newBlock()]);
-      while (blocks.length > descs.length) blocks.delete(blocks.length - 1, 1);
-      descs.forEach((d, i) => {
-        const m = blocks.get(i);
+      const targetIds = new Set(descs.map((d) => d.id));
+      // 1. delete blocks no longer present (back to front)
+      for (let i = blocks.length - 1; i >= 0; i--) if (!targetIds.has(blocks.get(i).get('id'))) blocks.delete(i, 1);
+      // 2. align order by id; insert new blocks, move (clone) reordered ones
+      for (let i = 0; i < descs.length; i++) {
+        const cur = blocks.get(i);
+        if (!cur || cur.get('id') !== descs[i].id) {
+          let j = -1;
+          for (let k = i + 1; k < blocks.length; k++) if (blocks.get(k).get('id') === descs[i].id) { j = k; break; }
+          if (j > i) { const copy = cloneBlock(blocks.get(j)); blocks.delete(j, 1); blocks.insert(i, [copy]); }
+          else blocks.insert(i, [newBlock(descs[i])]);
+        }
+        // 3. reconcile fields on the (now id-matched) block
+        const m = blocks.get(i), d = descs[i];
         if (m.get('type') !== d.type) m.set('type', d.type);
         const lt = d.listType || null;
         if ((m.get('listType') || null) !== lt) { if (lt) m.set('listType', lt); else if (m.has('listType')) m.delete('listType'); }
         reconcileText(m.get('text'), d.delta);
-      });
+      }
     }, LOCAL);
   }
   const onInput = () => { if (!applyingRemote) reconcileFromDom(); };
@@ -223,7 +263,7 @@ export function bindParagraphSpike(editor, doc) {
     if (!b || b.index >= blocks.length) { caret = null; return; }
     const idx = textIndexInHost(b.host, r.startContainer, r.startOffset);
     caret = idx < 0 ? null
-      : { blockIndex: b.index, rel: Y.createRelativePositionFromTypeIndex(blocks.get(b.index).get('text'), idx) };
+      : { blockId: blocks.get(b.index).get('id'), rel: Y.createRelativePositionFromTypeIndex(blocks.get(b.index).get('text'), idx) };
   }
   const onBeforeTxn = (txn) => { if (txn.origin !== LOCAL) captureCaret(); };
   doc.on('beforeTransaction', onBeforeTxn);
@@ -242,7 +282,7 @@ export function bindParagraphSpike(editor, doc) {
   function renderFromModel() {
     const cap = caret;
     content.textContent = '';
-    const hosts = [];
+    const hostsById = Object.create(null);
     const n = blocks.length;
     let i = 0;
     while (i < n) {
@@ -255,24 +295,26 @@ export function bindParagraphSpike(editor, doc) {
           const mm = blocks.get(i);
           if ((mm.get('type') || 'p') !== 'li' || (mm.get('listType') || 'bullet') !== listType) break;
           const li = cdoc.createElement('li');
+          li.setAttribute('data-id', mm.get('id'));
           renderInline(li, mm.get('text').toDelta());
           list.appendChild(li);
-          hosts[i] = li; i++;
+          hostsById[mm.get('id')] = li; i++;
         }
         content.appendChild(list);
       } else {
         const tag = /^h[1-6]$/.test(type) ? type : (type === 'blockquote' ? 'blockquote' : 'p');
         const el = cdoc.createElement(tag);
+        el.setAttribute('data-id', m.get('id'));
         renderInline(el, m.get('text').toDelta());
         content.appendChild(el);
-        hosts[i] = el; i++;
+        hostsById[m.get('id')] = el; i++;
       }
     }
     if (!n) { const p = cdoc.createElement('p'); p.appendChild(cdoc.createElement('br')); content.appendChild(p); }
     const sel = getSel();
     if (cap && cap.rel && sel) {
       const abs = Y.createAbsolutePositionFromRelativePosition(cap.rel, doc);
-      const host = hosts[cap.blockIndex];
+      const host = hostsById[cap.blockId];      // restore caret by stable id, not index
       if (abs && host) setCaretInHost(host, abs.index, sel);
     }
   }

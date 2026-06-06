@@ -37,7 +37,7 @@
   },
   "scripts": {
     "example": "npx serve . -p 4000",
-    "build:demo": "esbuild node_modules/yjs/dist/yjs.mjs --bundle --format=esm --outfile=examples/vendor/yjs.mjs",
+    "build:demo": "esbuild examples/vendor-entry.js --bundle --format=esm --outfile=examples/vendor/collab-deps.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -45,6 +45,7 @@
     "esbuild": "^0.28.0",
     "happy-dom": "^20.8.3",
     "vitest": "^4.0.18",
+    "y-protocols": "^1.0.7",
     "yjs": "^13.6.31"
   }
 }

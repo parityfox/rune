@@ -69,7 +69,12 @@
   </div>
 
   <script type="importmap">
-  { "imports": { "yjs": "/examples/vendor/yjs.mjs" } }
+  {
+    "imports": {
+      "yjs": "/examples/vendor/collab-deps.mjs",
+      "y-protocols/awareness": "/examples/vendor/collab-deps.mjs"
+    }
+  }
   </script>
 
   <script type="module">
@@ -86,6 +91,7 @@
     import { Code }        from '../src/extensions/marks/Code.js';
     import { Link }        from '../src/extensions/marks/Link.js';
     import * as Y from 'yjs';
+    import { Awareness }          from 'y-protocols/awareness';
     import { MemoryHub }          from '../collab/memory-hub.js';
     import { bindParagraphSpike } from '../collab/paragraph-binding.js';
     import { bindPresence }       from '../collab/presence.js';
@@ -93,8 +99,10 @@
     const hub  = new MemoryHub();
     const docA = new Y.Doc();
     const docB = new Y.Doc();
-    hub.connect(docA);
-    hub.connect(docB);
+    const awA  = new Awareness(docA);
+    const awB  = new Awareness(docB);
+    hub.connect(docA, awA);
+    hub.connect(docB, awB);
 
     const EXTENSIONS = [Paragraph, Heading, BulletList, OrderedList, Blockquote, Bold, Italic, Underline, Strike, Code, Link];
     const TOOLBAR = ['heading', 'bulletList', 'orderedList', 'blockquote', '|', 'bold', 'italic', 'underline', 'strike', 'code', '|', 'link'];
@@ -128,8 +136,8 @@
         rosterEl.appendChild(el);
       }
     };
-    bindPresence(edA, docA, { ...USERS.a, onChange: renderRoster });
-    bindPresence(edB, docB, { ...USERS.b });
+    bindPresence(edA, docA, awA, { ...USERS.a, onChange: renderRoster });
+    bindPresence(edB, docB, awB, { ...USERS.b });
 
     // ── Connection toggle ──────────────────────────────────────
     let connected = true;

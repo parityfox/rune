@@ -103,6 +103,18 @@ describe('collab spike: two-editor convergence + caret', () => {
     expect(clean(edB.getHtml())).toBe('<h2>Title</h2><p>body</p><blockquote>quote</blockquote>');
   });
 
+  it('syncs code blocks as plain text (no inline marks)', () => {
+    setContent(edA, '<pre><code>const x = 1;</code></pre>');
+    expect(clean(edB.getHtml())).toBe('<pre><code>const x = 1;</code></pre>');
+  });
+
+  it('code block preserves symbols verbatim (no mark interpretation)', () => {
+    setContent(edA, '<pre><code>if (a &lt; b) return *x*;</code></pre>');
+    // the inner <code>/symbols are content, not marks
+    expect(edB.getHtml()).toContain('if (a &lt; b) return *x*;');
+    expect(clean(edB.getHtml())).toBe('<pre><code>if (a &lt; b) return *x*;</code></pre>');
+  });
+
   it('syncs bullet and ordered lists (consecutive items grouped)', () => {
     setContent(edA, '<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>');
     expect(clean(edB.getHtml())).toBe('<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>');

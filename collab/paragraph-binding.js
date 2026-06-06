@@ -1,34 +1,23 @@
 import * as Y from 'yjs';
-import { _isDangerousUrl } from '../src/utils/html.js';
 import { uid } from '../src/utils/id.js';
+import { MARKS, markForTag, sameAttrs, blockTypeForEl, isPlain } from './schema.js';
 
 /**
- * Collab spike binding (#11) — paragraphs, headings, blockquote, lists + marks.
+ * Collab spike binding (#11) — driven by the central schema (collab/schema.js).
  *
  * Model: `doc.getArray('blocks')` of `Y.Map { type, listType?, text: Y.Text }`.
- *   type ∈ p | h1..h6 | blockquote | li.  Marks are Yjs text-formatting
- *   attributes on `text` (bold/italic/underline/strike/code/link). Consecutive
- *   `li` blocks with the same `listType` render as one <ul>/<ol>.
+ *   type ∈ p | h1..h6 | blockquote | li | pre.  Inline marks are Yjs text-
+ *   formatting attributes on `text` (see schema MARKS). `pre` (code block) is
+ *   plain text — no marks. Consecutive `li` blocks with the same `listType`
+ *   render as one <ul>/<ol>.
  *
- * Blocks are keyed by a stable `data-id` (assigned on first sight), so concurrent
- * block insert/delete/reorder reconciles by id — a peer's edit follows its block
- * even as others restructure around it. Remote changes are applied by MINIMAL
- * PATCHING: existing block elements are reused, inline is re-rendered only when it
- * actually changed, and blocks are reordered via moves — so unchanged blocks (and
- * any live selection/IME inside them) are never touched. Inline patching within a
- * changed block is still whole-block re-render (caret restored via RelativePosition).
+ * Blocks are keyed by a stable `data-id`, so concurrent insert/delete/reorder
+ * reconciles by id. Remote changes apply by MINIMAL PATCHING: existing block
+ * elements are reused, inline re-rendered only when it changed, reorder via
+ * moves — unchanged blocks (and their live selection/IME) are never touched.
  */
 
 const LOCAL = 'local';
-const MARK_KEYS = ['link', 'bold', 'italic', 'underline', 'strike', 'code'];
-
-function sameAttrs(a = {}, b = {}) {
-  for (const k of MARK_KEYS) {
-    if (k === 'link') { if ((a.link || null) !== (b.link || null)) return false; }
-    else if (!!a[k] !== !!b[k]) return false;
-  }
-  return true;
-}
 
 const textOf = (delta) => delta.map((o) => o.insert).join('');
 const charAttrs = (delta) => {
@@ -37,7 +26,7 @@ const charAttrs = (delta) => {
   return out;
 };
 
-/** Element's inline content -> normalized delta [{ insert, attributes }]. */
+/** Element's inline content -> normalized delta, using the schema's marks. */
 function serializeInline(el) {
   const ops = [];
   (function walk(node, attrs) {
@@ -45,14 +34,12 @@ function serializeInline(el) {
       if (c.nodeType === 3) {
         if (c.data.length) ops.push({ insert: c.data, attributes: { ...attrs } });
       } else if (c.nodeType === 1) {
-        const t = c.tagName.toLowerCase();
+        const mark = markForTag(c.tagName.toLowerCase());
         const next = { ...attrs };
-        if (t === 'strong' || t === 'b') next.bold = true;
-        else if (t === 'em' || t === 'i') next.italic = true;
-        else if (t === 'u') next.underline = true;
-        else if (t === 's' || t === 'strike' || t === 'del') next.strike = true;
-        else if (t === 'code') next.code = true;
-        else if (t === 'a') { const h = c.getAttribute('href'); if (h && !_isDangerousUrl(h)) next.link = h; }
+        if (mark) {
+          if (mark.value) { const v = mark.read(c); if (v != null) next[mark.key] = v; }
+          else next[mark.key] = true;
+        }
         walk(c, next);
       }
     }
@@ -66,7 +53,7 @@ function serializeInline(el) {
   return merged;
 }
 
-/** delta -> element inline DOM. Deterministic nesting per MARK_KEYS (link outermost). */
+/** delta -> element inline DOM, nesting marks by schema precedence (outer first). */
 function renderInline(el, delta) {
   const doc = el.ownerDocument;
   el.textContent = '';
@@ -74,20 +61,34 @@ function renderInline(el, delta) {
   for (const op of delta) {
     let node = doc.createTextNode(op.insert);
     const a = op.attributes || {};
-    if (a.code) { const e = doc.createElement('code'); e.appendChild(node); node = e; }
-    if (a.strike) { const e = doc.createElement('s'); e.appendChild(node); node = e; }
-    if (a.underline) { const e = doc.createElement('u'); e.appendChild(node); node = e; }
-    if (a.italic) { const e = doc.createElement('em'); e.appendChild(node); node = e; }
-    if (a.bold) { const e = doc.createElement('strong'); e.appendChild(node); node = e; }
-    if (a.link && !_isDangerousUrl(a.link)) {
-      const e = doc.createElement('a');
-      e.setAttribute('href', a.link);
-      e.setAttribute('target', '_blank');
-      e.setAttribute('rel', 'noopener noreferrer');
-      e.appendChild(node); node = e;
+    for (let i = MARKS.length - 1; i >= 0; i--) {       // inner -> outer
+      const m = MARKS[i];
+      const v = a[m.key];
+      if (!v) continue;
+      const wrap = m.value ? m.create(doc, v) : m.create(doc);
+      if (!wrap) continue;                               // e.g. dangerous link -> keep text, drop mark
+      wrap.appendChild(node); node = wrap;
     }
     el.appendChild(node);
   }
+}
+
+/** Serialize a block host given its type — plain text for `pre`, else inline marks. */
+function serializeHost(host, type) {
+  if (isPlain(type)) return host.textContent ? [{ insert: host.textContent }] : [];
+  return serializeInline(host);
+}
+
+/** Render a block host given its type — code blocks wrap text in <code>. */
+function renderHost(el, type, delta) {
+  if (isPlain(type)) {
+    el.textContent = '';
+    const code = el.ownerDocument.createElement('code');
+    code.textContent = textOf(delta);
+    el.appendChild(code);
+    return;
+  }
+  renderInline(el, delta);
 }
 
 /** Reconcile an element's serialized delta into its Y.Text (minimal ops). */
@@ -114,11 +115,11 @@ function reconcileText(ytext, newDelta) {
     while (j < tgt.length && sameAttrs(tgt[j], tgt[i])) j++;
     let needs = false;
     for (let k = i; k < j; k++) if (!sameAttrs(cur[k], tgt[k])) { needs = true; break; }
-    if (needs) ytext.format(i, j - i, {
-      bold: tgt[i].bold ? true : null, italic: tgt[i].italic ? true : null,
-      underline: tgt[i].underline ? true : null, strike: tgt[i].strike ? true : null,
-      code: tgt[i].code ? true : null, link: tgt[i].link || null,
-    });
+    if (needs) {
+      const attrs = {};
+      for (const m of MARKS) attrs[m.key] = m.value ? (tgt[i][m.key] || null) : (tgt[i][m.key] ? true : null);
+      ytext.format(i, j - i, attrs);
+    }
     i = j;
   }
 }
@@ -133,8 +134,9 @@ export function flattenHosts(content) {
     if (t === 'ul' || t === 'ol') {
       const listType = t === 'ul' ? 'bullet' : 'ordered';
       for (const li of el.children) if (li.tagName === 'LI') out.push({ host: li, type: 'li', listType });
-    } else if (t === 'p' || /^h[1-6]$/.test(t) || t === 'blockquote') {
-      out.push({ host: el, type: t === 'p' ? 'p' : t, listType: null });
+    } else {
+      const type = blockTypeForEl(el);
+      if (type) out.push({ host: el, type, listType: null });
     }
     // other block types are ignored by this spike
   }
@@ -221,7 +223,7 @@ export function bindParagraphSpike(editor, doc) {
       let id = h.host.getAttribute('data-id');
       if (!id || seen.has(id)) { id = uid(); h.host.setAttribute('data-id', id); }
       seen.add(id);
-      return { id, type: h.type, listType: h.listType, delta: serializeInline(h.host) };
+      return { id, type: h.type, listType: h.listType, delta: serializeHost(h.host, h.type) };
     });
   }
 
@@ -267,7 +269,7 @@ export function bindParagraphSpike(editor, doc) {
     const b = content.contains(r.startContainer) ? blockHostAt(content, r.startContainer) : null;
     if (!b || b.index >= blocks.length) { reconcileFromDom(); return; }
     const m = blocks.get(b.index);
-    doc.transact(() => { reconcileText(m.get('text'), serializeInline(b.host)); }, LOCAL);
+    doc.transact(() => { reconcileText(m.get('text'), serializeHost(b.host, b.type)); }, LOCAL);
   }
 
   const onInput = () => { if (!applyingRemote && !composing) reconcileFromDom(); };
@@ -312,9 +314,9 @@ export function bindParagraphSpike(editor, doc) {
     sel.addRange(r);
   }
 
-  // Does element `el`'s current inline content already equal `delta`?
-  function inlineMatches(el, delta) {
-    const cur = serializeInline(el);
+  // Does element `el`'s current content already equal `delta` (for its type)?
+  function inlineMatches(el, type, delta) {
+    const cur = serializeHost(el, type);
     if (cur.length !== delta.length) return false;
     for (let k = 0; k < cur.length; k++) {
       if (cur[k].insert !== delta[k].insert || !sameAttrs(cur[k].attributes, delta[k].attributes)) return false;
@@ -335,16 +337,16 @@ export function bindParagraphSpike(editor, doc) {
       if (id) existing.set(id, host);
     }
 
-    const blockEl = (m, tag) => {
+    const blockEl = (m, tag, type) => {
       const id = m.get('id');
       const delta = m.get('text').toDelta();
       let el = existing.get(id);
       if (el && el.tagName.toLowerCase() === tag) {
-        if (!inlineMatches(el, delta)) { renderInline(el, delta); rerendered.add(id); }
+        if (!inlineMatches(el, type, delta)) { renderHost(el, type, delta); rerendered.add(id); }
       } else {
         el = cdoc.createElement(tag);
         el.setAttribute('data-id', id);
-        renderInline(el, delta);
+        renderHost(el, type, delta);
         rerendered.add(id);
       }
       return el;
@@ -363,13 +365,13 @@ export function bindParagraphSpike(editor, doc) {
         while (i < n) {
           const mm = blocks.get(i);
           if ((mm.get('type') || 'p') !== 'li' || (mm.get('listType') || 'bullet') !== lt) break;
-          list.appendChild(blockEl(mm, 'li'));   // moves a reused <li> into this list
+          list.appendChild(blockEl(mm, 'li', 'li'));   // moves a reused <li> into this list
           i++;
         }
         desired.push(list);
       } else {
-        const tag = /^h[1-6]$/.test(type) ? type : (type === 'blockquote' ? 'blockquote' : 'p');
-        desired.push(blockEl(m, tag));
+        const tag = /^(p|h[1-6]|blockquote|pre)$/.test(type) ? type : 'p';
+        desired.push(blockEl(m, tag, type));
         i++;
       }
     }

@@ -90,6 +90,7 @@
     import { BulletList }  from '../src/extensions/blocks/BulletList.js';
     import { OrderedList } from '../src/extensions/blocks/OrderedList.js';
     import { Blockquote }  from '../src/extensions/blocks/Blockquote.js';
+    import { CodeBlock }   from '../src/extensions/blocks/CodeBlock.js';
     import { Bold }        from '../src/extensions/marks/Bold.js';
     import { Italic }      from '../src/extensions/marks/Italic.js';
     import { Underline }   from '../src/extensions/marks/Underline.js';
@@ -121,8 +122,8 @@
     const savedEl = document.getElementById('saved');
     savedEl.textContent = fresh ? '💾 Local (new)' : '💾 Restored from this browser';
 
-    const EXTENSIONS = [Paragraph, Heading, BulletList, OrderedList, Blockquote, Bold, Italic, Underline, Strike, Code, Link];
-    const TOOLBAR = ['heading', 'bulletList', 'orderedList', 'blockquote', '|', 'bold', 'italic', 'underline', 'strike', 'code', '|', 'link'];
+    const EXTENSIONS = [Paragraph, Heading, BulletList, OrderedList, Blockquote, CodeBlock, Bold, Italic, Underline, Strike, Code, Link];
+    const TOOLBAR = ['heading', 'bulletList', 'orderedList', 'blockquote', 'codeBlock', '|', 'bold', 'italic', 'underline', 'strike', 'code', '|', 'link'];
     const makeEditor = (sel, content) => new Editor(document.querySelector(sel), {
       extensions: EXTENSIONS,
       toolbar:    { items: TOOLBAR },

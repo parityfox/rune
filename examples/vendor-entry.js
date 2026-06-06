@@ -4,3 +4,4 @@
 // Rebuild with: npm run build:demo
 export * from 'yjs';
 export * from 'y-protocols/awareness';
+export * from 'y-indexeddb';

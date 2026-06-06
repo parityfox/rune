@@ -47,7 +47,9 @@
   <div class="topbar">
     <h1>✦ Rune <span class="tag">collab spike</span></h1>
     <div class="roster" id="roster"></div>
+    <span id="saved" style="font-size:12px;color:#6b6b69"></span>
     <button class="conn-btn" id="addComment">💬 Comment selection</button>
+    <button class="conn-btn" id="clearLocal">Clear local</button>
     <button class="conn-btn" id="toggleConn"><span class="conn-dot"></span> Connected</button>
   </div>
 
@@ -75,7 +77,8 @@
   {
     "imports": {
       "yjs": "/examples/vendor/collab-deps.mjs",
-      "y-protocols/awareness": "/examples/vendor/collab-deps.mjs"
+      "y-protocols/awareness": "/examples/vendor/collab-deps.mjs",
+      "y-indexeddb": "/examples/vendor/collab-deps.mjs"
     }
   }
   </script>
@@ -100,6 +103,7 @@
     import { bindPresence }       from '../collab/presence.js';
     import { CommentStore }       from '../collab/comments.js';
     import { bindCommentsUI }     from '../collab/comments-ui.js';
+    import { persistLocally }     from '../collab/providers/indexeddb.js';
 
     const hub  = new MemoryHub();
     const docA = new Y.Doc();
@@ -108,6 +112,14 @@
     const awB  = new Awareness(docB);
     hub.connect(docA, awA);
     hub.connect(docB, awB);
+
+    // ── Local-first persistence: hydrate from IndexedDB before binding ──
+    const pA = persistLocally(docA, 'rune-collab-a');
+    const pB = persistLocally(docB, 'rune-collab-b');
+    await Promise.all([pA.whenSynced, pB.whenSynced]);
+    const fresh = docA.getArray('blocks').length === 0;     // first visit vs restored
+    const savedEl = document.getElementById('saved');
+    savedEl.textContent = fresh ? '💾 Local (new)' : '💾 Restored from this browser';
 
     const EXTENSIONS = [Paragraph, Heading, BulletList, OrderedList, Blockquote, Bold, Italic, Underline, Strike, Code, Link];
     const TOOLBAR = ['heading', 'bulletList', 'orderedList', 'blockquote', '|', 'bold', 'italic', 'underline', 'strike', 'code', '|', 'link'];
@@ -119,12 +131,21 @@
       content,
     });
 
-    const edA = makeEditor('#editorA',
-      '<p>Type here — edits sync live to Bob, and his caret follows you. Try <strong>bold</strong>, <em>italic</em>, <u>underline</u>. ✦</p>');
+    // Seed welcome content only on a fresh doc; otherwise the binding renders
+    // the content restored from IndexedDB.
+    const edA = makeEditor('#editorA', fresh
+      ? '<p>Type here — edits sync live to Bob, persist to IndexedDB, and survive a reload. Try <strong>bold</strong>, <em>italic</em>, <u>underline</u>. ✦</p>'
+      : '');
     const edB = makeEditor('#editorB', '');
 
     bindParagraphSpike(edA, docA);
     bindParagraphSpike(edB, docB);
+
+    // "Clear local" — wipe IndexedDB and reload (for testing the fresh path)
+    document.getElementById('clearLocal').addEventListener('click', async () => {
+      await Promise.all([pA.clear(), pB.clear()]);
+      location.reload();
+    });
 
     // ── Presence: remote cursors + typing ──────────────────────
     const USERS = { a: { name: 'Alice', color: '#2563eb' }, b: { name: 'Bob', color: '#db2777' } };

@@ -40,7 +40,7 @@
     "build:demo": "esbuild examples/vendor-entry.js --bundle --format=esm --outfile=examples/vendor/collab-deps.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "node tests/e2e/collab-ime.mjs",
+    "test:e2e": "node tests/e2e/collab-ime.mjs && node tests/e2e/collab-persistence.mjs",
     "collab-server": "node server/collab-server.mjs"
   },
   "devDependencies": {
@@ -49,6 +49,7 @@
     "playwright-core": "^1.60.0",
     "vitest": "^4.0.18",
     "ws": "^8.21.0",
+    "y-indexeddb": "^9.0.12",
     "y-protocols": "^1.0.7",
     "y-websocket": "^3.0.0",
     "yjs": "^13.6.31"

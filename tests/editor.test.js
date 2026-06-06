@@ -6,6 +6,7 @@ import { Bold } from '../src/extensions/marks/Bold.js';
 import { Italic } from '../src/extensions/marks/Italic.js';
 import { Blockquote } from '../src/extensions/blocks/Blockquote.js';
 import { CodeBlock } from '../src/extensions/blocks/CodeBlock.js';
+import { BulletList } from '../src/extensions/blocks/BulletList.js';
 import { Image } from '../src/extensions/blocks/Image.js';
 import { VideoEmbed } from '../src/extensions/blocks/VideoEmbed.js';
 
@@ -207,6 +208,126 @@ describe('Editor', () => {
       });
       e.cmd('insertImage', 'javascript:alert(1)');
       expect(e.getHtml()).not.toContain('javascript:');
+    });
+  });
+
+  describe('clearFormat', () => {
+    // Select `count` chars starting at `start` within the first text node
+    // found under `host` (depth-first), then run clearFormat.
+    function selectAndClear(start, count, host = editor.content) {
+      const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+      const text = walker.nextNode();
+      const range = document.createRange();
+      range.setStart(text, start);
+      range.setEnd(text, start + count);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      editor.cmd('clearFormat');
+    }
+
+    it('removes formatting when the whole inline element is selected', () => {
+      create({ content: '<p><strong>word</strong></p>' });
+      selectAndClear(0, 4);
+      expect(editor.getHtml()).toBe('<p>word</p>');
+    });
+
+    it('removes formatting from a partial (trailing) selection', () => {
+      create({ content: '<p><strong>word</strong></p>' });
+      selectAndClear(2, 2);                       // "rd"
+      expect(editor.getHtml()).toBe('<p><strong>wo</strong>rd</p>');  // only "wo" stays bold
+    });
+
+    it('strips nested inline formatting', () => {
+      create({ content: '<p><strong><em>word</em></strong></p>' });
+      selectAndClear(0, 4);
+      expect(editor.getHtml()).toBe('<p>word</p>');
+    });
+
+    it('clears bold in the middle of a sentence', () => {
+      create({ content: '<p>aa <strong>bb</strong> cc</p>' });
+      const host = editor.content;
+      // select the "bb" inside <strong>
+      const strong = host.querySelector('strong');
+      const range = document.createRange();
+      range.selectNodeContents(strong);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      editor.cmd('clearFormat');
+      expect(editor.getHtml()).toBe('<p>aa bb cc</p>');
+    });
+
+    it('does nothing on a collapsed selection', () => {
+      create({ content: '<p><strong>word</strong></p>' });
+      const text = editor.content.querySelector('strong').firstChild;
+      const range = document.createRange();
+      range.setStart(text, 2);
+      range.collapse(true);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      editor.cmd('clearFormat');
+      expect(editor.getHtml()).toBe('<p><strong>word</strong></p>');
+    });
+
+    function selectAll() {
+      const range = document.createRange();
+      range.selectNodeContents(editor.content);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    it('resets headings to paragraphs', () => {
+      create({ content: '<h2>Title</h2><p>body</p>' });
+      selectAll();
+      editor.cmd('clearFormat');
+      expect(editor.getHtml()).toBe('<p>Title</p><p>body</p>');
+    });
+
+    it('resets blockquote to paragraph', () => {
+      create({ content: '<blockquote>quote</blockquote>' });
+      selectAll();
+      editor.cmd('clearFormat');
+      expect(editor.getHtml()).toBe('<p>quote</p>');
+    });
+
+    it('clears heading + inline but keeps lists intact', () => {
+      create({
+        extensions: [Paragraph, Heading, Bold, BulletList],
+        content: '<h2>T</h2><ul><li>Use the <strong>x</strong></li></ul>',
+      });
+      selectAll();
+      editor.cmd('clearFormat');
+      const html = editor.getHtml();
+      expect(html).toContain('<p>T</p>');       // heading reset
+      expect(html).toContain('<ul>');           // list kept
+      expect(html).toContain('<li>Use the x</li>');
+      expect(html).not.toContain('<strong>');   // inline gone
+    });
+
+    it('resets a heading when the selection bleeds into the next block', () => {
+      // Triple-clicking a heading selects to the start of the following block.
+      // That boundary bleed must not fragment the next block (regression).
+      create({
+        extensions: [Paragraph, Heading, Bold, BulletList],
+        content: '<h3>Title</h3><ul><li>Use the <strong>x</strong></li></ul>',
+      });
+      const h3 = editor.content.querySelector('h3');
+      const li = editor.content.querySelector('li');
+      const range = document.createRange();
+      range.setStart(h3.firstChild, 0);
+      range.setEnd(li.firstChild, 0);            // bleed into the list
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      editor.cmd('clearFormat');
+      const html = editor.getHtml();
+      expect(html).toContain('<p>Title</p>');                  // heading reset
+      expect(html).not.toContain('<h3>');
+      expect(html).toContain('<li>Use the <strong>x</strong></li>'); // list untouched
+      expect(html).not.toContain('<li></li>');                 // no stray empty bullet
     });
   });
 });

@@ -80,11 +80,124 @@ export class Editor {
     const self = this;
 
     this.commands.registerAll({
-      // Remove all formatting in selection
+      // Clear formatting from the selection. Strips inline formatting (bold,
+      // italic, links, colour, code…) and resets heading/quote/callout blocks
+      // to plain paragraphs; lists are left intact. Implemented via DOM
+      // manipulation, never document.execCommand (which no-ops unpredictably).
       clearFormat: () => {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+        const range = sel.getRangeAt(0);
+        if (!self.content.contains(range.commonAncestorContainer)) return;
+
+        const INLINE = new Set([
+          'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL', 'INS',
+          'SUB', 'SUP', 'CODE', 'MARK', 'FONT', 'SMALL', 'BIG', 'TT', 'SPAN', 'A',
+        ]);
+        const isInline  = (n) => n && n.nodeType === 1 && INLINE.has(n.tagName);
+        const isHeading = (b) => /^H[1-6]$/.test(b.tagName);
+        const isQuote   = (b) => b.tagName === 'BLOCKQUOTE';
+        const isCallout = (b) => b.getAttribute?.('data-type') === 'callout' ||
+                                 b.classList?.contains('rune-callout');
+
+        // Recursively unwrap inline tags in a subtree; clear inline style on the rest.
+        const strip = (parent) => {
+          for (const child of [...parent.childNodes]) {
+            if (child.nodeType !== 1) continue;
+            strip(child);
+            if (INLINE.has(child.tagName)) {
+              while (child.firstChild) parent.insertBefore(child.firstChild, child);
+              parent.removeChild(child);
+            } else {
+              child.removeAttribute('style');
+            }
+          }
+        };
+
+        // Portion of the selection that actually lies within block `b`.
+        const clampToBlock = (b) => {
+          const r  = range.cloneRange();
+          const br = document.createRange();
+          br.selectNodeContents(b);
+          if (r.compareBoundaryPoints(Range.START_TO_START, br) < 0) r.setStart(br.startContainer, br.startOffset);
+          if (r.compareBoundaryPoints(Range.END_TO_END,   br) > 0) r.setEnd(br.endContainer, br.endOffset);
+          return r;
+        };
+
+        // Top-level blocks the selection genuinely covers (ignore boundary bleed
+        // into the next block, which carries no actual text).
+        const blocks = [...self.content.children].filter(
+          (b) => range.intersectsNode(b) && clampToBlock(b).toString().length > 0,
+        );
+        if (blocks.length === 0) return;
+
+        // Use the precise (extractContents) path only when the selection is fully
+        // inside ONE block and covers just part of it. Anything that spans block
+        // boundaries — even a one-position bleed from a triple-click — goes through
+        // the in-place whole-block path, which never fragments the document.
+        const single = blocks.length === 1 ? blocks[0] : null;
+        const within = single &&
+          single.contains(range.startContainer) && single.contains(range.endContainer);
+        const partial = within && range.toString().trim() !== single.textContent.trim();
+
         self.history.saveNow();
-        document.execCommand('removeFormat');
-        document.execCommand('unlink');
+
+        if (partial) {
+          // Partial selection inside one block — strip only the selected run.
+          // (extractContents is safe here: the range can't cross a block boundary.)
+          const frag = range.extractContents();
+          strip(frag);
+          const marker = document.createTextNode('');
+          range.insertNode(marker);
+          // Split out of any inline wrapper so re-inserted text isn't re-wrapped.
+          while (isInline(marker.parentNode)) {
+            const wrap = marker.parentNode;
+            const after = wrap.cloneNode(false);
+            for (let n = marker.nextSibling; n; ) { const next = n.nextSibling; after.appendChild(n); n = next; }
+            wrap.parentNode.insertBefore(marker, wrap.nextSibling);
+            if (after.childNodes.length) wrap.parentNode.insertBefore(after, marker.nextSibling);
+            if (!wrap.textContent) wrap.remove();
+          }
+          const first = frag.firstChild, last = frag.lastChild;
+          marker.parentNode.insertBefore(frag, marker);
+          marker.remove();
+          if (first && last) {
+            const r = document.createRange();
+            r.setStartBefore(first);
+            r.setEndAfter(last);
+            sel.removeAllRanges();
+            sel.addRange(r);
+          }
+        } else {
+          // One or more fully-covered blocks — strip each in place and reset
+          // heading/quote/callout blocks to paragraphs (lists kept as lists).
+          const touched = [];
+          for (const b of blocks) {
+            strip(b);
+            if (isHeading(b) || isQuote(b) || isCallout(b)) {
+              const p = document.createElement('p');
+              const srcEl = isCallout(b) ? (b.querySelector('.rune-callout-body') || b) : b;
+              while (srcEl.firstChild) p.appendChild(srcEl.firstChild);
+              b.replaceWith(p);
+              touched.push(p);
+            } else {
+              touched.push(b);
+            }
+          }
+          if (touched.length) {
+            const r = document.createRange();
+            r.setStartBefore(touched[0]);
+            r.setEndAfter(touched[touched.length - 1]);
+            sel.removeAllRanges();
+            sel.addRange(r);
+          }
+        }
+
+        // Safety net: drop any empty inline formatting leftovers.
+        self.content.querySelectorAll([...INLINE].join(',')).forEach((node) => {
+          if (!node.textContent && !node.querySelector('img, br')) node.remove();
+        });
+        self.content.normalize();
         self._notifyChange();
       },
 

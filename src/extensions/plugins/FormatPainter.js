@@ -54,8 +54,9 @@ export const FormatPainter = {
   toolbarItem: {
     name: 'formatPainter',
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L8 19l-4 1 1-4Z"/>
-      <path d="M3 22c1-2 3-4 3-6a3 3 0 0 1 6 0c0 2-2 4-3 6"/>
+      <rect width="16" height="6" x="2" y="2" rx="2"/>
+      <path d="M10 16v-2a2 2 0 0 1 2-2h8a2 2 0 0 0 2-2V7"/>
+      <rect width="4" height="6" x="8" y="16" rx="1"/>
     </svg>`,
     title: 'Copy Format',
     action: 'activateFormatPainter',

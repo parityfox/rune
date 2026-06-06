@@ -65,7 +65,7 @@ export const Callout = {
   toolbarItem: {
     name: 'callout',
     type: 'panel',
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="3"/>
       <line x1="8" y1="9"  x2="16" y2="9"/>
       <line x1="8" y1="13" x2="14" y2="13"/>

@@ -48,6 +48,7 @@ const config = {
     lineHeight:     true,   // line height picker
     indent:         true,   // increase block indent
     outdent:        true,   // decrease block indent
+    clearFormat:    true,   // strip inline formatting + links from selection
   },
 
   // ── Plugins ──────────────────────────────────────────────

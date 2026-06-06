@@ -102,7 +102,7 @@ export const TaskList = {
 
   toolbarItem: {
     name: 'taskList',
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="5"  width="4" height="4" rx="1"/>
       <rect x="3" y="11" width="4" height="4" rx="1"/>
       <rect x="3" y="17" width="4" height="4" rx="1"/>

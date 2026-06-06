@@ -89,7 +89,7 @@ export const Image = {
   toolbarItem: {
     name: 'image',
     type: 'panel',
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="2"/>
       <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/>
       <polyline points="21 15 16 10 5 21"/>
@@ -104,7 +104,7 @@ export const Image = {
       const uploadLabel = el('div', { class: 'rune-panel-section-label' }, 'UPLOAD');
       const uploadZone  = el('label', { class: 'rune-image-upload-zone', for: '_runeFileInput' });
       uploadZone.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="17 8 12 3 7 8"/>
           <line x1="12" y1="3" x2="12" y2="15"/>

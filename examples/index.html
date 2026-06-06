@@ -142,6 +142,79 @@
       padding: 4px 2px;
     }
 
+    /* ── Persona rail (left sidebar) ── */
+    .persona-rail {
+      position: fixed;
+      top: 44px; left: 0;
+      width: 188px;
+      height: calc(100vh - 44px);
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      background: #fbfbfa;
+      border-right: 1px solid #e9e9e7;
+      z-index: 90;
+    }
+    .persona-rail-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #9b9b9b;
+      padding: 4px 8px 10px;
+    }
+    .persona-btn {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 500;
+      color: #4a4a4a;
+      cursor: pointer;
+      text-align: left;
+      transition: background 100ms;
+    }
+    .persona-btn:hover { background: #f0f0ee; }
+    .persona-btn.is-active { background: #1a1a1a; color: #fff; }
+    .persona-name { flex: 1; }
+    .persona-count {
+      font-size: 11px;
+      font-weight: 600;
+      color: #b3b3b1;
+      background: #efefed;
+      border-radius: 10px;
+      padding: 1px 7px;
+      min-width: 24px;
+      text-align: center;
+    }
+    .persona-btn.is-active .persona-count { background: rgba(255,255,255,0.18); color: #fff; }
+    .persona-hint {
+      margin-top: auto;
+      font-size: 11px;
+      line-height: 1.45;
+      color: #b3b3b1;
+      padding: 10px 8px 4px;
+    }
+
+    /* Hide the rail on narrower screens so it never overlaps the page */
+    @media (max-width: 1180px) { .persona-rail { display: none; } }
+
+    /* Dark mode */
+    [data-theme="dark"] .persona-rail { background: #1d1d1d; border-color: #2f2f2f; }
+    [data-theme="dark"] .persona-rail-label,
+    [data-theme="dark"] .persona-hint { color: #6b6b6b; }
+    [data-theme="dark"] .persona-btn { color: #c8c8c6; }
+    [data-theme="dark"] .persona-btn:hover { background: #2a2a2a; }
+    [data-theme="dark"] .persona-btn.is-active { background: #f1f1ef; color: #191919; }
+    [data-theme="dark"] .persona-count { background: #2f2f2f; color: #8a8a88; }
+    [data-theme="dark"] .persona-btn.is-active .persona-count { background: rgba(0,0,0,0.18); color: #191919; }
+
     /* ── HTML output panel ── */
     .output-panel {
       position: fixed;
@@ -212,6 +285,13 @@
     </div>
   </nav>
 
+  <!-- Persona rail -->
+  <aside class="persona-rail">
+    <div class="persona-rail-label">Editing mode</div>
+    <div id="personaList"></div>
+    <div class="persona-hint">Switch the toolbar to match a user type. The badge shows how many tools each mode exposes.</div>
+  </aside>
+
   <!-- Page -->
   <div class="page">
 
@@ -249,9 +329,7 @@
     import { createFromConfig } from '../src/createFromConfig.js';
     import config               from '../rune.config.js';
 
-    // ─── Editor ─────────────────────────────────────────────
-    const editor = createFromConfig('#editor', config, {
-      content: `<h2>Welcome to Rune ✦</h2>
+    const INITIAL_CONTENT = `<h2>Welcome to Rune ✦</h2>
 <p>A clean, extensible rich text editor built from scratch — no Tiptap, no Slate, no ProseMirror.</p>
 <h3>What you can do</h3>
 <ul>
@@ -261,12 +339,63 @@
   <li>Use <strong>⌘B</strong>, <strong>⌘I</strong>, <strong>⌘K</strong> for quick shortcuts</li>
 </ul>
 <blockquote>Rune is headless by design — customise every pixel with CSS variables.</blockquote>
-<p>Try the <code>rune.config.js</code> file to toggle features on and off.</p>`,
-      onChange(html) {
-        const panel = document.getElementById('outputPanel');
-        if (panel.classList.contains('is-open')) panel.textContent = html;
-        updateWordCount();
-      },
+<p>Try switching the <strong>Editing mode</strong> on the left — the toolbar shrinks to match each user.</p>`;
+
+    // ─── Personas ───────────────────────────────────────────
+    // Each maps to a reduced toolbar.items set. 'full' is the default/reset.
+    // Utility tools every persona gets (clear + copy formatting).
+    const UTILS = ['|', 'clearFormat', 'formatPainter'];
+    const PERSONAS = [
+      { key: 'full',      label: 'Full',      items: config.toolbar.items },
+      { key: 'writer',    label: 'Writer',    items: ['bold', 'italic', 'link', '|', 'heading', 'bulletList', 'orderedList', 'blockquote', '|', 'image', ...UTILS] },
+      { key: 'developer', label: 'Developer', items: ['bold', 'italic', 'code', '|', 'heading', 'bulletList', 'orderedList', 'taskList', 'codeBlock', 'horizontalRule', '|', 'link', 'table', ...UTILS] },
+      { key: 'student',   label: 'Student',   items: ['bold', 'italic', 'underline', 'textBackground', '|', 'heading', 'bulletList', 'orderedList', 'taskList', '|', 'callout', 'image', ...UTILS] },
+      { key: 'designer',  label: 'Designer',  items: ['bold', 'italic', 'underline', '|', 'fontFamily', 'fontSize', 'textColor', 'textBackground', '|', 'textAlign', 'lineHeight', '|', 'image', 'table', ...UTILS] },
+    ];
+
+    // ─── Editor ─────────────────────────────────────────────
+    let editor;
+    let activeKey = 'full';
+
+    function mount(items, content) {
+      return createFromConfig('#editor', { ...config, toolbar: { ...config.toolbar, items } }, {
+        content,
+        onChange(html) {
+          const panel = document.getElementById('outputPanel');
+          if (panel.classList.contains('is-open')) panel.textContent = html;
+          updateWordCount();
+        },
+      });
+    }
+
+    function selectPersona(key) {
+      if (key === activeKey) return;
+      const persona = PERSONAS.find(p => p.key === key);
+      if (!persona) return;
+      const html = editor.getHtml();   // preserve content across the swap
+      editor.destroy();
+      editor = mount(persona.items, html);
+      activeKey = key;
+      document.querySelectorAll('.persona-btn').forEach(b =>
+        b.classList.toggle('is-active', b.dataset.persona === key));
+      editor.focus?.();
+    }
+
+    editor = mount(PERSONAS[0].items, INITIAL_CONTENT);
+
+    // Build the persona rail from the PERSONAS definition (counts stay in sync).
+    // Count against the schema's real toolbar items so the badge matches the
+    // buttons that actually render (e.g. 'clearFormat' has no button).
+    const validNames = new Set(editor.schema.getToolbarItems().map(i => i.name));
+    const personaList = document.getElementById('personaList');
+    PERSONAS.forEach((p) => {
+      const count = p.items.filter(i => i !== '|' && validNames.has(i)).length;
+      const btn = document.createElement('button');
+      btn.className = 'persona-btn' + (p.key === activeKey ? ' is-active' : '');
+      btn.dataset.persona = p.key;
+      btn.innerHTML = `<span class="persona-name">${p.label}</span><span class="persona-count">${count}</span>`;
+      btn.addEventListener('click', () => selectPersona(p.key));
+      personaList.appendChild(btn);
     });
 
     // ─── Word count ─────────────────────────────────────────

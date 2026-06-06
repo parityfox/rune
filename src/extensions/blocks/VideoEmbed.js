@@ -71,7 +71,7 @@ export const VideoEmbed = {
   toolbarItem: {
     name: 'videoEmbed',
     type: 'panel',
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="2" y="4" width="20" height="16" rx="2"/>
       <polygon points="10 9 16 12 10 15" fill="currentColor" stroke="none"/>
     </svg>`,

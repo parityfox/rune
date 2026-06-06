@@ -27,6 +27,7 @@ import { TextAlign }   from './extensions/formatting/TextAlign.js';
 import { LineHeight }  from './extensions/formatting/LineHeight.js';
 import { Indent }      from './extensions/formatting/Indent.js';
 import { Outdent }     from './extensions/formatting/Outdent.js';
+import { ClearFormat } from './extensions/formatting/ClearFormat.js';
 import { MarkdownShortcuts } from './extensions/plugins/MarkdownShortcuts.js';
 import { FindReplace }       from './extensions/plugins/FindReplace.js';
 import { DragReorder }       from './extensions/plugins/DragReorder.js';
@@ -68,6 +69,7 @@ const FORMATTING_MAP = {
   lineHeight:     LineHeight,
   indent:         Indent,
   outdent:        Outdent,
+  clearFormat:    ClearFormat,
 };
 
 /**

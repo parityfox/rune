@@ -442,6 +442,11 @@
   flex-shrink: 0;
   box-shadow: var(--rune-shadow-sm);
 }
+.rune-slash-icon svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
 
 .rune-slash-text {
   display: flex;

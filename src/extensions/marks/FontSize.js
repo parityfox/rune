@@ -54,7 +54,7 @@ export const FontSize = {
   toolbarItem: {
     name: 'fontSize',
     type: 'panel',
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <text x="2" y="17" font-size="14" font-weight="700" fill="currentColor" stroke="none" font-family="serif">A</text>
       <text x="13" y="19" font-size="9" font-weight="400" fill="currentColor" stroke="none" font-family="serif">A</text>
     </svg>`,

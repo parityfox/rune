@@ -7,6 +7,7 @@ import { Italic } from '../src/extensions/marks/Italic.js';
 import { Blockquote } from '../src/extensions/blocks/Blockquote.js';
 import { CodeBlock } from '../src/extensions/blocks/CodeBlock.js';
 import { BulletList } from '../src/extensions/blocks/BulletList.js';
+import { sanitize, sanitizeContent } from '../src/utils/html.js';
 import { Image } from '../src/extensions/blocks/Image.js';
 import { VideoEmbed } from '../src/extensions/blocks/VideoEmbed.js';
 
@@ -208,6 +209,77 @@ describe('Editor', () => {
       });
       e.cmd('insertImage', 'javascript:alert(1)');
       expect(e.getHtml()).not.toContain('javascript:');
+    });
+
+    it('setLink rejects data:image/svg+xml (SVG script vector)', () => {
+      create({ content: '<p>text</p>' });
+      editor.cmd('setLink', 'data:image/svg+xml,<svg onload=alert(1)>', 'x');
+      expect(editor.getHtml()).not.toContain('data:image/svg');
+      expect(editor.getHtml()).not.toContain('<svg');
+    });
+
+    it('setHtml strips event handlers and dangerous tags', () => {
+      create();
+      editor.setHtml('<p>ok</p><img src=x onerror="alert(1)"><script>alert(2)</script>');
+      const html = editor.getHtml();
+      expect(html).not.toContain('onerror');
+      expect(html).not.toContain('<script');
+      expect(html).toContain('ok');
+    });
+
+    it('setHtml strips an iframe with a non-embed / javascript src', () => {
+      create();
+      editor.setHtml('<iframe src="javascript:alert(1)"></iframe><iframe src="https://evil.example.com"></iframe>');
+      const html = editor.getHtml();
+      expect(html).not.toContain('<iframe');
+      expect(html).not.toContain('javascript:');
+    });
+
+    it('sanitizeContent() keeps a sandboxed YouTube embed', () => {
+      // Tested at the sanitizer level to avoid happy-dom fetching a live iframe.
+      const out = sanitizeContent('<figure class="rune-video-block"><iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe></figure>');
+      expect(out).toContain('youtube.com/embed/dQw4w9WgXcQ');
+      expect(out).toMatch(/sandbox="allow-scripts allow-same-origin"/);
+    });
+
+    it('sanitizeContent() drops a non-embed iframe', () => {
+      expect(sanitizeContent('<iframe src="https://evil.example.com"></iframe>')).not.toContain('<iframe');
+      expect(sanitizeContent('<iframe src="javascript:alert(1)"></iframe>')).not.toContain('<iframe');
+    });
+
+    it('setHtml preserves contenteditable on editor blocks', () => {
+      create();
+      editor.setHtml('<div class="rune-callout"><span contenteditable="false">x</span><div class="rune-callout-body">body</div></div>');
+      expect(editor.getHtml()).toContain('contenteditable="false"');
+    });
+
+    it('sanitize() adds rel=noopener to target=_blank links', () => {
+      const out = sanitize('<a href="https://x.com" target="_blank">x</a>');
+      expect(out).toContain('rel="noopener noreferrer"');
+    });
+
+    it('sanitize() (paste profile) removes all iframes', () => {
+      const out = sanitize('<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>');
+      expect(out).not.toContain('<iframe');
+    });
+
+    it('sanitizeContent() strips javascript: hrefs but keeps safe links', () => {
+      expect(sanitizeContent('<a href="javascript:alert(1)">x</a>')).not.toContain('javascript:');
+      expect(sanitizeContent('<a href="https://ok.com">x</a>')).toContain('https://ok.com');
+    });
+
+    it('sanitize() removes <template> (content lives outside childNodes)', () => {
+      // template.content is a DocumentFragment the recursive cleaner cannot reach,
+      // so the whole element must be dropped, not just its (unreachable) children.
+      expect(sanitize('<template><img src=x onerror=alert(1)></template>')).toBe('');
+      expect(sanitizeContent('<p>ok</p><template><img onerror=alert(1)></template>')).toBe('<p>ok</p>');
+    });
+
+    it('sanitize() strips url() from inline styles (tracking / escape bypass)', () => {
+      expect(sanitize('<p style="background:url(https://evil.com/x.png)">x</p>')).not.toContain('url(');
+      expect(sanitize('<p style="background:url(\\64 ata:image/png;base64,AAA)">x</p>')).not.toContain('url(');
+      // benign styling survives
+      expect(sanitize('<p style="color:red">x</p>')).toContain('color');
     });
   });
 

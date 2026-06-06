@@ -3,7 +3,7 @@ import { History } from './History.js';
 import { Schema } from './Schema.js';
 import { Selection } from './Selection.js';
 import { CommandRegistry, CommandChain } from './Commands.js';
-import { normalizeHtml, sanitize } from '../utils/html.js';
+import { normalizeHtml, sanitize, sanitizeContent, _isDangerousUrl } from '../utils/html.js';
 import { htmlToMarkdown } from '../utils/markdown.js';
 import { el, getBlockElement } from '../utils/dom.js';
 import { uid } from '../utils/id.js';
@@ -203,9 +203,9 @@ export class Editor {
 
       // Links
       setLink(href, text) {
-        // Reject dangerous protocols before touching the DOM
-        const stripped = (href || '').replace(/[\s\u0000-\u001F]/g, '').toLowerCase();
-        if (stripped.startsWith('javascript:') || stripped.startsWith('vbscript:') || stripped.startsWith('data:text/html')) return;
+        // Reject dangerous protocols before touching the DOM (single source of
+        // truth - same check the sanitizer uses; covers data:image/svg etc.)
+        if (!href || _isDangerousUrl(href)) return;
         self.history.saveNow();
         const sel = self.selection.native;
         if (sel && !sel.isCollapsed) {
@@ -531,7 +531,7 @@ export class Editor {
 
   /** Set editor HTML content. */
   setHtml(html) {
-    this.content.innerHTML = normalizeHtml(html);
+    this.content.innerHTML = normalizeHtml(sanitizeContent(html));
     this._ensureContent();
     this.history.saveNow();
     this.events.emit('change', { editor: this, html: this.getHtml() });

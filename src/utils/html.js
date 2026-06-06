@@ -7,12 +7,27 @@ const BLOCK_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'table', 'figure']);
 
 /**
- * Sanitize pasted HTML — keep structure but strip dangerous attrs.
+ * Sanitize pasted HTML — strict profile. Strips all dangerous tags/attrs,
+ * including iframes. Use for untrusted external input (clipboard).
  */
 export function sanitize(html) {
+  return _sanitize(html, { embeds: false, contentAttrs: false });
+}
+
+/**
+ * Sanitize HTML loaded as editor content (setHtml / initial content). Same
+ * safety guarantees as sanitize(), but preserves the editor's own rich blocks:
+ * sandboxed YouTube/Vimeo embeds and structural attributes (contenteditable,
+ * data-*, embed attrs) so a getHtml() -> setHtml() round-trip is lossless.
+ */
+export function sanitizeContent(html) {
+  return _sanitize(html, { embeds: true, contentAttrs: true });
+}
+
+function _sanitize(html, opts) {
   const div = document.createElement('div');
   div.innerHTML = html;
-  _cleanNode(div);
+  _cleanNode(div, opts);
   return div.innerHTML;
 }
 
@@ -20,19 +35,33 @@ const DANGEROUS_TAGS = new Set([
   'script', 'iframe', 'object', 'embed', 'form',
   'base', 'meta', 'style', 'link', 'noscript',
   'svg', 'math',
+  // <template> children live in a DocumentFragment (template.content), not in
+  // childNodes, so the recursive cleaner can't reach them — remove it outright.
+  'template',
 ]);
 
-function _cleanNode(node) {
+// Only https YouTube/Vimeo embed URLs may live in an <iframe> (content profile).
+const SAFE_EMBED_RE = /^https:\/\/(www\.youtube\.com\/embed\/[\w-]+|player\.vimeo\.com\/video\/\d+)(?:[/?]|$)/;
+
+function _cleanNode(node, opts) {
   for (const child of [...node.childNodes]) {
-    if (child.nodeType === Node.ELEMENT_NODE) {
-      // Remove entire subtree — intentionally drops child content (e.g. script body text)
-      if (DANGEROUS_TAGS.has(child.tagName.toLowerCase())) {
-        child.remove();
+    if (child.nodeType !== Node.ELEMENT_NODE) continue;
+    const tag = child.tagName.toLowerCase();
+    if (DANGEROUS_TAGS.has(tag)) {
+      // Content profile: keep a sandboxed iframe pointing at a known embed host.
+      if (opts.embeds && tag === 'iframe' &&
+          SAFE_EMBED_RE.test((child.getAttribute('src') || '').trim())) {
+        _stripAttrs(child, opts);
+        child.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+        _cleanNode(child, opts);
         continue;
       }
-      _stripAttrs(child);
-      _cleanNode(child);
+      // Remove entire subtree — intentionally drops child content (e.g. script body text)
+      child.remove();
+      continue;
     }
+    _stripAttrs(child, opts);
+    _cleanNode(child, opts);
   }
 }
 
@@ -40,10 +69,17 @@ const ALLOWED_ATTRS = new Set(['href', 'target', 'rel', 'src', 'alt', 'class',
   'data-rune-block', 'data-rune-type', 'data-id', 'data-type', 'data-checked',
   'style', 'colspan', 'rowspan']);
 
-function _stripAttrs(el) {
+// Extra attributes kept only for trusted editor content (embeds, captions,
+// checkboxes). None can execute script.
+const CONTENT_ATTRS = new Set(['contenteditable', 'data-placeholder',
+  'frameborder', 'allowfullscreen', 'allow', 'sandbox']);
+const CONTENT_ALLOWED = new Set([...ALLOWED_ATTRS, ...CONTENT_ATTRS]);
+
+function _stripAttrs(el, opts) {
+  const allowed = opts.contentAttrs ? CONTENT_ALLOWED : ALLOWED_ATTRS;
   const toRemove = [];
   for (const attr of el.attributes) {
-    if (!ALLOWED_ATTRS.has(attr.name)) {
+    if (!allowed.has(attr.name)) {
       toRemove.push(attr.name);
     }
   }
@@ -58,6 +94,11 @@ function _stripAttrs(el) {
   // Strip dangerous patterns from inline style
   const style = el.getAttribute('style');
   if (style && _isDangerousStyle(style)) el.removeAttribute('style');
+
+  // Prevent reverse tabnabbing on links that open a new browsing context.
+  if (el.tagName === 'A' && (el.getAttribute('target') || '').toLowerCase() === '_blank') {
+    el.setAttribute('rel', 'noopener noreferrer');
+  }
 }
 
 function _isDangerousStyle(css) {
@@ -65,11 +106,9 @@ function _isDangerousStyle(css) {
   return normalized.includes('javascript:') ||
     normalized.includes('expression(') ||
     normalized.includes('-moz-binding') ||
-    // Block url() with data: or remote http(s): — prevents tracking pixels via pasted CSS
-    (normalized.includes('url(') && (
-      /url\(["']?data:/i.test(normalized) ||
-      /url\(["']?https?:\/\//i.test(normalized)
-    ));
+    // Block any url() in inline styles — the editor never needs it, and this
+    // prevents tracking pixels plus CSS hex-escape bypasses (e.g. url(\\64 ata:)).
+    normalized.includes('url(');
 }
 
 export function _isDangerousUrl(url) {

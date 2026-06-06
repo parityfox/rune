@@ -151,8 +151,8 @@ export class SlashMenu {
         'aria-selected': String(i === this._activeIndex),
       });
 
-      const icon = el('div', { class: 'rune-slash-icon' });
-      icon.textContent = item.icon || '•';
+      const icon = el('div', { class: 'rune-slash-icon', 'aria-hidden': 'true' });
+      icon.innerHTML = item.icon || '•';
 
       const text = el('div', { class: 'rune-slash-text' });
       const title = el('div', { class: 'rune-slash-title' }, item.title);

@@ -106,7 +106,12 @@ export class Schema {
   getSlashItems() {
     const items = [];
     for (const ext of this._blocks.values()) {
-      if (ext.slashItem) items.push({ ...ext.slashItem, extension: ext });
+      if (ext.slashItem) {
+        // Prefer the extension's toolbar SVG so the slash menu shares one
+        // icon language; fall back to the slash glyph if no SVG exists.
+        const icon = ext.toolbarItem?.icon ?? ext.slashItem.icon;
+        items.push({ ...ext.slashItem, icon, extension: ext });
+      }
     }
     return items;
   }

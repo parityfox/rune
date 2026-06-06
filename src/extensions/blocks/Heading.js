@@ -37,7 +37,7 @@ export const Heading = {
 
   toolbarItem: {
     name: 'heading',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h16M4 6v12M20 6v12"/></svg>',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16M4 6v12M20 6v12"/></svg>',
     title: 'Heading',
     action: null, // opens a dropdown — handled by Toolbar
     dropdown: [

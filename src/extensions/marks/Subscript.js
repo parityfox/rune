@@ -6,7 +6,7 @@ export const Subscript = {
 
   toolbarItem: {
     name: 'subscript',
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M4 5 L12 19"/>
       <path d="M12 5 L4 19"/>
       <path d="M17 21 L17 15 L21 15" stroke-linecap="round" stroke-linejoin="round"/>

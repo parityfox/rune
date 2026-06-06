@@ -10,14 +10,31 @@
     "./web-component": "./adapters/web-component/rune-editor.js",
     "./styles": "./styles/rune.css"
   },
+  "files": [
+    "src/",
+    "adapters/",
+    "styles/",
+    "rune.config.js"
+  ],
   "keywords": [
     "rich-text-editor",
     "rte",
     "wysiwyg",
     "contenteditable",
-    "rune"
+    "rune",
+    "editor",
+    "headless"
   ],
+  "author": "Vikramjeet Singh Sra",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/parityfox/rune.git"
+  },
+  "homepage": "https://github.com/parityfox/rune#readme",
+  "bugs": {
+    "url": "https://github.com/parityfox/rune/issues"
+  },
   "scripts": {
     "example": "npx serve examples -p 4000",
     "test": "vitest run",

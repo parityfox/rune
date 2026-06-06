@@ -12,6 +12,18 @@ import { _isDangerousUrl, sanitizeContent } from '../src/utils/html.js';
 
 export const MARKS = [
   {
+    // Tracked-change mark (#15). Object-valued: { id, type:'insert'|'delete', author }.
+    // Outermost so the whole run is visibly tracked. Detected on <span data-suggestion>.
+    key: 'suggestion', value: true, object: true, tags: ['span'],
+    read: (el) => { const d = el.getAttribute('data-suggestion'); return d ? JSON.parse(d) : null; },
+    create: (doc, sug) => {
+      const s = doc.createElement('span');
+      s.className = 'rune-suggestion rune-suggestion--' + (sug.type === 'delete' ? 'delete' : 'insert');
+      s.setAttribute('data-suggestion', JSON.stringify(sug));
+      return s;
+    },
+  },
+  {
     key: 'link', value: true, tags: ['a'],
     read: (el) => { const h = el.getAttribute('href'); return h && !_isDangerousUrl(h) ? h : null; },
     create: (doc, href) => {
@@ -39,7 +51,8 @@ export const markForTag = (tag) => TAG_TO_MARK[tag] || null;
 /** Compare two attribute sets across all marks. */
 export function sameAttrs(a = {}, b = {}) {
   for (const m of MARKS) {
-    if (m.value) { if ((a[m.key] || null) !== (b[m.key] || null)) return false; }
+    if (m.object) { if (JSON.stringify(a[m.key] ?? null) !== JSON.stringify(b[m.key] ?? null)) return false; }
+    else if (m.value) { if ((a[m.key] || null) !== (b[m.key] || null)) return false; }
     else if (!!a[m.key] !== !!b[m.key]) return false;
   }
   return true;

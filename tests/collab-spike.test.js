@@ -292,6 +292,20 @@ describe('collab spike: two-editor convergence + caret', () => {
     expect(got.startOffset).toBe(4);      // "Xhel|lo" — still right after the original "hel"
   });
 
+  it('renders + round-trips suggestion (tracked-change) marks', () => {
+    setContent(edA, '<p>hello world</p>');
+    docA.getArray('blocks').get(0).get('text').format(0, 5, { suggestion: { id: 's1', type: 'delete', author: 'Alice' } });
+    let b = clean(edB.getHtml());
+    expect(b).toContain('rune-suggestion--delete');
+    expect(b).toContain('hello');
+    // a later local edit preserves the suggestion mark (round-trip through serialize)
+    edA.content.querySelector('p').lastChild.textContent = ' WORLD';
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    b = clean(edB.getHtml());
+    expect(b).toContain('rune-suggestion--delete');
+    expect(b).toContain('WORLD');
+  });
+
   it('no echo: a local edit does not re-trigger itself', () => {
     let renders = 0;
     const obs = (_e, txn) => { if (txn.origin !== 'local') renders++; };

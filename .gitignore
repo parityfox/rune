@@ -3,3 +3,6 @@ node_modules/
 *.log
 coverage/
 dist/
+
+# Generated demo vendor bundles (rebuild with `npm run build:demo`)
+examples/vendor/

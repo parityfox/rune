@@ -115,6 +115,20 @@ describe('collab spike: two-editor convergence + caret', () => {
     expect(clean(edB.getHtml())).toBe('<pre><code>if (a &lt; b) return *x*;</code></pre>');
   });
 
+  it('syncs images as atomic blocks (void, src/alt preserved)', () => {
+    setContent(edA, '<figure class="rune-image-block"><img src="https://x.com/a.png" alt="pic"></figure>');
+    const b = clean(edB.getHtml());
+    expect(b).toContain('rune-image-block');
+    expect(b).toContain('src="https://x.com/a.png"');
+    expect(b).toContain('alt="pic"');
+  });
+
+  it('drops a dangerous image src on render (security boundary)', () => {
+    setContent(edA, '<figure class="rune-image-block"><img src="javascript:alert(1)" alt="x"></figure>');
+    expect(edB.getHtml()).not.toContain('javascript:');
+    expect(edB.getHtml()).toContain('rune-image-block');     // block kept, bad src dropped
+  });
+
   it('syncs bullet and ordered lists (consecutive items grouped)', () => {
     setContent(edA, '<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>');
     expect(clean(edB.getHtml())).toBe('<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>');

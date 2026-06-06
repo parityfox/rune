@@ -45,20 +45,43 @@ export function sameAttrs(a = {}, b = {}) {
   return true;
 }
 
+// kind: 'text' (default — has a Y.Text, inline|plain) | 'atomic' (no text;
+// stored as a `data` object, rendered from it).
 export const BLOCKS = {
-  p:          { tag: 'p',          content: 'inline' },
-  h1: { tag: 'h1', content: 'inline' }, h2: { tag: 'h2', content: 'inline' }, h3: { tag: 'h3', content: 'inline' },
-  h4: { tag: 'h4', content: 'inline' }, h5: { tag: 'h5', content: 'inline' }, h6: { tag: 'h6', content: 'inline' },
-  blockquote: { tag: 'blockquote', content: 'inline' },
-  li:         { tag: 'li',         content: 'inline', list: true },
-  pre:        { tag: 'pre',        content: 'plain' },     // code block: plain text, no marks
+  p:          { tag: 'p',          kind: 'text', content: 'inline' },
+  h1: { tag: 'h1', kind: 'text', content: 'inline' }, h2: { tag: 'h2', kind: 'text', content: 'inline' }, h3: { tag: 'h3', kind: 'text', content: 'inline' },
+  h4: { tag: 'h4', kind: 'text', content: 'inline' }, h5: { tag: 'h5', kind: 'text', content: 'inline' }, h6: { tag: 'h6', kind: 'text', content: 'inline' },
+  blockquote: { tag: 'blockquote', kind: 'text', content: 'inline' },
+  li:         { tag: 'li',         kind: 'text', content: 'inline', list: true },
+  pre:        { tag: 'pre',        kind: 'text', content: 'plain' },   // code block: plain text, no marks
+
+  // Atomic (void) — no editable text; model holds a `data` object.
+  image: {
+    tag: 'figure', kind: 'atomic',
+    read: (el) => {
+      const img = el.querySelector('img');
+      return { src: img?.getAttribute('src') || '', alt: img?.getAttribute('alt') || '' };
+    },
+    create: (doc, data = {}) => {
+      const fig = doc.createElement('figure');
+      fig.className = 'rune-image-block';
+      const img = doc.createElement('img');
+      if (data.src && !_isDangerousUrl(data.src)) img.setAttribute('src', data.src);  // security boundary
+      if (data.alt) img.setAttribute('alt', data.alt);
+      img.setAttribute('contenteditable', 'false');
+      fig.appendChild(img);
+      return fig;
+    },
+  },
 };
 
 /** Model type for a top-level block element, or null if not a recognized block. */
 export function blockTypeForEl(el) {
+  if (el.classList?.contains('rune-image-block')) return 'image';
   const t = el.tagName.toLowerCase();
   if (t === 'p' || t === 'blockquote' || t === 'pre' || /^h[1-6]$/.test(t)) return t;
   return null;
 }
 
 export const isPlain = (type) => BLOCKS[type]?.content === 'plain';
+export const kindOf = (type) => BLOCKS[type]?.kind || 'text';

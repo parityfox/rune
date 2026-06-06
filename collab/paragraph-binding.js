@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 import { uid } from '../src/utils/id.js';
-import { MARKS, markForTag, sameAttrs, blockTypeForEl, isPlain } from './schema.js';
+import { MARKS, markForTag, sameAttrs, blockTypeForEl, isPlain, kindOf, BLOCKS } from './schema.js';
 
 /**
  * Collab spike binding (#11) — driven by the central schema (collab/schema.js).
@@ -197,7 +197,8 @@ export function bindParagraphSpike(editor, doc) {
     m.set('id', d.id);
     m.set('type', d.type || 'p');
     if (d.listType) m.set('listType', d.listType);
-    m.set('text', new Y.Text());
+    if (kindOf(d.type) === 'atomic') m.set('data', d.data || {});
+    else m.set('text', new Y.Text());
     return m;
   };
 
@@ -208,10 +209,14 @@ export function bindParagraphSpike(editor, doc) {
     n.set('id', m.get('id'));
     n.set('type', m.get('type'));
     if (m.get('listType')) n.set('listType', m.get('listType'));
-    const t = new Y.Text();
-    let pos = 0;
-    for (const op of m.get('text').toDelta()) { t.insert(pos, op.insert, op.attributes || {}); pos += op.insert.length; }
-    n.set('text', t);
+    if (kindOf(m.get('type')) === 'atomic') {
+      n.set('data', { ...(m.get('data') || {}) });
+    } else {
+      const t = new Y.Text();
+      let pos = 0;
+      for (const op of m.get('text').toDelta()) { t.insert(pos, op.insert, op.attributes || {}); pos += op.insert.length; }
+      n.set('text', t);
+    }
     return n;
   };
 
@@ -223,7 +228,10 @@ export function bindParagraphSpike(editor, doc) {
       let id = h.host.getAttribute('data-id');
       if (!id || seen.has(id)) { id = uid(); h.host.setAttribute('data-id', id); }
       seen.add(id);
-      return { id, type: h.type, listType: h.listType, delta: serializeHost(h.host, h.type) };
+      const desc = { id, type: h.type, listType: h.listType };
+      if (kindOf(h.type) === 'atomic') desc.data = BLOCKS[h.type].read(h.host);
+      else desc.delta = serializeHost(h.host, h.type);
+      return desc;
     });
   }
 
@@ -249,7 +257,11 @@ export function bindParagraphSpike(editor, doc) {
         if (m.get('type') !== d.type) m.set('type', d.type);
         const lt = d.listType || null;
         if ((m.get('listType') || null) !== lt) { if (lt) m.set('listType', lt); else if (m.has('listType')) m.delete('listType'); }
-        reconcileText(m.get('text'), d.delta);
+        if (kindOf(d.type) === 'atomic') {
+          if (JSON.stringify(m.get('data')) !== JSON.stringify(d.data)) m.set('data', d.data);
+        } else {
+          reconcileText(m.get('text'), d.delta);
+        }
       }
     }, LOCAL);
   }
@@ -269,6 +281,7 @@ export function bindParagraphSpike(editor, doc) {
     const b = content.contains(r.startContainer) ? blockHostAt(content, r.startContainer) : null;
     if (!b || b.index >= blocks.length) { reconcileFromDom(); return; }
     const m = blocks.get(b.index);
+    if (!m.get('text')) { reconcileFromDom(); return; }     // atomic block — nothing to compose
     doc.transact(() => { reconcileText(m.get('text'), serializeHost(b.host, b.type)); }, LOCAL);
   }
 
@@ -296,9 +309,10 @@ export function bindParagraphSpike(editor, doc) {
     const r = sel.getRangeAt(0);
     const b = content.contains(r.startContainer) ? blockHostAt(content, r.startContainer) : null;
     if (!b || b.index >= blocks.length) { caret = null; return; }
-    const idx = textIndexInHost(b.host, r.startContainer, r.startOffset);
-    caret = idx < 0 ? null
-      : { blockId: blocks.get(b.index).get('id'), rel: Y.createRelativePositionFromTypeIndex(blocks.get(b.index).get('text'), idx) };
+    const yt = blocks.get(b.index).get('text');
+    const idx = yt ? textIndexInHost(b.host, r.startContainer, r.startOffset) : -1;
+    caret = (idx < 0 || !yt) ? null
+      : { blockId: blocks.get(b.index).get('id'), rel: Y.createRelativePositionFromTypeIndex(yt, idx) };
   }
   const onBeforeTxn = (txn) => { if (txn.origin !== LOCAL) captureCaret(); };
   doc.on('beforeTransaction', onBeforeTxn);
@@ -339,6 +353,18 @@ export function bindParagraphSpike(editor, doc) {
 
     const blockEl = (m, tag, type) => {
       const id = m.get('id');
+      // Atomic block (image/…): reuse the existing element if its data matches,
+      // else (re)create from the schema. No editable text.
+      if (kindOf(type) === 'atomic') {
+        const data = m.get('data') || {};
+        const el = existing.get(id);
+        if (el && el.tagName.toLowerCase() === tag &&
+            JSON.stringify(BLOCKS[type].read(el)) === JSON.stringify(data)) return el;
+        const made = BLOCKS[type].create(cdoc, data);
+        made.setAttribute('data-id', id);
+        rerendered.add(id);
+        return made;
+      }
       const delta = m.get('text').toDelta();
       let el = existing.get(id);
       if (el && el.tagName.toLowerCase() === tag) {
@@ -370,7 +396,7 @@ export function bindParagraphSpike(editor, doc) {
         }
         desired.push(list);
       } else {
-        const tag = /^(p|h[1-6]|blockquote|pre)$/.test(type) ? type : 'p';
+        const tag = BLOCKS[type]?.tag || 'p';
         desired.push(blockEl(m, tag, type));
         i++;
       }

@@ -174,6 +174,33 @@ describe('collab spike: two-editor convergence + caret', () => {
     expect(got.startOffset).toBe(3);
   });
 
+  it('IME: defers reconcile + remote patch until compositionend (no corruption)', () => {
+    setContent(edA, '<p>hello</p><p>world</p>');
+    const pA0 = childPs(edA)[0];
+    const sel = window.getSelection();
+    const r = document.createRange(); r.setStart(pA0.firstChild, 5); r.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r);
+
+    // A starts composing in paragraph 0
+    edA.content.dispatchEvent(new Event('compositionstart', { bubbles: true }));
+    pA0.textContent = 'hellox';                                   // composed char
+    const r2 = document.createRange(); r2.setStart(pA0.firstChild, 6); r2.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r2);
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(clean(edB.getHtml())).toContain('<p>hello</p>');       // composing text NOT synced yet
+
+    // remote edit arrives at B's paragraph 1 during A's composition
+    childPs(edB)[1].textContent = 'WORLD';
+    edB.content.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(childPs(edA)[0].textContent).toBe('hellox');          // composition untouched
+    expect(childPs(edA)[1].textContent).toBe('world');           // remote patch deferred
+
+    // A ends composition -> commit composed block, then apply deferred remote
+    edA.content.dispatchEvent(new Event('compositionend', { bubbles: true }));
+    expect(clean(edA.getHtml())).toBe('<p>hellox</p><p>WORLD</p>');
+    expect(edA.getHtml()).toBe(edB.getHtml());
+  });
+
   it('id-keying: concurrent block delete + edit-elsewhere converges', () => {
     setContent(edA, '<p>a</p><p>b</p><p>c</p>');
     hub.pause();

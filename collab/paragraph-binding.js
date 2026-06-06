@@ -251,8 +251,39 @@ export function bindParagraphSpike(editor, doc) {
       }
     }, LOCAL);
   }
-  const onInput = () => { if (!applyingRemote) reconcileFromDom(); };
+  // IME: during composition the DOM is mid-flux. Defer DOM->Y reconcile until
+  // compositionend, and hold incoming remote patches so we never rebuild the
+  // block the user is composing in (which would abort/corrupt the IME).
+  let composing = false;
+  let pendingRemote = false;
+
+  // Commit only the block the caret sits in (the one just composed) — a whole
+  // reconcile would read other blocks' DOM, which may be stale if a remote
+  // patch was deferred during composition, and revert it.
+  function commitComposingBlock() {
+    const sel = getSel();
+    if (!sel || !sel.rangeCount) { reconcileFromDom(); return; }
+    const r = sel.getRangeAt(0);
+    const b = content.contains(r.startContainer) ? blockHostAt(content, r.startContainer) : null;
+    if (!b || b.index >= blocks.length) { reconcileFromDom(); return; }
+    const m = blocks.get(b.index);
+    doc.transact(() => { reconcileText(m.get('text'), serializeInline(b.host)); }, LOCAL);
+  }
+
+  const onInput = () => { if (!applyingRemote && !composing) reconcileFromDom(); };
+  const onCompositionStart = () => { composing = true; };
+  const onCompositionEnd = () => {
+    composing = false;
+    if (!applyingRemote) commitComposingBlock();          // 1. commit just the composed block
+    if (pendingRemote) {                                  // 2. then apply any deferred remote patch
+      pendingRemote = false;
+      applyingRemote = true;
+      try { renderFromModel(); } finally { applyingRemote = false; }
+    }
+  };
   content.addEventListener('input', onInput);
+  content.addEventListener('compositionstart', onCompositionStart);
+  content.addEventListener('compositionend', onCompositionEnd);
 
   // ---- caret capture (pre-update) -------------------------------------------
   let caret = null;
@@ -363,6 +394,7 @@ export function bindParagraphSpike(editor, doc) {
   }
   const observer = (_events, txn) => {
     if (txn.origin === LOCAL) return;
+    if (composing) { pendingRemote = true; return; }     // defer until compositionend
     applyingRemote = true;
     try { renderFromModel(); } finally { applyingRemote = false; }
   };
@@ -375,6 +407,8 @@ export function bindParagraphSpike(editor, doc) {
   return {
     destroy() {
       content.removeEventListener('input', onInput);
+      content.removeEventListener('compositionstart', onCompositionStart);
+      content.removeEventListener('compositionend', onCompositionEnd);
       blocks.unobserveDeep(observer);
       doc.off('beforeTransaction', onBeforeTxn);
     },

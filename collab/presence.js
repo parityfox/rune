@@ -34,17 +34,24 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
   let typing = false, typingTimer = null, selThrottle = null;
 
   function writeCursor() {
+    // Encode a DOM point as { block, rel } anchored to that block's Y.Text.
+    const pointInfo = (node, offset) => {
+      if (!content.contains(node)) return null;
+      const b = blockHostAt(content, node);
+      if (!b || b.index >= blocks.length) return null;
+      const idx = textIndexInHost(b.host, node, offset);
+      const yt = blocks.get(b.index)?.get('text');
+      if (idx < 0 || !yt) return null;
+      return { block: blocks.get(b.index).get('id'), rel: Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(yt, idx)) };
+    };
+
     let cursor = null;
     const sel = getSelection(content);
     if (sel && sel.rangeCount) {
       const r = sel.getRangeAt(0);
-      const b = content.contains(r.startContainer) ? blockHostAt(content, r.startContainer) : null;
-      if (b && b.index < blocks.length) {
-        const idx = textIndexInHost(b.host, r.startContainer, r.startOffset);
-        const block = blocks.get(b.index);
-        const yt = block?.get('text');
-        if (idx >= 0 && yt) cursor = { block: block.get('id'), rel: Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(yt, idx)) };
-      }
+      const head = pointInfo(r.endContainer, r.endOffset);
+      const anchor = r.collapsed ? head : pointInfo(r.startContainer, r.startOffset);
+      if (head) cursor = { head, anchor: anchor || head, collapsed: r.collapsed };
     }
     awareness.setLocalStateField('cursor', cursor);
     awareness.setLocalStateField('typing', typing);
@@ -55,30 +62,57 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
     const roster = [];
     const wr = wrapper.getBoundingClientRect();
     const hosts = flattenHosts(content);
+
+    // Resolve an encoded { block, rel } point to a live DOM point.
+    const resolve = (p) => {
+      if (!p) return null;
+      const abs = Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(p.rel), doc);
+      const host = hosts.find((h) => h.host.getAttribute('data-id') === p.block)?.host;
+      if (!abs || !host) return null;
+      const dp = domPointInHost(host, abs.index);
+      return dp || { node: host, off: 0 };
+    };
+    const local = (rect) => ({ x: rect.left - wr.left + wrapper.scrollLeft, y: rect.top - wr.top + wrapper.scrollTop, h: rect.height || 20 });
+
     awareness.getStates().forEach((state, clientId) => {
       const isSelf = clientId === awareness.clientID;
       const user = state.user || {};
       roster.push({ id: clientId, name: user.name, color: user.color, typing: !!state.typing, isSelf });
       if (isSelf || !state.cursor) return;
-
-      const abs = Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(state.cursor.rel), doc);
-      const host = hosts.find((h) => h.host.getAttribute('data-id') === state.cursor.block)?.host;
-      if (!abs || !host) return;
-      const pt = domPointInHost(host, abs.index);
-      let rect;
-      if (pt) { const rg = cdoc.createRange(); rg.setStart(pt.node, pt.off); rg.collapse(true); rect = rg.getBoundingClientRect(); }
-      if (!rect || (!rect.height && !rect.width)) rect = host.getBoundingClientRect();
-      const x = rect.left - wr.left + wrapper.scrollLeft;
-      const y = rect.top - wr.top + wrapper.scrollTop;
-      const h = rect.height || 20;
       const col = user.color || '#888';
 
+      const headPt = resolve(state.cursor.head);
+      if (!headPt) return;
+      const anchorPt = state.cursor.collapsed ? headPt : (resolve(state.cursor.anchor) || headPt);
+
+      // selection highlight (range between anchor and head)
+      if (!state.cursor.collapsed) {
+        const rg = cdoc.createRange();
+        try {
+          rg.setStart(anchorPt.node, anchorPt.off);
+          rg.setEnd(headPt.node, headPt.off);
+          if (rg.collapsed) { rg.setStart(headPt.node, headPt.off); rg.setEnd(anchorPt.node, anchorPt.off); }
+        } catch { /* boundary order swapped */ rg.setStart(headPt.node, headPt.off); rg.setEnd(anchorPt.node, anchorPt.off); }
+        for (const rect of rg.getClientRects()) {
+          if (!rect.width && !rect.height) continue;
+          const hl = cdoc.createElement('div');
+          const p = local(rect);
+          hl.style.cssText = `position:absolute;left:${p.x}px;top:${p.y}px;width:${rect.width}px;height:${rect.height}px;background:${col};opacity:0.22;`;
+          layer.appendChild(hl);
+        }
+      }
+
+      // caret + name label at the head
+      const cr = cdoc.createRange(); cr.setStart(headPt.node, headPt.off); cr.collapse(true);
+      let rect = cr.getBoundingClientRect();
+      if (!rect || (!rect.height && !rect.width)) rect = (hosts.find((h) => h.host.getAttribute('data-id') === state.cursor.head.block)?.host || content).getBoundingClientRect();
+      const p = local(rect);
       const caret = cdoc.createElement('div');
-      caret.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:2px;height:${h}px;background:${col};`;
+      caret.style.cssText = `position:absolute;left:${p.x}px;top:${p.y}px;width:2px;height:${p.h}px;background:${col};`;
       const label = cdoc.createElement('div');
       label.className = 'rune-presence-label';
       label.textContent = (user.name || 'Anon') + (state.typing ? ' ✎' : '');
-      label.style.cssText = `position:absolute;left:${x}px;top:${y}px;transform:translateY(-100%);background:${col};color:#fff;font:500 10px/1.4 -apple-system,sans-serif;padding:0 5px;border-radius:4px 4px 4px 0;white-space:nowrap;`;
+      label.style.cssText = `position:absolute;left:${p.x}px;top:${p.y}px;transform:translateY(-100%);background:${col};color:#fff;font:500 10px/1.4 -apple-system,sans-serif;padding:0 5px;border-radius:4px 4px 4px 0;white-space:nowrap;`;
       layer.appendChild(caret);
       layer.appendChild(label);
     });

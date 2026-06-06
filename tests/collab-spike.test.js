@@ -29,6 +29,12 @@ function editPara(ed, i, html) {
   ed.content.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+// Replace the whole editor content (block-level) and fire `input`.
+function setContent(ed, html) {
+  ed.content.innerHTML = html;
+  ed.content.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 describe('collab spike: two-editor convergence + caret', () => {
   let hub, edA, edB, docA, docB, a, b;
 
@@ -89,6 +95,38 @@ describe('collab spike: two-editor convergence + caret', () => {
   it('syncs underline / strike / code marks', () => {
     editPara(edA, 0, '<u>u</u><s>s</s><code>c</code>');
     expect(edB.getHtml()).toBe('<p><u>u</u><s>s</s><code>c</code></p>');
+  });
+
+  it('syncs headings and blockquote (block types)', () => {
+    setContent(edA, '<h2>Title</h2><p>body</p><blockquote>quote</blockquote>');
+    expect(edB.getHtml()).toBe('<h2>Title</h2><p>body</p><blockquote>quote</blockquote>');
+  });
+
+  it('syncs bullet and ordered lists (consecutive items grouped)', () => {
+    setContent(edA, '<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>');
+    expect(edB.getHtml()).toBe('<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>');
+  });
+
+  it('converges on concurrent edits inside two list items', () => {
+    setContent(edA, '<ul><li>one</li><li>two</li></ul>');
+    expect(edB.getHtml()).toBe('<ul><li>one</li><li>two</li></ul>');
+    hub.pause();
+    // A edits item 1, B edits item 2 (concurrent)
+    const liA = edA.content.querySelectorAll('li')[0]; liA.textContent = 'ONE';
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    const liB = edB.content.querySelectorAll('li')[1]; liB.textContent = 'TWO';
+    edB.content.dispatchEvent(new Event('input', { bubbles: true }));
+    hub.resume();
+    expect(edA.getHtml()).toBe(edB.getHtml());
+    expect(edA.getHtml()).toBe('<ul><li>ONE</li><li>TWO</li></ul>');
+  });
+
+  it('changing a paragraph to a heading syncs as an attribute change', () => {
+    setContent(edA, '<p>Heading text</p>');
+    // promote to h1 (type change, text unchanged)
+    edA.content.innerHTML = '<h1>Heading text</h1>';
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(edB.getHtml()).toBe('<h1>Heading text</h1>');
   });
 
   it('syncs safe links and drops dangerous hrefs', () => {

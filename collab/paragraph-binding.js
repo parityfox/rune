@@ -2,24 +2,19 @@ import * as Y from 'yjs';
 import { _isDangerousUrl } from '../src/utils/html.js';
 
 /**
- * Phase-1 SPIKE binding (#11) — scope: paragraphs + inline marks.
+ * Collab spike binding (#11) — paragraphs, headings, blockquote, lists + marks.
  *
- * Goal: prove end-to-end that a *model-less* contenteditable can bind to Yjs
- * with (a) convergence under concurrent edits and (b) caret preservation across
- * remote edits — before committing to the full schema (#10) and binding (#11).
+ * Model: `doc.getArray('blocks')` of `Y.Map { type, listType?, text: Y.Text }`.
+ *   type ∈ p | h1..h6 | blockquote | li.  Marks are Yjs text-formatting
+ *   attributes on `text` (bold/italic/underline/strike/code/link). Consecutive
+ *   `li` blocks with the same `listType` render as one <ul>/<ol>.
  *
- * Model: `doc.getArray('blocks')` of `Y.Text`, one per `<p>`. Marks are Yjs
- * text-formatting attributes (bold/italic/underline/strike/code/link). Block i
- * <-> content paragraph i.
- *
- * NOT production: paragraph identity is by index (no data-id yet); the Y->DOM
- * step re-renders a changed paragraph wholesale (caret restored via
- * RelativePosition) rather than minimal-patching. Those are full-#11 concerns.
+ * NOT production: blocks are keyed by index (no data-id), and remote changes
+ * rebuild the block-level DOM wholesale (caret restored via RelativePosition)
+ * rather than minimal-patching. Those are full-#11 concerns.
  */
 
 const LOCAL = 'local';
-
-// Mark precedence: outermost first. Determines deterministic nesting on render.
 const MARK_KEYS = ['link', 'bold', 'italic', 'underline', 'strike', 'code'];
 
 function sameAttrs(a = {}, b = {}) {
@@ -31,15 +26,14 @@ function sameAttrs(a = {}, b = {}) {
 }
 
 const textOf = (delta) => delta.map((o) => o.insert).join('');
-
 const charAttrs = (delta) => {
   const out = [];
   for (const op of delta) for (let i = 0; i < op.insert.length; i++) out.push(op.attributes || {});
   return out;
 };
 
-/** <p> inline DOM -> normalized delta [{ insert, attributes }]. */
-function serialize(p) {
+/** Element's inline content -> normalized delta [{ insert, attributes }]. */
+function serializeInline(el) {
   const ops = [];
   (function walk(node, attrs) {
     for (const c of node.childNodes) {
@@ -54,10 +48,10 @@ function serialize(p) {
         else if (t === 's' || t === 'strike' || t === 'del') next.strike = true;
         else if (t === 'code') next.code = true;
         else if (t === 'a') { const h = c.getAttribute('href'); if (h && !_isDangerousUrl(h)) next.link = h; }
-        walk(c, next);                       // <br> has no children -> contributes nothing
+        walk(c, next);
       }
     }
-  })(p, {});
+  })(el, {});
   const merged = [];
   for (const op of ops) {
     const last = merged[merged.length - 1];
@@ -67,21 +61,19 @@ function serialize(p) {
   return merged;
 }
 
-/** delta -> <p> inline DOM. Deterministic nesting per MARK_KEYS (link outermost). */
-function render(p, delta) {
-  const doc = p.ownerDocument;
-  p.textContent = '';
-  if (!delta.length) { p.appendChild(doc.createElement('br')); return; }
+/** delta -> element inline DOM. Deterministic nesting per MARK_KEYS (link outermost). */
+function renderInline(el, delta) {
+  const doc = el.ownerDocument;
+  el.textContent = '';
+  if (!delta.length) { el.appendChild(doc.createElement('br')); return; }
   for (const op of delta) {
     let node = doc.createTextNode(op.insert);
     const a = op.attributes || {};
-    // wrap inner -> outer (reverse precedence)
     if (a.code) { const e = doc.createElement('code'); e.appendChild(node); node = e; }
     if (a.strike) { const e = doc.createElement('s'); e.appendChild(node); node = e; }
     if (a.underline) { const e = doc.createElement('u'); e.appendChild(node); node = e; }
     if (a.italic) { const e = doc.createElement('em'); e.appendChild(node); node = e; }
     if (a.bold) { const e = doc.createElement('strong'); e.appendChild(node); node = e; }
-    // link outermost — security: only materialize a safe href
     if (a.link && !_isDangerousUrl(a.link)) {
       const e = doc.createElement('a');
       e.setAttribute('href', a.link);
@@ -89,16 +81,14 @@ function render(p, delta) {
       e.setAttribute('rel', 'noopener noreferrer');
       e.appendChild(node); node = e;
     }
-    p.appendChild(node);
+    el.appendChild(node);
   }
 }
 
-/** Reconcile one paragraph's serialized delta into its Y.Text (minimal ops). */
+/** Reconcile an element's serialized delta into its Y.Text (minimal ops). */
 function reconcileText(ytext, newDelta) {
   const oldText = textOf(ytext.toDelta());
   const newText = textOf(newDelta);
-
-  // 1. Text: common prefix/suffix diff -> single delete + insert.
   if (oldText !== newText) {
     let a = 0;
     const maxPre = Math.min(oldText.length, newText.length);
@@ -111,8 +101,6 @@ function reconcileText(ytext, newDelta) {
     const ins = newText.slice(a, newText.length - b);
     if (ins) ytext.insert(a, ins);
   }
-
-  // 2. Formatting: format each maximal constant-attr target run that differs.
   const cur = charAttrs(ytext.toDelta());
   const tgt = charAttrs(newDelta);
   let i = 0;
@@ -122,127 +110,181 @@ function reconcileText(ytext, newDelta) {
     let needs = false;
     for (let k = i; k < j; k++) if (!sameAttrs(cur[k], tgt[k])) { needs = true; break; }
     if (needs) ytext.format(i, j - i, {
-      bold: tgt[i].bold ? true : null,
-      italic: tgt[i].italic ? true : null,
-      underline: tgt[i].underline ? true : null,
-      strike: tgt[i].strike ? true : null,
-      code: tgt[i].code ? true : null,
-      link: tgt[i].link || null,
+      bold: tgt[i].bold ? true : null, italic: tgt[i].italic ? true : null,
+      underline: tgt[i].underline ? true : null, strike: tgt[i].strike ? true : null,
+      code: tgt[i].code ? true : null, link: tgt[i].link || null,
     });
     i = j;
   }
 }
 
-const childParagraphs = (content) => [...content.children].filter((el) => el.tagName === 'P');
+// ─── block flattening (lists expand to one block per <li>) ──────────────────
 
-/** Caret text-offset within paragraph `p`, or -1 if the selection isn't in it. */
-function caretIndexInPara(p, sel) {
-  if (!sel || sel.rangeCount === 0) return -1;
-  const r = sel.getRangeAt(0);
-  if (!p.contains(r.startContainer)) return -1;
+/** Ordered list of block hosts: [{ host, type, listType }]. */
+export function flattenHosts(content) {
+  const out = [];
+  for (const el of content.children) {
+    const t = el.tagName.toLowerCase();
+    if (t === 'ul' || t === 'ol') {
+      const listType = t === 'ul' ? 'bullet' : 'ordered';
+      for (const li of el.children) if (li.tagName === 'LI') out.push({ host: li, type: 'li', listType });
+    } else if (t === 'p' || /^h[1-6]$/.test(t) || t === 'blockquote') {
+      out.push({ host: el, type: t === 'p' ? 'p' : t, listType: null });
+    }
+    // other block types are ignored by this spike
+  }
+  return out;
+}
+
+/** Which flattened block a DOM node lives in. */
+export function blockHostAt(content, node) {
+  const hosts = flattenHosts(content);
+  for (let i = 0; i < hosts.length; i++) if (hosts[i].host.contains(node)) return { index: i, ...hosts[i] };
+  return null;
+}
+
+/** Caret text-offset of (node, offset) within host element. */
+export function textIndexInHost(host, node, offset) {
   let idx = 0, done = false;
-  (function walk(node) {
-    for (const c of node.childNodes) {
+  (function walk(n) {
+    for (const c of n.childNodes) {
       if (done) return;
-      if (c === r.startContainer) {
-        if (c.nodeType === 3) idx += r.startOffset;
-        else for (let k = 0; k < r.startOffset; k++) idx += c.childNodes[k]?.textContent.length || 0;
+      if (c === node) {
+        if (c.nodeType === 3) idx += offset;
+        else for (let k = 0; k < offset; k++) idx += c.childNodes[k]?.textContent.length || 0;
         done = true; return;
       }
       if (c.nodeType === 3) idx += c.data.length;
       else if (c.nodeType === 1) walk(c);
     }
-  })(p);
+  })(host);
   return done ? idx : -1;
 }
 
-/** Place the caret at text-offset `index` within paragraph `p`. */
-function setCaretInPara(p, index, sel) {
-  let remaining = index, target = null, off = 0;
-  (function walk(node) {
-    for (const c of node.childNodes) {
-      if (target) return;
+/** {node, off} for a text offset within host element. */
+export function domPointInHost(host, index) {
+  let remaining = index, node = null, off = 0;
+  (function walk(n) {
+    for (const c of n.childNodes) {
+      if (node) return;
       if (c.nodeType === 3) {
-        if (remaining <= c.data.length) { target = c; off = remaining; return; }
+        if (remaining <= c.data.length) { node = c; off = remaining; return; }
         remaining -= c.data.length;
       } else if (c.nodeType === 1) walk(c);
     }
-  })(p);
-  const r = p.ownerDocument.createRange();
-  if (target) r.setStart(target, off);
-  else { r.selectNodeContents(p); r.collapse(false); }
-  r.collapse(true);
-  sel.removeAllRanges();
-  sel.addRange(r);
+  })(host);
+  return node ? { node, off } : null;
 }
 
-/**
- * Bind an editor's contenteditable to a Yjs doc (spike scope).
- * @returns {{ destroy(): void }}
- */
+// ─── binding ────────────────────────────────────────────────────────────────
+
 export function bindParagraphSpike(editor, doc) {
   const blocks = doc.getArray('blocks');
   const content = editor.content;
-  const getSel = () => content.ownerDocument.defaultView?.getSelection?.()
-    || content.ownerDocument.getSelection?.();
+  const cdoc = content.ownerDocument;
+  const getSel = () => cdoc.defaultView?.getSelection?.() || cdoc.getSelection?.();
   let applyingRemote = false;
 
-  // ---- DOM -> Y (local edits) -------------------------------------------
+  const newBlock = (type = 'p', listType = null) => {
+    const m = new Y.Map();
+    m.set('type', type);
+    if (listType) m.set('listType', listType);
+    m.set('text', new Y.Text());
+    return m;
+  };
+
+  // ---- DOM -> Y --------------------------------------------------------------
   function reconcileFromDom() {
-    const ps = childParagraphs(content);
+    const descs = flattenHosts(content).map((h) => ({ type: h.type, listType: h.listType, delta: serializeInline(h.host) }));
+    if (!descs.length) descs.push({ type: 'p', listType: null, delta: [] });
     doc.transact(() => {
-      while (blocks.length < ps.length) blocks.push([new Y.Text()]);
-      while (blocks.length > ps.length) blocks.delete(blocks.length - 1, 1);
-      ps.forEach((p, i) => reconcileText(blocks.get(i), serialize(p)));
+      while (blocks.length < descs.length) blocks.push([newBlock()]);
+      while (blocks.length > descs.length) blocks.delete(blocks.length - 1, 1);
+      descs.forEach((d, i) => {
+        const m = blocks.get(i);
+        if (m.get('type') !== d.type) m.set('type', d.type);
+        const lt = d.listType || null;
+        if ((m.get('listType') || null) !== lt) { if (lt) m.set('listType', lt); else if (m.has('listType')) m.delete('listType'); }
+        reconcileText(m.get('text'), d.delta);
+      });
     }, LOCAL);
   }
   const onInput = () => { if (!applyingRemote) reconcileFromDom(); };
   content.addEventListener('input', onInput);
 
-  // ---- caret capture (must happen BEFORE a remote change integrates) -----
-  // Snapshot the local caret as a Yjs RelativePosition at `beforeTransaction`,
-  // while the Y.Text is still in its pre-update state, so it tracks through the
-  // incoming remote edit. (Capturing after — in the observer — anchors to the
-  // already-changed text and the caret drifts.)
-  let caret = null;                            // { paraIndex, rel }
+  // ---- caret capture (pre-update) -------------------------------------------
+  let caret = null;
   function captureCaret() {
     if (applyingRemote) return;
     const sel = getSel();
-    const ps = childParagraphs(content);
-    for (let i = 0; i < ps.length && i < blocks.length; i++) {
-      const ci = caretIndexInPara(ps[i], sel);
-      if (ci >= 0) { caret = { paraIndex: i, rel: Y.createRelativePositionFromTypeIndex(blocks.get(i), ci) }; return; }
-    }
-    caret = null;
+    if (!sel || !sel.rangeCount) { caret = null; return; }
+    const r = sel.getRangeAt(0);
+    const b = content.contains(r.startContainer) ? blockHostAt(content, r.startContainer) : null;
+    if (!b || b.index >= blocks.length) { caret = null; return; }
+    const idx = textIndexInHost(b.host, r.startContainer, r.startOffset);
+    caret = idx < 0 ? null
+      : { blockIndex: b.index, rel: Y.createRelativePositionFromTypeIndex(blocks.get(b.index).get('text'), idx) };
   }
   const onBeforeTxn = (txn) => { if (txn.origin !== LOCAL) captureCaret(); };
   doc.on('beforeTransaction', onBeforeTxn);
 
-  // ---- Y -> DOM (remote edits) ------------------------------------------
+  // ---- Y -> DOM --------------------------------------------------------------
+  function setCaretInHost(host, index, sel) {
+    const pt = domPointInHost(host, index);
+    const r = cdoc.createRange();
+    if (pt) r.setStart(pt.node, pt.off);
+    else { r.selectNodeContents(host); r.collapse(false); }
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+
   function renderFromModel() {
-    const cap = caret;                         // captured pre-update by onBeforeTxn
-    let ps = childParagraphs(content);
-    while (ps.length < blocks.length) { const p = content.ownerDocument.createElement('p'); content.appendChild(p); ps.push(p); }
-    while (ps.length > blocks.length) { content.removeChild(ps.pop()); }
-    for (let i = 0; i < blocks.length; i++) render(ps[i], blocks.get(i).toDelta());
-    // restore caret via the pre-update RelativePosition
+    const cap = caret;
+    content.textContent = '';
+    const hosts = [];
+    const n = blocks.length;
+    let i = 0;
+    while (i < n) {
+      const m = blocks.get(i);
+      const type = m.get('type') || 'p';
+      if (type === 'li') {
+        const listType = m.get('listType') || 'bullet';
+        const list = cdoc.createElement(listType === 'ordered' ? 'ol' : 'ul');
+        while (i < n) {
+          const mm = blocks.get(i);
+          if ((mm.get('type') || 'p') !== 'li' || (mm.get('listType') || 'bullet') !== listType) break;
+          const li = cdoc.createElement('li');
+          renderInline(li, mm.get('text').toDelta());
+          list.appendChild(li);
+          hosts[i] = li; i++;
+        }
+        content.appendChild(list);
+      } else {
+        const tag = /^h[1-6]$/.test(type) ? type : (type === 'blockquote' ? 'blockquote' : 'p');
+        const el = cdoc.createElement(tag);
+        renderInline(el, m.get('text').toDelta());
+        content.appendChild(el);
+        hosts[i] = el; i++;
+      }
+    }
+    if (!n) { const p = cdoc.createElement('p'); p.appendChild(cdoc.createElement('br')); content.appendChild(p); }
     const sel = getSel();
     if (cap && cap.rel && sel) {
       const abs = Y.createAbsolutePositionFromRelativePosition(cap.rel, doc);
-      const after = childParagraphs(content);
-      const para = after[cap.paraIndex] || after[after.length - 1];
-      if (abs && para) setCaretInPara(para, abs.index, sel);
+      const host = hosts[cap.blockIndex];
+      if (abs && host) setCaretInHost(host, abs.index, sel);
     }
   }
   const observer = (_events, txn) => {
-    if (txn.origin === LOCAL) return;          // ignore our own edits (no echo)
+    if (txn.origin === LOCAL) return;
     applyingRemote = true;
     try { renderFromModel(); } finally { applyingRemote = false; }
   };
   blocks.observeDeep(observer);
 
-  // ---- initial sync ------------------------------------------------------
-  if (blocks.length === 0) reconcileFromDom();               // seed model from DOM
+  // ---- initial sync ----------------------------------------------------------
+  if (blocks.length === 0) reconcileFromDom();
   else { applyingRemote = true; try { renderFromModel(); } finally { applyingRemote = false; } }
 
   return {
@@ -254,5 +296,4 @@ export function bindParagraphSpike(editor, doc) {
   };
 }
 
-// Exposed for unit tests of the pure transforms.
-export const _internals = { serialize, render, reconcileText, sameAttrs, textOf };
+export const _internals = { serializeInline, renderInline, reconcileText, sameAttrs, flattenHosts };

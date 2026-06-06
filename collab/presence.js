@@ -1,56 +1,21 @@
 import * as Y from 'yjs';
+import { flattenHosts, blockHostAt, textIndexInHost, domPointInHost } from './paragraph-binding.js';
 
 /**
  * Presence (spike, Phase 2 / #12) — live remote cursors + typing indicators.
  *
- * SPIKE simplification: presence is stored in a shared `Y.Map('presence')` so it
- * rides the same MemoryHub sync channel. The production design (#12) uses the
- * ephemeral y-protocols Awareness instead (presence shouldn't persist in the doc
- * or hit undo). Cursor positions are encoded as Yjs RelativePositions so they
- * stay attached to the right character as the document changes.
+ * SPIKE simplification: presence rides a shared `Y.Map('presence')` on the same
+ * sync channel. Production (#12) uses the ephemeral y-protocols Awareness so
+ * presence doesn't persist in the doc or hit undo. Positions are Yjs
+ * RelativePositions so they stay attached to the right character as edits land.
  */
 
 const STALE_MS = 10000;
 const TYPING_MS = 1200;
 
-const childParagraphs = (content) => [...content.children].filter((el) => el.tagName === 'P');
-
 function getSelection(content) {
   const d = content.ownerDocument;
   return d.defaultView?.getSelection?.() || d.getSelection?.() || null;
-}
-
-/** Text offset of the caret within paragraph `p`. */
-function textIndex(p, node, offset) {
-  let idx = 0, done = false;
-  (function walk(n) {
-    for (const c of n.childNodes) {
-      if (done) return;
-      if (c === node) {
-        if (c.nodeType === 3) idx += offset;
-        else for (let k = 0; k < offset; k++) idx += c.childNodes[k]?.textContent.length || 0;
-        done = true; return;
-      }
-      if (c.nodeType === 3) idx += c.data.length;
-      else if (c.nodeType === 1) walk(c);
-    }
-  })(p);
-  return done ? idx : -1;
-}
-
-/** {node, offset} for a text offset within paragraph `p`. */
-function domPoint(p, index) {
-  let remaining = index, node = null, off = 0;
-  (function walk(n) {
-    for (const c of n.childNodes) {
-      if (node) return;
-      if (c.nodeType === 3) {
-        if (remaining <= c.data.length) { node = c; off = remaining; return; }
-        remaining -= c.data.length;
-      } else if (c.nodeType === 1) walk(c);
-    }
-  })(p);
-  return node ? { node, off } : null;
 }
 
 export function bindPresence(editor, doc, { name = 'Anon', color = '#888', onChange, now = () => Date.now() } = {}) {
@@ -67,6 +32,8 @@ export function bindPresence(editor, doc, { name = 'Anon', color = '#888', onCha
   layer.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5;';
   wrapper.appendChild(layer);
 
+  const textOfBlock = (i) => blocks.get(i)?.get('text');
+
   let typing = false, typingTimer = null, selThrottle = null;
 
   function writeSelf() {
@@ -74,15 +41,11 @@ export function bindPresence(editor, doc, { name = 'Anon', color = '#888', onCha
     const sel = getSelection(content);
     if (sel && sel.rangeCount) {
       const r = sel.getRangeAt(0);
-      if (content.contains(r.startContainer)) {
-        const ps = childParagraphs(content);
-        for (let i = 0; i < ps.length && i < blocks.length; i++) {
-          if (ps[i].contains(r.startContainer)) {
-            const idx = textIndex(ps[i], r.startContainer, r.startOffset);
-            if (idx >= 0) { entry.para = i; entry.rel = Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(blocks.get(i), idx)); }
-            break;
-          }
-        }
+      const b = content.contains(r.startContainer) ? blockHostAt(content, r.startContainer) : null;
+      if (b && b.index < blocks.length) {
+        const idx = textIndexInHost(b.host, r.startContainer, r.startOffset);
+        const yt = textOfBlock(b.index);
+        if (idx >= 0 && yt) { entry.block = b.index; entry.rel = Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(yt, idx)); }
       }
     }
     presence.set(meId, entry);
@@ -92,6 +55,7 @@ export function bindPresence(editor, doc, { name = 'Anon', color = '#888', onCha
     layer.textContent = '';
     const roster = [];
     const wr = wrapper.getBoundingClientRect();
+    const hosts = flattenHosts(content);
     presence.forEach((entry, id) => {
       const stale = now() - (entry.ts || 0) > STALE_MS;
       const isSelf = id === meId;
@@ -99,12 +63,12 @@ export function bindPresence(editor, doc, { name = 'Anon', color = '#888', onCha
       if (isSelf || stale || entry.rel == null) return;
 
       const abs = Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(entry.rel), doc);
-      const p = childParagraphs(content)[entry.para ?? 0];
-      if (!abs || !p) return;
-      const pt = domPoint(p, abs.index);
+      const host = hosts[entry.block ?? 0]?.host;
+      if (!abs || !host) return;
+      const pt = domPointInHost(host, abs.index);
       let rect;
       if (pt) { const rg = cdoc.createRange(); rg.setStart(pt.node, pt.off); rg.collapse(true); rect = rg.getBoundingClientRect(); }
-      if (!rect || (!rect.height && !rect.width)) rect = p.getBoundingClientRect();
+      if (!rect || (!rect.height && !rect.width)) rect = host.getBoundingClientRect();
       const x = rect.left - wr.left + wrapper.scrollLeft;
       const y = rect.top - wr.top + wrapper.scrollTop;
       const h = rect.height || 20;
@@ -113,7 +77,7 @@ export function bindPresence(editor, doc, { name = 'Anon', color = '#888', onCha
       caret.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:2px;height:${h}px;background:${entry.color};`;
       const label = cdoc.createElement('div');
       label.className = 'rune-presence-label';
-      label.textContent = entry.name + (entry.typing && !stale ? ' ✎' : '');   // ✎ when typing
+      label.textContent = entry.name + (entry.typing && !stale ? ' ✎' : '');
       label.style.cssText = `position:absolute;left:${x}px;top:${y}px;transform:translateY(-100%);background:${entry.color};color:#fff;font:500 10px/1.4 -apple-system,sans-serif;padding:0 5px;border-radius:4px 4px 4px 0;white-space:nowrap;`;
       layer.appendChild(caret);
       layer.appendChild(label);
@@ -121,7 +85,6 @@ export function bindPresence(editor, doc, { name = 'Anon', color = '#888', onCha
     onChange?.(roster);
   }
 
-  // ---- listeners ----
   const onInput = () => {
     typing = true; writeSelf();
     clearTimeout(typingTimer);
@@ -132,7 +95,7 @@ export function bindPresence(editor, doc, { name = 'Anon', color = '#888', onCha
   content.addEventListener('input', onInput);
   cdoc.addEventListener('selectionchange', onSel);
   presence.observe(render);
-  blocks.observeDeep(render);                  // reposition carets when content shifts
+  blocks.observeDeep(render);
   const onResize = () => render();
   cdoc.defaultView?.addEventListener('resize', onResize);
 

@@ -52,9 +52,9 @@
 
   <p class="hint">
     Two editors wired through an in-process <code>MemoryHub</code> (no server). Type in either pane and watch the other
-    update live, with the remote caret + name following along. Marks: <kbd>⌘B</kbd> <kbd>⌘I</kbd> <kbd>⌘U</kbd>, plus
-    strike/code/link in the toolbar. Hit <strong>Disconnected</strong>, edit both apart, then <strong>Connected</strong> to watch the CRDT merge.
-    <br><em>Spike scope: paragraphs + inline marks + presence (#11, #12). Block types are next.</em>
+    update live, with the remote caret + name following along. Use the toolbar for <strong>headings, lists, quotes</strong>
+    and marks. Hit <strong>Disconnected</strong>, edit both apart, then <strong>Connected</strong> to watch the CRDT merge.
+    <br><em>Spike scope: paragraphs, headings, lists, blockquote + inline marks + live presence (#11, #12).</em>
   </p>
 
   <div class="panes">
@@ -73,14 +73,18 @@
   </script>
 
   <script type="module">
-    import { Editor }    from '../src/core/Editor.js';
-    import { Paragraph } from '../src/extensions/blocks/Paragraph.js';
-    import { Bold }      from '../src/extensions/marks/Bold.js';
-    import { Italic }    from '../src/extensions/marks/Italic.js';
-    import { Underline } from '../src/extensions/marks/Underline.js';
-    import { Strike }    from '../src/extensions/marks/Strike.js';
-    import { Code }      from '../src/extensions/marks/Code.js';
-    import { Link }      from '../src/extensions/marks/Link.js';
+    import { Editor }      from '../src/core/Editor.js';
+    import { Paragraph }   from '../src/extensions/blocks/Paragraph.js';
+    import { Heading }     from '../src/extensions/blocks/Heading.js';
+    import { BulletList }  from '../src/extensions/blocks/BulletList.js';
+    import { OrderedList } from '../src/extensions/blocks/OrderedList.js';
+    import { Blockquote }  from '../src/extensions/blocks/Blockquote.js';
+    import { Bold }        from '../src/extensions/marks/Bold.js';
+    import { Italic }      from '../src/extensions/marks/Italic.js';
+    import { Underline }   from '../src/extensions/marks/Underline.js';
+    import { Strike }      from '../src/extensions/marks/Strike.js';
+    import { Code }        from '../src/extensions/marks/Code.js';
+    import { Link }        from '../src/extensions/marks/Link.js';
     import * as Y from 'yjs';
     import { MemoryHub }          from '../collab/memory-hub.js';
     import { bindParagraphSpike } from '../collab/paragraph-binding.js';
@@ -92,10 +96,10 @@
     hub.connect(docA);
     hub.connect(docB);
 
-    const MARKS = [Paragraph, Bold, Italic, Underline, Strike, Code, Link];
-    const TOOLBAR = ['bold', 'italic', 'underline', 'strike', 'code', '|', 'link'];
+    const EXTENSIONS = [Paragraph, Heading, BulletList, OrderedList, Blockquote, Bold, Italic, Underline, Strike, Code, Link];
+    const TOOLBAR = ['heading', 'bulletList', 'orderedList', 'blockquote', '|', 'bold', 'italic', 'underline', 'strike', 'code', '|', 'link'];
     const makeEditor = (sel, content) => new Editor(document.querySelector(sel), {
-      extensions: MARKS,
+      extensions: EXTENSIONS,
       toolbar:    { items: TOOLBAR },
       bubbleMenu: { items: ['bold', 'italic', 'underline', 'strike', 'code', '|', 'link'] },
       slashMenu:  false,

@@ -43,7 +43,14 @@ export class Editor {
     this.events = new EventBus();
     this.schema = new Schema();
     this.commands = new CommandRegistry();
-    this.history = new History(this);
+    // History is pluggable behind the EditorHistory contract. `options.history`
+    // may be a factory `(editor) => EditorHistory` or a ready instance; the
+    // collab binding swaps in a Yjs-backed adapter via replaceHistory().
+    this.history = typeof options.history === 'function'
+      ? options.history(this)
+      : (options.history && typeof options.history.undo === 'function')
+        ? options.history
+        : new History(this);
     this.selection = new Selection(this);
 
     this._destroyed = false;
@@ -522,6 +529,18 @@ export class Editor {
     return false;
   }
 
+  /**
+   * Swap the undo/redo implementation. Disposes the previous one. `impl` must
+   * satisfy the EditorHistory contract (see core/History.js). Used by the
+   * collaborative-editing binding to install a Yjs UndoManager adapter.
+   * @param {import('./History.js').EditorHistory} impl
+   */
+  replaceHistory(impl) {
+    if (!impl || impl === this.history) return;
+    this.history?.destroy?.();
+    this.history = impl;
+  }
+
   /** Get editor HTML content. */
   getHtml() {
     // Clone and clean internal attributes
@@ -632,6 +651,6 @@ export class Editor {
     this.wrapper.remove();
     this.target.classList.remove('rune-editor', 'rune-focused', 'rune-disabled');
     this.events.removeAllListeners();
-    this.history._stack = [];
+    this.history?.destroy?.();
   }
 }

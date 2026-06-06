@@ -193,6 +193,48 @@ describe('Editor', () => {
       expect(target.classList.contains('rune-editor')).toBe(false);
       editor = null;
     });
+
+    it('disposes the history on destroy', () => {
+      create();
+      const spy = vi.spyOn(editor.history, 'destroy');
+      editor.destroy();
+      expect(spy).toHaveBeenCalled();
+      editor = null;
+    });
+  });
+
+  describe('pluggable history (EditorHistory seam)', () => {
+    it('accepts an injected history instance via options', () => {
+      const custom = { save: vi.fn(), saveNow: vi.fn(), undo: vi.fn(), redo: vi.fn(), destroy: vi.fn() };
+      editor = new Editor(target, { extensions: [Paragraph], toolbar: false, bubbleMenu: false, slashMenu: false, history: custom });
+      expect(editor.history).toBe(custom);
+    });
+
+    it('accepts a history factory via options', () => {
+      const custom = { save: vi.fn(), saveNow: vi.fn(), undo: vi.fn(), redo: vi.fn() };
+      const factory = vi.fn(() => custom);
+      editor = new Editor(target, { extensions: [Paragraph], toolbar: false, bubbleMenu: false, slashMenu: false, history: factory });
+      expect(factory).toHaveBeenCalledWith(editor);
+      expect(editor.history).toBe(custom);
+    });
+
+    it('routes undo/redo commands through the active history', () => {
+      const custom = { save: vi.fn(), saveNow: vi.fn(), undo: vi.fn(), redo: vi.fn() };
+      create();
+      editor.replaceHistory(custom);
+      editor.cmd('undo');
+      editor.cmd('redo');
+      expect(custom.undo).toHaveBeenCalled();
+      expect(custom.redo).toHaveBeenCalled();
+    });
+
+    it('replaceHistory disposes the previous history', () => {
+      create();
+      const old = editor.history;
+      const spy = vi.spyOn(old, 'destroy');
+      editor.replaceHistory({ save() {}, saveNow() {}, undo() {}, redo() {} });
+      expect(spy).toHaveBeenCalled();
+    });
   });
 
   describe('security', () => {

@@ -5,7 +5,20 @@ const DATA_URI_RE = /\ssrc="data:[^"]{256,}"/g;
 const DATA_URI_PLACEHOLDER = ' src=""';
 
 /**
- * History — undo/redo stack.
+ * EditorHistory — the contract `Editor` depends on for undo/redo. Lets the
+ * snapshot history below be swapped for an alternative (e.g. a Yjs UndoManager
+ * adapter for collaborative editing) via `editor.replaceHistory()`.
+ *
+ * @typedef {Object} EditorHistory
+ * @property {() => void}    save     Record a boundary (may be debounced); no-op for CRDT-backed histories.
+ * @property {() => void}    saveNow  Record immediately / set an explicit undo boundary.
+ * @property {() => boolean} undo
+ * @property {() => boolean} redo
+ * @property {() => void}    [destroy] Release timers/resources.
+ */
+
+/**
+ * History — undo/redo stack. Implements {@link EditorHistory}.
  *
  * Stores innerHTML snapshots. Debounced so rapid keystrokes
  * don't flood the stack. Memory is capped by both entry count
@@ -85,4 +98,12 @@ export class History {
 
   get canUndo() { return this._index > 0; }
   get canRedo() { return this._index < this._stack.length - 1; }
+
+  /** Release the debounce timer and drop the snapshot stack. */
+  destroy() {
+    clearTimeout(this._timer);
+    this._stack = [];
+    this._index = -1;
+    this._totalBytes = 0;
+  }
 }

@@ -148,6 +148,32 @@ describe('collab spike: two-editor convergence + caret', () => {
     expect(clean(edA.getHtml())).toBe('<p>one</p><p>mid</p><p>two!</p>');
   });
 
+  it('minimal patching: a remote edit elsewhere reuses untouched block DOM nodes', () => {
+    setContent(edA, '<p>alpha</p><p>beta</p>');
+    const p0Before = edB.content.querySelectorAll('p')[0];      // B's node for block 0
+    edA.content.querySelectorAll('p')[1].textContent = 'BETA';  // A edits block 1
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    const p0After = edB.content.querySelectorAll('p')[0];
+    expect(p0After).toBe(p0Before);                             // same node — not recreated
+    expect(clean(edB.getHtml())).toBe('<p>alpha</p><p>BETA</p>');
+  });
+
+  it('minimal patching: caret in an untouched block survives a remote edit elsewhere', () => {
+    setContent(edA, '<p>hello</p><p>world</p>');
+    const p0 = edB.content.querySelectorAll('p')[0];
+    const sel = window.getSelection();
+    const r = document.createRange();
+    r.setStart(p0.firstChild, 3); r.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r);
+
+    edA.content.querySelectorAll('p')[1].textContent = 'WORLD';  // remote edit elsewhere
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const got = window.getSelection().getRangeAt(0);
+    expect(got.startContainer).toBe(p0.firstChild);             // same text node, untouched
+    expect(got.startOffset).toBe(3);
+  });
+
   it('id-keying: concurrent block delete + edit-elsewhere converges', () => {
     setContent(edA, '<p>a</p><p>b</p><p>c</p>');
     hub.pause();

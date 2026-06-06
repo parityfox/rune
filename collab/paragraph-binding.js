@@ -12,9 +12,11 @@ import { uid } from '../src/utils/id.js';
  *
  * Blocks are keyed by a stable `data-id` (assigned on first sight), so concurrent
  * block insert/delete/reorder reconciles by id — a peer's edit follows its block
- * even as others restructure around it. Remaining spike gap: remote changes still
- * rebuild the block-level DOM wholesale (caret restored via RelativePosition)
- * rather than minimal-patching — a full-#11 concern.
+ * even as others restructure around it. Remote changes are applied by MINIMAL
+ * PATCHING: existing block elements are reused, inline is re-rendered only when it
+ * actually changed, and blocks are reordered via moves — so unchanged blocks (and
+ * any live selection/IME inside them) are never touched. Inline patching within a
+ * changed block is still whole-block re-render (caret restored via RelativePosition).
  */
 
 const LOCAL = 'local';
@@ -279,42 +281,83 @@ export function bindParagraphSpike(editor, doc) {
     sel.addRange(r);
   }
 
+  // Does element `el`'s current inline content already equal `delta`?
+  function inlineMatches(el, delta) {
+    const cur = serializeInline(el);
+    if (cur.length !== delta.length) return false;
+    for (let k = 0; k < cur.length; k++) {
+      if (cur[k].insert !== delta[k].insert || !sameAttrs(cur[k].attributes, delta[k].attributes)) return false;
+    }
+    return true;
+  }
+
+  // Minimal patch: reuse existing block elements by data-id, re-render inline
+  // only when it actually changed, and reorder via moves. Unchanged blocks
+  // (and any live selection/IME inside them) are never touched.
   function renderFromModel() {
     const cap = caret;
-    content.textContent = '';
-    const hostsById = Object.create(null);
+    const rerendered = new Set();
+
+    const existing = new Map();
+    for (const { host } of flattenHosts(content)) {
+      const id = host.getAttribute('data-id');
+      if (id) existing.set(id, host);
+    }
+
+    const blockEl = (m, tag) => {
+      const id = m.get('id');
+      const delta = m.get('text').toDelta();
+      let el = existing.get(id);
+      if (el && el.tagName.toLowerCase() === tag) {
+        if (!inlineMatches(el, delta)) { renderInline(el, delta); rerendered.add(id); }
+      } else {
+        el = cdoc.createElement(tag);
+        el.setAttribute('data-id', id);
+        renderInline(el, delta);
+        rerendered.add(id);
+      }
+      return el;
+    };
+
+    // Build the desired top-level element sequence (consecutive li -> one list).
+    const desired = [];
     const n = blocks.length;
     let i = 0;
     while (i < n) {
       const m = blocks.get(i);
       const type = m.get('type') || 'p';
       if (type === 'li') {
-        const listType = m.get('listType') || 'bullet';
-        const list = cdoc.createElement(listType === 'ordered' ? 'ol' : 'ul');
+        const lt = m.get('listType') || 'bullet';
+        const list = cdoc.createElement(lt === 'ordered' ? 'ol' : 'ul');
         while (i < n) {
           const mm = blocks.get(i);
-          if ((mm.get('type') || 'p') !== 'li' || (mm.get('listType') || 'bullet') !== listType) break;
-          const li = cdoc.createElement('li');
-          li.setAttribute('data-id', mm.get('id'));
-          renderInline(li, mm.get('text').toDelta());
-          list.appendChild(li);
-          hostsById[mm.get('id')] = li; i++;
+          if ((mm.get('type') || 'p') !== 'li' || (mm.get('listType') || 'bullet') !== lt) break;
+          list.appendChild(blockEl(mm, 'li'));   // moves a reused <li> into this list
+          i++;
         }
-        content.appendChild(list);
+        desired.push(list);
       } else {
         const tag = /^h[1-6]$/.test(type) ? type : (type === 'blockquote' ? 'blockquote' : 'p');
-        const el = cdoc.createElement(tag);
-        el.setAttribute('data-id', m.get('id'));
-        renderInline(el, m.get('text').toDelta());
-        content.appendChild(el);
-        hostsById[m.get('id')] = el; i++;
+        desired.push(blockEl(m, tag));
+        i++;
       }
     }
-    if (!n) { const p = cdoc.createElement('p'); p.appendChild(cdoc.createElement('br')); content.appendChild(p); }
+    if (!desired.length) { const p = cdoc.createElement('p'); p.appendChild(cdoc.createElement('br')); desired.push(p); }
+
+    // Reconcile content's top-level children to `desired`: drop extras, move into order.
+    const keep = new Set(desired);
+    for (const c of [...content.children]) if (!keep.has(c)) content.removeChild(c);
+    let next = content.firstChild;
+    for (const el of desired) {
+      if (next === el) next = el.nextSibling;
+      else content.insertBefore(el, next);
+    }
+
+    // Restore the caret only if its own block was re-rendered (others are untouched).
     const sel = getSel();
-    if (cap && cap.rel && sel) {
+    if (cap && cap.rel && sel && rerendered.has(cap.blockId)) {
       const abs = Y.createAbsolutePositionFromRelativePosition(cap.rel, doc);
-      const host = hostsById[cap.blockId];      // restore caret by stable id, not index
+      const host = flattenHosts(content).find((h) => h.host.getAttribute('data-id') === cap.blockId)?.host;
       if (abs && host) setCaretInHost(host, abs.index, sel);
     }
   }

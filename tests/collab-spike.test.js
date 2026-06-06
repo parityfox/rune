@@ -129,6 +129,30 @@ describe('collab spike: two-editor convergence + caret', () => {
     expect(edB.getHtml()).toContain('rune-image-block');     // block kept, bad src dropped
   });
 
+  it('syncs tables as opaque atomic blocks', () => {
+    setContent(edA, '<table class="rune-table" data-type="table"><tbody><tr><td class="rune-table-cell">a</td><td class="rune-table-cell">b</td></tr></tbody></table>');
+    const b = clean(edB.getHtml());
+    expect(b).toContain('rune-table');
+    expect(b).toContain('>a</td>');
+    expect(b).toContain('>b</td>');
+  });
+
+  it('syncs callouts as opaque atomic blocks', () => {
+    setContent(edA, '<div class="rune-callout rune-callout--yellow" data-type="callout"><span class="rune-callout-icon" contenteditable="false">i</span><div class="rune-callout-body">note text</div></div>');
+    const b = clean(edB.getHtml());
+    expect(b).toContain('rune-callout');
+    expect(b).toContain('note text');
+  });
+
+  it('opaque block is not recreated when a different block changes (no churn)', () => {
+    setContent(edA, '<p>intro</p><table class="rune-table"><tbody><tr><td class="rune-table-cell">x</td></tr></tbody></table>');
+    const tableBefore = edB.content.querySelector('table');
+    expect(tableBefore).toBeTruthy();
+    edA.content.querySelector('p').textContent = 'INTRO';     // edit a different block
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(edB.content.querySelector('table')).toBe(tableBefore);   // reused, not recreated
+  });
+
   it('syncs bullet and ordered lists (consecutive items grouped)', () => {
     setContent(edA, '<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>');
     expect(clean(edB.getHtml())).toBe('<ul><li>a</li><li>b</li></ul><ol><li>c</li></ol>');

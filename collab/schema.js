@@ -1,4 +1,4 @@
-import { _isDangerousUrl } from '../src/utils/html.js';
+import { _isDangerousUrl, sanitizeContent } from '../src/utils/html.js';
 
 /**
  * Central collab schema (#10) — the declarative DOM <-> Yjs mapping the binding
@@ -73,12 +73,33 @@ export const BLOCKS = {
       return fig;
     },
   },
+
+  // Opaque (atomic) — structurally complex blocks synced as a whole sanitized
+  // HTML unit. v1 limitation: no concurrent intra-block (cell/body) editing;
+  // a remote change re-renders the whole block. Full per-cell/per-body
+  // concurrency is future work.
+  table:   opaqueBlock('table'),
+  callout: opaqueBlock('div'),
 };
+
+function opaqueBlock(tag) {
+  return {
+    tag, kind: 'atomic', opaque: true,
+    read: (el) => ({ html: sanitizeContent(el.outerHTML) }),   // normalize on the way in
+    create: (doc, data = {}) => {
+      const tmp = doc.createElement('div');
+      tmp.innerHTML = sanitizeContent(data.html || '');         // trust boundary: untrusted peers
+      return tmp.firstElementChild || doc.createElement(tag);
+    },
+  };
+}
 
 /** Model type for a top-level block element, or null if not a recognized block. */
 export function blockTypeForEl(el) {
   if (el.classList?.contains('rune-image-block')) return 'image';
+  if (el.classList?.contains('rune-callout')) return 'callout';
   const t = el.tagName.toLowerCase();
+  if (t === 'table') return 'table';
   if (t === 'p' || t === 'blockquote' || t === 'pre' || /^h[1-6]$/.test(t)) return t;
   return null;
 }

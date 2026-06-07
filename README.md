@@ -57,6 +57,8 @@ import 'rune-editor/styles';
 
 > **From source:** clone the repo and open `examples/index.html` with any static server (`npx serve . -p 4000`).
 
+📦 **Setting up a specific stack?** See the **[Installation & Setup guide](./docs/installation.md)** — Vite/webpack/Rollup/esbuild, plain HTML (no bundler), React/Next.js, Vue, Svelte, Angular, the web component, plus the collaboration setup process and troubleshooting.
+
 ---
 
 ## ⚡ Quick Start

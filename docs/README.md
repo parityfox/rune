@@ -2,6 +2,12 @@
 
 In-depth guides that go beyond the [project README](../README.md).
 
+## Getting Started
+
+| Guide | What's inside |
+|---|---|
+| **[Installation & Setup](./installation.md)** | Install + per-stack setup (Vite/webpack/Rollup/esbuild, plain HTML/CDN, React/Next.js, Vue, Svelte, Angular, web component), enabling collaboration, and troubleshooting |
+
 ## Collaborative Editing
 
 Real-time, multi-user editing built on Yjs CRDTs (opt-in, in `collab/`).

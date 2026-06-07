@@ -8,13 +8,17 @@
     ".": "./src/index.js",
     "./react": "./adapters/react/index.js",
     "./web-component": "./adapters/web-component/rune-editor.js",
-    "./styles": "./styles/rune.css"
+    "./styles": "./styles/rune.css",
+    "./collab/*": "./collab/*",
+    "./server/*": "./server/*"
   },
   "files": [
     "src/",
     "adapters/",
     "styles/",
-    "rune.config.js"
+    "rune.config.js",
+    "collab/",
+    "server/"
   ],
   "keywords": [
     "rich-text-editor",

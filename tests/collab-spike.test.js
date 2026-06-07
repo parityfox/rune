@@ -292,6 +292,16 @@ describe('collab spike: two-editor convergence + caret', () => {
     expect(got.startOffset).toBe(4);      // "Xhel|lo" — still right after the original "hel"
   });
 
+  it('colors tracked changes per author + always surfaces the author (not color-only)', () => {
+    setContent(edA, '<p>hello</p>');
+    docA.getArray('blocks').get(0).get('text').format(0, 5, { suggestion: { id: 's1', type: 'insert', author: 'Alice', color: '#2563eb' } });
+    const span = edB.content.querySelector('.rune-suggestion--insert');
+    expect(span).toBeTruthy();
+    expect(span.getAttribute('data-suggestion')).toContain('#2563eb');   // color round-trips
+    expect(span.style.color).toBeTruthy();                                // author color applied inline
+    expect(span.getAttribute('title')).toContain('Alice');               // author surfaced via title (color not the only signal)
+  });
+
   it('renders + round-trips suggestion (tracked-change) marks', () => {
     setContent(edA, '<p>hello world</p>');
     docA.getArray('blocks').get(0).get('text').format(0, 5, { suggestion: { id: 's1', type: 'delete', author: 'Alice' } });

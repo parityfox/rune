@@ -23,20 +23,20 @@ export class SuggestionStore {
   }
 
   /** Propose inserting `text` at `pos` in a block. */
-  suggestInsert(blockId, pos, text, author) {
+  suggestInsert(blockId, pos, text, author, color = null) {
     const block = this._block(blockId);
     if (!block || !text) return null;
     const id = uid();
-    block.get('text').insert(pos, text, { suggestion: { id, type: 'insert', author } });
+    block.get('text').insert(pos, text, { suggestion: { id, type: 'insert', author, ...(color ? { color } : {}) } });
     return id;
   }
 
   /** Propose deleting [from, to) in a block (marks it; text stays until accept). */
-  suggestDelete(blockId, from, to, author) {
+  suggestDelete(blockId, from, to, author, color = null) {
     const block = this._block(blockId);
     if (!block || to <= from) return null;
     const id = uid();
-    block.get('text').format(from, to - from, { suggestion: { id, type: 'delete', author } });
+    block.get('text').format(from, to - from, { suggestion: { id, type: 'delete', author, ...(color ? { color } : {}) } });
     return id;
   }
 
@@ -70,7 +70,7 @@ export class SuggestionStore {
       for (const op of block.get('text').toDelta()) {
         const s = op.attributes?.suggestion;
         if (s) {
-          const r = seen.get(s.id) || { id: s.id, type: s.type, author: s.author, blockId, from: pos, to: pos };
+          const r = seen.get(s.id) || { id: s.id, type: s.type, author: s.author, color: s.color || null, blockId, from: pos, to: pos };
           r.to = pos + op.insert.length;
           seen.set(s.id, r);
         }

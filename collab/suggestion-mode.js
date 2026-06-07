@@ -15,7 +15,7 @@ import { blockHostAt, textIndexInHost, flattenHosts, domPointInHost } from './pa
  * SuggestionStore (collab/suggestions.js). v1 scope: collapsed-caret insert and
  * backspace (range operations + paste in suggest mode are future work).
  */
-export function bindSuggestionMode(editor, doc, { author = 'Anon', isEnabled = () => false } = {}) {
+export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null, isEnabled = () => false } = {}) {
   const content = editor.content;
   const cdoc = content.ownerDocument;
   const blocks = doc.getArray('blocks');
@@ -58,7 +58,7 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', isEnabled = (
       e.preventDefault();
       const yt = pos.block.get('text');
       const prev = pos.index > 0 ? sugAt(yt, pos.index - 1) : null;
-      const sug = (prev && prev.type === 'insert' && prev.author === author) ? prev : { id: uid(), type: 'insert', author };
+      const sug = (prev && prev.type === 'insert' && prev.author === author) ? prev : { id: uid(), type: 'insert', author, ...(color ? { color } : {}) };
       yt.insert(pos.index, e.data, { suggestion: sug });   // binding re-renders this block
       setCaret(pos.id, pos.index + e.data.length);          // place caret after the typed text
     } else if (e.inputType === 'deleteContentBackward') {
@@ -71,7 +71,7 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', isEnabled = (
         yt.delete(pos.index - 1, 1);                        // un-type your own pending insertion
       } else {
         const right = sugAt(yt, pos.index);                 // merge with an adjacent delete run
-        const sug = (right && right.type === 'delete' && right.author === author) ? right : { id: uid(), type: 'delete', author };
+        const sug = (right && right.type === 'delete' && right.author === author) ? right : { id: uid(), type: 'delete', author, ...(color ? { color } : {}) };
         yt.format(pos.index - 1, 1, { suggestion: sug });   // mark, don't remove
       }
       setCaret(pos.id, pos.index - 1);

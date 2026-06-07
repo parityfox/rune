@@ -12,14 +12,23 @@ import { _isDangerousUrl, sanitizeContent } from '../src/utils/html.js';
 
 export const MARKS = [
   {
-    // Tracked-change mark (#15). Object-valued: { id, type:'insert'|'delete', author }.
+    // Tracked-change mark (#15). Object-valued: { id, type:'insert'|'delete', author, color? }.
     // Outermost so the whole run is visibly tracked. Detected on <span data-suggestion>.
+    // Per-author color (#21): type is conveyed by the DECORATION (underline vs
+    // strikethrough) so color is never the only signal; author by `color`.
     key: 'suggestion', value: true, object: true, tags: ['span'],
     read: (el) => { const d = el.getAttribute('data-suggestion'); return d ? JSON.parse(d) : null; },
     create: (doc, sug) => {
       const s = doc.createElement('span');
-      s.className = 'rune-suggestion rune-suggestion--' + (sug.type === 'delete' ? 'delete' : 'insert');
+      const type = sug.type === 'delete' ? 'delete' : 'insert';
+      s.className = 'rune-suggestion rune-suggestion--' + type;
       s.setAttribute('data-suggestion', JSON.stringify(sug));
+      if (sug.author) s.setAttribute('title', `${type === 'delete' ? 'Deletion' : 'Insertion'} by ${sug.author}`);
+      if (sug.color) {                                   // author color overrides the CSS default
+        s.style.color = sug.color;
+        if (type === 'insert') { s.style.textDecoration = 'underline'; s.style.textDecorationColor = sug.color; }
+        else { s.style.textDecoration = 'line-through'; }
+      }
       return s;
     },
   },

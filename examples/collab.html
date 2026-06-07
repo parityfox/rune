@@ -211,8 +211,8 @@
     // ── Suggestions (tracked changes) ──────────────────────────
     let suggesting = false;
     const sgA = new SuggestionStore(docA), sgB = new SuggestionStore(docB);
-    bindSuggestionMode(edA, docA, { author: 'Alice', isEnabled: () => suggesting });
-    bindSuggestionMode(edB, docB, { author: 'Bob', isEnabled: () => suggesting });
+    bindSuggestionMode(edA, docA, { author: 'Alice', color: USERS.a.color, isEnabled: () => suggesting });
+    bindSuggestionMode(edB, docB, { author: 'Bob', color: USERS.b.color, isEnabled: () => suggesting });
     const sugEl = document.getElementById('suggestions');
     const mkBtn = (label, fn) => { const b = document.createElement('button'); b.className = 'conn-btn'; b.textContent = label; b.onclick = fn; return b; };
     const renderSugs = () => {
@@ -226,11 +226,13 @@
       for (const s of list) {
         const card = document.createElement('div');
         card.style.cssText = 'display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e9e9e7;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:13px';
+        const dot = document.createElement('span');      // author color swatch (matches their presence color)
+        dot.style.cssText = `width:9px;height:9px;border-radius:50%;flex:none;background:${s.color || '#9b9b99'}`;
         const tag = document.createElement('span'); tag.textContent = s.type === 'insert' ? '＋ insert' : '－ delete';
-        tag.style.color = s.type === 'insert' ? '#15803d' : '#b91c1c';
+        tag.style.color = s.color || (s.type === 'insert' ? '#15803d' : '#b91c1c');
         const who = document.createElement('span'); who.textContent = 'by ' + s.author; who.style.color = '#9b9b99';   // escaped
         const acc = mkBtn('Accept', () => sgA.accept(s.id)); acc.style.marginLeft = 'auto';
-        card.append(tag, who, acc, mkBtn('Reject', () => sgA.reject(s.id)));
+        card.append(dot, tag, who, acc, mkBtn('Reject', () => sgA.reject(s.id)));
         sugEl.appendChild(card);
       }
     };

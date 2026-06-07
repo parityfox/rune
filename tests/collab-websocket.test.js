@@ -58,4 +58,31 @@ describe('WebSocket transport (reference server + provider)', () => {
 
     expect(await until(() => awB.getStates().get(docA.clientID)?.user?.name === 'Alice')).toBe(true);
   });
+
+  it('reconnects and re-syncs after the server bounces, surfacing status', async () => {
+    srv = startServer(0);
+    const p = await port(srv);
+    const url = `ws://localhost:${p}`;
+    const docA = new Y.Doc(), docB = new Y.Doc();
+    const seen = [];
+    a = new WebSocketProvider(url, 'r', docA, { WebSocketPolyfill: WebSocket });
+    b = new WebSocketProvider(url, 'r', docB, { WebSocketPolyfill: WebSocket });
+    a.onStatus((s) => seen.push(s.status));                       // immediate + transitions
+
+    expect(await until(() => a.synced && b.synced)).toBe(true);
+    expect(a.status).toBe('connected');
+    expect(a.lastSynced).toBeTypeOf('number');
+    docA.getText('t').insert(0, 'before');
+    expect(await until(() => docB.getText('t').toString() === 'before')).toBe(true);
+
+    await srv.close();                                            // bounce the server
+    expect(await until(() => a.status !== 'connected', 4000)).toBe(true);   // notices the drop
+
+    srv = startServer(p);                                         // restart on the same port
+    expect(await until(() => a.status === 'connected' && b.status === 'connected', 9000)).toBe(true);
+    expect(seen).toContain('reconnecting');                      // surfaced the reconnect
+
+    docA.getText('t').insert(docA.getText('t').length, '-after'); // edits work after recovery
+    expect(await until(() => docB.getText('t').toString().includes('-after'), 9000)).toBe(true);
+  }, 25000);
 });

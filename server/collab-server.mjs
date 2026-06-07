@@ -123,7 +123,13 @@ export function startServer(port = process.env.PORT || 1234) {
   const wss = new WebSocketServer({ server });
   wss.on('connection', setupWSConnection);
   server.listen(port);
-  return { server, wss, port, close: () => new Promise((r) => { wss.close(); server.close(r); }) };
+  return {
+    server, wss, port,
+    close: () => new Promise((r) => {
+      for (const c of wss.clients) c.terminate();        // force-drop live sockets (a real bounce)
+      wss.close(() => server.close(r));
+    }),
+  };
 }
 
 // CLI entry

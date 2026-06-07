@@ -63,6 +63,21 @@ try {
   const t = await text(A);
   ok(!/rune-suggestion/.test(await html(A)), 'suggest: accept-all clears the tracked-change marks');
   ok(/NEW/.test(t) && t.indexOf('hello') === -1, 'suggest: accepted insertion kept, accepted deletion removed');
+
+  // #20: paste in suggest mode -> tracked insertion (marks preserved, danger stripped)
+  await page.evaluate(() => {
+    const c = document.querySelector('#editorA .rune-content'); const p = c.querySelector('p');
+    const t = [...p.childNodes].reverse().find((n) => n.nodeType === 3) || p.firstChild;
+    const r = document.createRange(); r.setStart(t, t.length); r.collapse(true);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r); c.focus();
+    const dt = new DataTransfer(); dt.setData('text/html', '<b>pasted</b><img src=x onerror=alert(1)>');
+    c.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  await sleep(250);
+  const ah = await html(A);
+  ok(/rune-suggestion--insert/.test(ah) && /pasted/.test(ah), 'suggest: paste recorded as a tracked insertion');
+  ok(/<strong>pasted<\/strong>/.test(ah), 'suggest: pasted inline formatting (bold) preserved');
+  ok(!/onerror/.test(ah), 'suggest: dangerous pasted content stripped');
 } catch (e) {
   fails.push('exception: ' + e.message);
 } finally {

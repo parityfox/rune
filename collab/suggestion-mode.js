@@ -1,5 +1,6 @@
 import { uid } from '../src/utils/id.js';
-import { blockHostAt, textIndexInHost, flattenHosts, domPointInHost } from './paragraph-binding.js';
+import { sanitize } from '../src/utils/html.js';
+import { blockHostAt, textIndexInHost, flattenHosts, domPointInHost, _internals } from './paragraph-binding.js';
 
 /**
  * Suggestion mode (#15) — intercept typing so edits become tracked changes.
@@ -78,6 +79,42 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
     }
   };
 
+  // Paste (#20): intercept in the CAPTURE phase so we run before the editor's
+  // own (bubble-phase) paste handler, then take over and record the pasted
+  // content as a tracked insertion. Inline marks are preserved; block structure
+  // is flattened into the current block (multi-block paste is future work).
+  const onPaste = (e) => {
+    if (!isEnabled()) return;
+    const pos = caretPos();
+    if (!pos) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();                 // skip the editor's direct-insert paste handler
+    const dt = e.clipboardData;
+    if (!dt) return;
+    const yt = pos.block.get('text');
+    const sug = { id: uid(), type: 'insert', author, ...(color ? { color } : {}) };
+    const htmlData = dt.getData('text/html');
+    let at = pos.index;
+    if (htmlData) {
+      const tmp = cdoc.createElement('div');
+      tmp.innerHTML = sanitize(htmlData);          // strict paste sanitizer (untrusted clipboard)
+      const delta = _internals.serializeInline(tmp);
+      doc.transact(() => {
+        for (const op of delta) { yt.insert(at, op.insert, { ...(op.attributes || {}), suggestion: sug }); at += op.insert.length; }
+      });
+    } else {
+      const text = dt.getData('text/plain');
+      if (text) { yt.insert(at, text, { suggestion: sug }); at += text.length; }
+    }
+    setCaret(pos.id, at);
+  };
+
   content.addEventListener('beforeinput', onBeforeInput);
-  return { destroy() { content.removeEventListener('beforeinput', onBeforeInput); } };
+  content.addEventListener('paste', onPaste, true);
+  return {
+    destroy() {
+      content.removeEventListener('beforeinput', onBeforeInput);
+      content.removeEventListener('paste', onPaste, true);
+    },
+  };
 }

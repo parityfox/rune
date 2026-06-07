@@ -152,6 +152,11 @@ export function blockHostAt(content, node) {
 
 /** Caret text-offset of (node, offset) within host element. */
 export function textIndexInHost(host, node, offset) {
+  if (node === host) {                     // caret anchored to the block element (offset = child index)
+    let sum = 0;
+    for (let k = 0; k < offset && k < host.childNodes.length; k++) sum += host.childNodes[k].textContent.length;
+    return sum;
+  }
   let idx = 0, done = false;
   (function walk(n) {
     for (const c of n.childNodes) {

@@ -59,6 +59,22 @@ describe('WebSocket transport (reference server + provider)', () => {
     expect(await until(() => awB.getStates().get(docA.clientID)?.user?.name === 'Alice')).toBe(true);
   });
 
+  it('authorize() gates connections (rejects bad token, accepts good)', async () => {
+    srv = startServer(0, {
+      authorize: (req) => new URL(req.url, 'ws://x').searchParams.get('token') === 'good',
+    });
+    const url = `ws://localhost:${await port(srv)}`;
+
+    const docBad = new Y.Doc();
+    a = new WebSocketProvider(url, 'r', docBad, { WebSocketPolyfill: WebSocket, params: { token: 'bad' } });
+    await new Promise((r) => setTimeout(r, 700));
+    expect(a.synced).toBe(false);                 // rejected -> never syncs
+
+    const docGood = new Y.Doc();
+    b = new WebSocketProvider(url, 'r', docGood, { WebSocketPolyfill: WebSocket, params: { token: 'good' } });
+    expect(await until(() => b.synced)).toBe(true);   // accepted
+  }, 10000);
+
   it('reconnects and re-syncs after the server bounces, surfacing status', async () => {
     srv = startServer(0);
     const p = await port(srv);

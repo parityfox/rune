@@ -452,6 +452,44 @@ export const MyPlugin = {
 
 ---
 
+## 🤝 Collaborative Editing
+
+Opt-in real-time collaboration (Yjs-based) lives in `collab/`. Multiple users edit
+the same document with live cursors, presence, comments, and tracked-change
+suggestions — over a network or in-process.
+
+```js
+import { WebSocketProvider } from './collab/provider.js';
+import { bindParagraphSpike } from './collab/paragraph-binding.js';
+import { bindPresence } from './collab/presence.js';
+
+const provider = new WebSocketProvider('ws://localhost:1234', 'my-doc', new Y.Doc());
+bindParagraphSpike(editor, provider.doc);
+bindPresence(editor, provider.doc, provider.awareness, { name: 'Alice', color: '#2563eb' });
+provider.onStatus(({ status, lastSynced }) => renderConnectionUI(status, lastSynced));
+```
+
+Run the live two-pane demo: `npm run collab-server` (reference server) and open
+`/examples/collab`.
+
+**Reference server & auth.** `server/collab-server.mjs` is a minimal Yjs sync +
+awareness relay — reference only; bring your own backend in production. It takes
+an optional `authorize` hook to gate connections (default: open):
+
+```js
+import { startServer } from './server/collab-server.mjs';
+
+startServer(1234, {
+  // called before the WebSocket upgrade; return false (or throw) to reject (401).
+  authorize: async (req) => verifyJwt(new URL(req.url, 'ws://x').searchParams.get('token')),
+});
+```
+
+Clients pass the token via `params`: `new WebSocketProvider(url, room, doc, { params: { token } })`.
+
+The core editor stays dependency-free; the collab layer's deps (Yjs, ws,
+y-websocket, y-indexeddb) are dev/server-only.
+
 ## 🗂 Project Structure
 
 ```

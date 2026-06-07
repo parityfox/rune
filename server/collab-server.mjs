@@ -117,11 +117,30 @@ export function setupWSConnection(conn, req) {
   }
 }
 
-/** Start the reference server. Returns { server, wss, close() }. */
-export function startServer(port = process.env.PORT || 1234) {
+/**
+ * Start the reference server. Returns { server, wss, close() }.
+ *
+ * @param {number} port
+ * @param {{ authorize?: (req, room) => boolean | Promise<boolean> }} [opts]
+ *   authorize is called per connection BEFORE the WebSocket upgrade; return false
+ *   (or throw) to reject with 401. The raw `req` carries the token — read it from
+ *   the query (`?token=…` in `req.url`) or `req.headers`. Default (no hook) is
+ *   open, so the demo stays zero-config. Plug real auth in here, e.g.:
+ *     authorize: async (req) => verifyJwt(new URL(req.url, 'ws://x').searchParams.get('token'))
+ */
+export function startServer(port = process.env.PORT || 1234, { authorize } = {}) {
   const server = http.createServer((_, res) => { res.writeHead(200); res.end('Rune collab server'); });
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({ noServer: true });   // we drive the upgrade so we can gate it
   wss.on('connection', setupWSConnection);
+
+  server.on('upgrade', async (req, socket, head) => {
+    const room = (req.url || '/').slice(1).split('?')[0] || 'default';
+    let ok = true;
+    if (authorize) { try { ok = await authorize(req, room); } catch { ok = false; } }
+    if (!ok) { socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy(); return; }
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+  });
+
   server.listen(port);
   return {
     server, wss, port,

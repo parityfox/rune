@@ -143,6 +143,7 @@ export function createFromConfig(target, config, overrides = {}) {
     bubbleMenu: bubbleMenuOpt,
     slashMenu:  slashMenuOpt,
     placeholder: editorCfg.placeholder ?? 'Write something…',
+    ...(editorCfg.attribution === false ? { attribution: false } : {}),
     ...(editorCfg.uploadImage ? { uploadImage: editorCfg.uploadImage } : {}),
     ...overrides,
   };

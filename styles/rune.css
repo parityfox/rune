@@ -1209,3 +1209,22 @@ mark.rune-search-match.is-active {
   opacity: 1;
   transform: translateY(0);
 }
+
+/* Attribution credit — small "Made with Rune" link.
+   Opt out per-editor with `attribution: false`. */
+.rune-attribution {
+  display: block;
+  text-align: right;
+  padding: 4px 8px 2px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--rune-color-muted);
+  text-decoration: none;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+  user-select: none;
+}
+.rune-attribution:hover {
+  opacity: 1;
+  text-decoration: underline;
+}

@@ -26,6 +26,7 @@ export default function RuneEditor({
   className = '',
   style,
   readOnly = false,
+  attribution = true,
 }) {
   const { ref } = useRune({
     extensions,
@@ -36,6 +37,7 @@ export default function RuneEditor({
     bubbleMenu,
     slashMenu,
     readOnly,
+    attribution,
   });
 
   return (

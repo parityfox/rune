@@ -91,6 +91,7 @@ const config = {
     spellcheck:  true,
     autofocus:   false,
     readOnly:    false,
+    attribution: true,   // small "Made with Rune" credit; set false to remove
 
     // Optional image upload hook — prevents base64 bloat.
     // Receives a File object, must return Promise<string> (the hosted URL).

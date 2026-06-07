@@ -553,3 +553,10 @@ Found a vulnerability? Please read our [Security Policy](SECURITY.md) and report
 ## 📄 License
 
 [MIT](LICENSE) © [ParityFox](https://parityfox.com)
+
+Rune is free and MIT-licensed — use it anywhere, commercially too. If it's useful
+to you, a ⭐ on GitHub or a mention is genuinely appreciated 🙏. By default the
+editor shows a small **“Made with Rune”** credit linking to
+[parityfox.com](https://parityfox.com); you can remove it any time with
+`attribution: false` (Editor option / `<rune-editor attribution="false">` /
+`editor.attribution` in `rune.config.js`).

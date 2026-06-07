@@ -48,6 +48,19 @@ describe('Editor', () => {
       expect(target.classList.contains('rune-editor')).toBe(true);
     });
 
+    it('renders an opt-out attribution badge by default', () => {
+      create();
+      const badge = target.querySelector('.rune-attribution');
+      expect(badge).toBeTruthy();
+      expect(badge.getAttribute('href')).toBe('https://parityfox.com');
+      expect(badge.textContent).toBe('Made with Rune');
+    });
+
+    it('omits the attribution badge when attribution is false', () => {
+      create({ attribution: false });
+      expect(target.querySelector('.rune-attribution')).toBeNull();
+    });
+
     it('throws on invalid target', () => {
       expect(() => new Editor('#nonexistent')).toThrow('Target element not found');
     });

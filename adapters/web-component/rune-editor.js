@@ -34,7 +34,7 @@ import defaultConfig        from '../../rune.config.js';
 
 class RuneEditorElement extends HTMLElement {
   static get observedAttributes() {
-    return ['content', 'placeholder', 'readonly'];
+    return ['content', 'placeholder', 'readonly', 'attribution'];
   }
 
   connectedCallback() {
@@ -53,6 +53,9 @@ class RuneEditorElement extends HTMLElement {
     }
     if (this.hasAttribute('readonly')) {
       config.editor.readOnly = true;
+    }
+    if (this.getAttribute('attribution') === 'false') {
+      config.editor.attribution = false;     // opt out of the "Made with Rune" credit
     }
 
     // Mount point — inner div so the custom element itself stays clean

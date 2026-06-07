@@ -38,6 +38,7 @@ export class Editor {
       slashMenu: true,
       placeholder: 'Write something…',
       onChange: null,
+      attribution: true,        // small "Made with Rune" credit; set false to remove
     }, options);
 
     this.events = new EventBus();
@@ -315,6 +316,19 @@ export class Editor {
 
     this.content.setAttribute('data-placeholder', this.options.placeholder);
     this.wrapper.appendChild(this.content);
+
+    // Opt-out attribution credit (ParityFox). Disable with `attribution: false`.
+    if (this.options.attribution) {
+      this.wrapper.appendChild(el('a', {
+        class: 'rune-attribution',
+        href: 'https://parityfox.com',
+        target: '_blank',
+        rel: 'noopener noreferrer',
+        contenteditable: 'false',
+        'aria-label': 'Made with Rune by ParityFox',
+      }, 'Made with Rune'));
+    }
+
     this.target.appendChild(this.wrapper);
     this.target.classList.add('rune-editor');
 

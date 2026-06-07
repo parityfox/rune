@@ -184,6 +184,18 @@ export function flattenHosts(content) {
     if (t === 'ul' || t === 'ol') {
       const listType = t === 'ul' ? 'bullet' : 'ordered';
       for (const li of el.children) if (li.tagName === 'LI') out.push({ el: li, host: li, type: 'li', listType });
+    } else if (t === 'table') {
+      let r = 0;
+      for (const tr of el.querySelectorAll('tr')) {       // each cell is its own block (v1: no nested tables)
+        let c = 0;
+        for (const cell of tr.children) {
+          if (cell.tagName === 'TD' || cell.tagName === 'TH') {
+            out.push({ el: cell, host: cell, type: 'cell', listType: null, tableEl: el, r, c, header: cell.tagName === 'TH' });
+            c++;
+          }
+        }
+        r++;
+      }
     } else {
       const type = blockTypeForEl(el);
       if (type === 'callout') out.push({ el, host: BLOCKS.callout.body(el), type, listType: null });
@@ -262,6 +274,7 @@ export function bindParagraphSpike(editor, doc) {
       m.set('text', new Y.Text());
       if (k === 'wrapped' && d.meta) { m.set('emoji', d.meta.emoji); m.set('color', d.meta.color); }
     }
+    if (d.type === 'cell') { m.set('tableId', d.tableId); m.set('r', d.r); m.set('c', d.c); m.set('header', d.header); }
     return m;
   };
 
@@ -281,6 +294,7 @@ export function bindParagraphSpike(editor, doc) {
       n.set('text', t);
       if (kindOf(m.get('type')) === 'wrapped') { n.set('emoji', m.get('emoji')); n.set('color', m.get('color')); }
     }
+    if (m.get('type') === 'cell') for (const f of ['tableId', 'r', 'c', 'header']) n.set(f, m.get(f));
     return n;
   };
 
@@ -298,6 +312,11 @@ export function bindParagraphSpike(editor, doc) {
       else {
         desc.delta = serializeHost(h.host, h.type);           // serialize the editable region
         if (k === 'wrapped') desc.meta = BLOCKS[h.type].readMeta(h.el);
+      }
+      if (h.type === 'cell') {
+        let tableId = h.tableEl.getAttribute('data-id');      // stable id for grouping cells back into a table
+        if (!tableId) { tableId = uid(); h.tableEl.setAttribute('data-id', tableId); }
+        desc.tableId = tableId; desc.r = h.r; desc.c = h.c; desc.header = h.header;
       }
       return desc;
     });
@@ -335,6 +354,7 @@ export function bindParagraphSpike(editor, doc) {
             if (m.get('color') !== d.meta.color) m.set('color', d.meta.color);
           }
         }
+        if (d.type === 'cell') for (const f of ['tableId', 'r', 'c', 'header']) if (m.get(f) !== d[f]) m.set(f, d[f]);
       }
     }, LOCAL);
   }
@@ -421,9 +441,11 @@ export function bindParagraphSpike(editor, doc) {
 
     const existing = new Map();
     for (const { el } of flattenHosts(content)) {
-      const id = el.getAttribute('data-id');               // data-id on the top-level element
+      const id = el.getAttribute('data-id');               // data-id on the top-level element (cells included)
       if (id) existing.set(id, el);
     }
+    const existingTables = new Map();                       // reuse <table> wrappers by data-id
+    for (const el of content.children) if (el.tagName === 'TABLE' && el.getAttribute('data-id')) existingTables.set(el.getAttribute('data-id'), el);
 
     const blockEl = (m, tag, type) => {
       const id = m.get('id');
@@ -477,6 +499,32 @@ export function bindParagraphSpike(editor, doc) {
       return el;
     };
 
+    // Group consecutive `cell` blocks (same tableId) back into one <table>. The
+    // <table> wrapper + tbody/tr are rebuilt (cheap, no editable content) while
+    // the cell elements are REUSED by data-id (their content/caret preserved).
+    const buildTable = (tid, cells) => {
+      let table = existingTables.get(tid);
+      if (!(table && table.tagName === 'TABLE')) {
+        table = cdoc.createElement('table');
+        table.className = 'rune-table'; table.setAttribute('data-type', 'table'); table.setAttribute('data-id', tid);
+      }
+      const byRow = new Map();
+      for (const cm of cells) { const r = cm.get('r') || 0; if (!byRow.has(r)) byRow.set(r, []); byRow.get(r).push(cm); }
+      const tbody = cdoc.createElement('tbody');
+      for (const r of [...byRow.keys()].sort((a, b) => a - b)) {
+        const tr = cdoc.createElement('tr');
+        for (const cm of byRow.get(r).sort((a, b) => (a.get('c') || 0) - (b.get('c') || 0))) {
+          const cellEl = blockEl(cm, cm.get('header') ? 'th' : 'td', 'cell');   // reuse by id + patch
+          cellEl.classList.add('rune-table-cell');
+          tr.appendChild(cellEl);                                                // moves the reused cell here
+        }
+        tbody.appendChild(tr);
+      }
+      table.textContent = '';                                                    // drop the old tbody (cells already moved out)
+      table.appendChild(tbody);
+      return table;
+    };
+
     // Build the desired top-level element sequence (consecutive li -> one list).
     const desired = [];
     const n = blocks.length;
@@ -494,6 +542,15 @@ export function bindParagraphSpike(editor, doc) {
           i++;
         }
         desired.push(list);
+      } else if (type === 'cell') {
+        const tid = m.get('tableId');
+        const cells = [];
+        while (i < n) {
+          const mm = blocks.get(i);
+          if ((mm.get('type')) !== 'cell' || mm.get('tableId') !== tid) break;
+          cells.push(mm); i++;
+        }
+        desired.push(buildTable(tid, cells));
       } else {
         const tag = BLOCKS[type]?.tag || 'p';
         desired.push(blockEl(m, tag, type));

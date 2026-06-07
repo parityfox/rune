@@ -129,12 +129,31 @@ describe('collab spike: two-editor convergence + caret', () => {
     expect(edB.getHtml()).toContain('rune-image-block');     // block kept, bad src dropped
   });
 
-  it('syncs tables as opaque atomic blocks', () => {
+  it('syncs tables as per-cell blocks', () => {
     setContent(edA, '<table class="rune-table" data-type="table"><tbody><tr><td class="rune-table-cell">a</td><td class="rune-table-cell">b</td></tr></tbody></table>');
     const b = clean(edB.getHtml());
     expect(b).toContain('rune-table');
     expect(b).toContain('>a</td>');
     expect(b).toContain('>b</td>');
+  });
+
+  it('table cells merge CONCURRENT edits to different cells (both survive)', () => {
+    setContent(edA, '<table class="rune-table"><tbody><tr><td class="rune-table-cell">a</td><td class="rune-table-cell">b</td></tr></tbody></table>');
+    hub.pause();                                            // edits happen offline-concurrently
+    edA.content.querySelectorAll('td')[0].firstChild.data = 'AA';
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    edB.content.querySelectorAll('td')[1].firstChild.data = 'BB';
+    edB.content.dispatchEvent(new Event('input', { bubbles: true }));
+    hub.resume();                                           // CRDT merges the two independent cells
+    expect([...edA.content.querySelectorAll('td')].map((td) => td.textContent)).toEqual(['AA', 'BB']);
+    expect([...edB.content.querySelectorAll('td')].map((td) => td.textContent)).toEqual(['AA', 'BB']);
+  });
+
+  it('marks inside a table cell sync', () => {
+    setContent(edA, '<table class="rune-table"><tbody><tr><td class="rune-table-cell">hi</td></tr></tbody></table>');
+    edA.content.querySelector('td').innerHTML = 'hi <strong>there</strong>';
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(clean(edB.getHtml())).toContain('<strong>there</strong>');
   });
 
   it('syncs callouts as wrapped blocks (emoji/color + editable body)', () => {
@@ -166,13 +185,13 @@ describe('collab spike: two-editor convergence + caret', () => {
     expect(edB.content.querySelector('p')).toBe(introBefore);                            // sibling untouched
   });
 
-  it('opaque block is not recreated when a different block changes (no churn)', () => {
+  it('table wrapper element is reused when a different block changes', () => {
     setContent(edA, '<p>intro</p><table class="rune-table"><tbody><tr><td class="rune-table-cell">x</td></tr></tbody></table>');
     const tableBefore = edB.content.querySelector('table');
     expect(tableBefore).toBeTruthy();
-    edA.content.querySelector('p').textContent = 'INTRO';     // edit a different block
+    edA.content.querySelector('p').firstChild.data = 'INTRO';     // edit a different block
     edA.content.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(edB.content.querySelector('table')).toBe(tableBefore);   // reused, not recreated
+    expect(edB.content.querySelector('table')).toBe(tableBefore); // wrapper reused
   });
 
   it('syncs bullet and ordered lists (consecutive items grouped)', () => {

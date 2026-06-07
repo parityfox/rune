@@ -1,4 +1,4 @@
-import { _isDangerousUrl, sanitizeContent } from '../src/utils/html.js';
+import { _isDangerousUrl } from '../src/utils/html.js';
 
 /**
  * Central collab schema (#10) — the declarative DOM <-> Yjs mapping the binding
@@ -76,6 +76,9 @@ export const BLOCKS = {
   blockquote: { tag: 'blockquote', kind: 'text', content: 'inline' },
   li:         { tag: 'li',         kind: 'text', content: 'inline', list: true },
   pre:        { tag: 'pre',        kind: 'text', content: 'plain' },   // code block: plain text, no marks
+  // Table cell (#18): each <td>/<th> is its own text block, grouped back into a
+  // <table> on render — so cells edit concurrently like any paragraph.
+  cell:       { tag: 'td',         kind: 'text', content: 'inline' },
 
   // Atomic (void) — no editable text; model holds a `data` object.
   image: {
@@ -95,11 +98,6 @@ export const BLOCKS = {
       return fig;
     },
   },
-
-  // Opaque (atomic) — structurally complex block synced as a whole sanitized
-  // HTML unit. v1 limitation: no concurrent intra-cell editing; a remote change
-  // re-renders the whole table. Full per-cell concurrency is future work (#18).
-  table: opaqueBlock('table'),
 
   // Wrapped (#18) — a decorated block whose editable region is a sub-element.
   // Model: a Y.Text (the body's inline content, with marks) + emoji/color attrs,
@@ -134,24 +132,12 @@ export const BLOCKS = {
   },
 };
 
-function opaqueBlock(tag) {
-  return {
-    tag, kind: 'atomic', opaque: true,
-    read: (el) => ({ html: sanitizeContent(el.outerHTML) }),   // normalize on the way in
-    create: (doc, data = {}) => {
-      const tmp = doc.createElement('div');
-      tmp.innerHTML = sanitizeContent(data.html || '');         // trust boundary: untrusted peers
-      return tmp.firstElementChild || doc.createElement(tag);
-    },
-  };
-}
-
-/** Model type for a top-level block element, or null if not a recognized block. */
+/** Model type for a top-level block element, or null. (Tables are expanded into
+ *  `cell` blocks by flattenHosts, so <table> is not a single block type here.) */
 export function blockTypeForEl(el) {
   if (el.classList?.contains('rune-image-block')) return 'image';
   if (el.classList?.contains('rune-callout')) return 'callout';
   const t = el.tagName.toLowerCase();
-  if (t === 'table') return 'table';
   if (t === 'p' || t === 'blockquote' || t === 'pre' || /^h[1-6]$/.test(t)) return t;
   return null;
 }

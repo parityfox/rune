@@ -552,4 +552,4 @@ Found a vulnerability? Please read our [Security Policy](SECURITY.md) and report
 
 ## 📄 License
 
-[MIT](LICENSE) © Rune Contributors
+[MIT](LICENSE) © [ParityFox](https://parityfox.com)

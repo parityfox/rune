@@ -12,9 +12,12 @@ import { blockHostAt, textIndexInHost, flattenHosts, domPointInHost, _internals 
  *    it; otherwise MARK the char `suggestion:{delete}` (struck-through, kept
  *    until accepted) and move the caret left.
  *
+ * Selections (#19): typing over a selection marks it deleted + inserts the new
+ * text; Delete/Backspace on a selection marks the range deleted. Single-block
+ * selections only (cross-block range ops fall back to normal editing).
+ *
  * The marks render + round-trip via the schema; accept/reject live in
- * SuggestionStore (collab/suggestions.js). v1 scope: collapsed-caret insert and
- * backspace (range operations + paste in suggest mode are future work).
+ * SuggestionStore (collab/suggestions.js). Paste is handled below (#20).
  */
 export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null, isEnabled = () => false } = {}) {
   const content = editor.content;
@@ -50,8 +53,39 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
     const sel = getSel(); sel.removeAllRanges(); sel.addRange(r);
   }
 
+  // A non-collapsed selection within a single block -> { block, id, from, to }.
+  function selectionRange() {
+    const sel = getSel();
+    if (!sel || !sel.rangeCount || sel.isCollapsed) return null;
+    const r = sel.getRangeAt(0);
+    if (!content.contains(r.startContainer) || !content.contains(r.endContainer)) return null;
+    const b1 = blockHostAt(content, r.startContainer);
+    const b2 = blockHostAt(content, r.endContainer);
+    if (!b1 || !b2 || b1.index !== b2.index || b1.index >= blocks.length) return null;   // single block only (v1)
+    const block = blocks.get(b1.index);
+    if (!block.get('text')) return null;
+    const a = textIndexInHost(b1.host, r.startContainer, r.startOffset);
+    const z = textIndexInHost(b1.host, r.endContainer, r.endOffset);
+    if (a < 0 || z < 0 || a === z) return null;
+    return { block, id: block.get('id'), from: Math.min(a, z), to: Math.max(a, z) };
+  }
+
   const onBeforeInput = (e) => {
     if (!isEnabled()) return;
+
+    // Range operations (#19): a non-collapsed selection + type/delete.
+    const rng = selectionRange();
+    if (rng && (e.inputType === 'insertText' || e.inputType.startsWith('delete'))) {
+      e.preventDefault();
+      const yt = rng.block.get('text');
+      const adding = e.inputType === 'insertText' && e.data;
+      doc.transact(() => {
+        yt.format(rng.from, rng.to - rng.from, { suggestion: { id: uid(), type: 'delete', author, ...(color ? { color } : {}) } });
+        if (adding) yt.insert(rng.to, e.data, { suggestion: { id: uid(), type: 'insert', author, ...(color ? { color } : {}) } });
+      });
+      setCaret(rng.id, adding ? rng.to + e.data.length : rng.from);   // replace: caret after new text; delete: caret at start
+      return;
+    }
 
     if (e.inputType === 'insertText' && e.data) {
       const pos = caretPos();

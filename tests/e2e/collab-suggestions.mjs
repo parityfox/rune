@@ -78,6 +78,31 @@ try {
   ok(/rune-suggestion--insert/.test(ah) && /pasted/.test(ah), 'suggest: paste recorded as a tracked insertion');
   ok(/<strong>pasted<\/strong>/.test(ah), 'suggest: pasted inline formatting (bold) preserved');
   ok(!/onerror/.test(ah), 'suggest: dangerous pasted content stripped');
+
+  // #19: range operations (suggesting still on)
+  const reset = (h) => page.evaluate((h) => {
+    const c = document.querySelector('#editorA .rune-content'); c.innerHTML = h;
+    c.dispatchEvent(new Event('input', { bubbles: true }));
+  }, h);
+  const selectRange = (a, z) => page.evaluate(({ a, z }) => {
+    const c = document.querySelector('#editorA .rune-content'); const t = c.querySelector('p').firstChild;
+    const r = document.createRange(); r.setStart(t, a); r.setEnd(t, z);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r); c.focus();
+  }, { a, z });
+
+  await reset('<p>abcdef</p>'); await sleep(150);
+  await selectRange(2, 4);                    // "cd"
+  await page.keyboard.type('X');
+  await sleep(200);
+  let rh = await html(A); let rt = await text(A);
+  ok(/rune-suggestion--delete/.test(rh) && /rune-suggestion--insert/.test(rh), 'suggest(range): typing over a selection marks delete + inserts new');
+  ok(rt.includes('cd') && rt.includes('X'), 'suggest(range): replaced text kept (struck) and new text inserted');
+
+  await reset('<p>hello world</p>'); await sleep(150);
+  await selectRange(6, 11);                   // "world"
+  await page.keyboard.press('Backspace');
+  await sleep(200);
+  ok(/rune-suggestion--delete/.test(await html(A)) && (await text(A)).includes('world'), 'suggest(range): Backspace on a selection marks it deleted (text kept)');
 } catch (e) {
   fails.push('exception: ' + e.message);
 } finally {

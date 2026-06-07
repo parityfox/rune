@@ -137,11 +137,33 @@ describe('collab spike: two-editor convergence + caret', () => {
     expect(b).toContain('>b</td>');
   });
 
-  it('syncs callouts as opaque atomic blocks', () => {
+  it('syncs callouts as wrapped blocks (emoji/color + editable body)', () => {
     setContent(edA, '<div class="rune-callout rune-callout--yellow" data-type="callout"><span class="rune-callout-icon" contenteditable="false">i</span><div class="rune-callout-body">note text</div></div>');
     const b = clean(edB.getHtml());
-    expect(b).toContain('rune-callout');
+    expect(b).toContain('rune-callout--yellow');
+    expect(b).toContain('class="rune-callout-icon"');
+    expect(b).toContain('rune-callout-body');
     expect(b).toContain('note text');
+    expect(b).toContain('>i</span>');                 // emoji preserved
+  });
+
+  it('callout body is editable text — marks in the body sync', () => {
+    setContent(edA, '<div class="rune-callout rune-callout--yellow" data-type="callout"><span class="rune-callout-icon" contenteditable="false">i</span><div class="rune-callout-body">hello</div></div>');
+    const bodyA = edA.content.querySelector('.rune-callout-body');
+    bodyA.innerHTML = 'hello <strong>world</strong>';   // edit the body inline (add a mark)
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    const b = clean(edB.getHtml());
+    expect(b).toContain('<strong>world</strong>');      // body mark synced (not opaque)
+    expect(b).toContain('rune-callout-body');
+  });
+
+  it('editing a callout body leaves a sibling paragraph node intact (per-block)', () => {
+    setContent(edA, '<p>intro</p><div class="rune-callout rune-callout--gray" data-type="callout"><span class="rune-callout-icon" contenteditable="false">i</span><div class="rune-callout-body">note</div></div>');
+    const introBefore = edB.content.querySelector('p');
+    edA.content.querySelector('.rune-callout-body').firstChild.data = 'NOTE!';   // edit only the callout body
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(edB.content.querySelector('.rune-callout-body').textContent).toBe('NOTE!');   // body synced
+    expect(edB.content.querySelector('p')).toBe(introBefore);                            // sibling untouched
   });
 
   it('opaque block is not recreated when a different block changes (no churn)', () => {

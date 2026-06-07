@@ -174,21 +174,28 @@ function reconcileText(ytext, newDelta) {
 // ─── block flattening (lists expand to one block per <li>) ──────────────────
 
 /** Ordered list of block hosts: [{ host, type, listType }]. */
+// Each entry: { el, host, type, listType }. `el` is the top-level block element
+// (carries data-id); `host` is the editable region. They differ only for
+// `wrapped` blocks (callout: el = wrapper div, host = .rune-callout-body).
 export function flattenHosts(content) {
   const out = [];
   for (const el of content.children) {
     const t = el.tagName.toLowerCase();
     if (t === 'ul' || t === 'ol') {
       const listType = t === 'ul' ? 'bullet' : 'ordered';
-      for (const li of el.children) if (li.tagName === 'LI') out.push({ host: li, type: 'li', listType });
+      for (const li of el.children) if (li.tagName === 'LI') out.push({ el: li, host: li, type: 'li', listType });
     } else {
       const type = blockTypeForEl(el);
-      if (type) out.push({ host: el, type, listType: null });
+      if (type === 'callout') out.push({ el, host: BLOCKS.callout.body(el), type, listType: null });
+      else if (type) out.push({ el, host: el, type, listType: null });
     }
     // other block types are ignored by this spike
   }
   return out;
 }
+
+/** data-id carried on a flattened block's top-level element. */
+const idOfEntry = (h) => h.el.getAttribute('data-id');
 
 /** Which flattened block a DOM node lives in. */
 export function blockHostAt(content, node) {
@@ -249,8 +256,12 @@ export function bindParagraphSpike(editor, doc) {
     m.set('id', d.id);
     m.set('type', d.type || 'p');
     if (d.listType) m.set('listType', d.listType);
-    if (kindOf(d.type) === 'atomic') m.set('data', d.data || {});
-    else m.set('text', new Y.Text());
+    const k = kindOf(d.type);
+    if (k === 'atomic') m.set('data', d.data || {});
+    else {
+      m.set('text', new Y.Text());
+      if (k === 'wrapped' && d.meta) { m.set('emoji', d.meta.emoji); m.set('color', d.meta.color); }
+    }
     return m;
   };
 
@@ -268,6 +279,7 @@ export function bindParagraphSpike(editor, doc) {
       let pos = 0;
       for (const op of m.get('text').toDelta()) { t.insert(pos, op.insert, op.attributes || {}); pos += op.insert.length; }
       n.set('text', t);
+      if (kindOf(m.get('type')) === 'wrapped') { n.set('emoji', m.get('emoji')); n.set('color', m.get('color')); }
     }
     return n;
   };
@@ -277,12 +289,16 @@ export function bindParagraphSpike(editor, doc) {
   function readDescs() {
     const seen = new Set();
     return flattenHosts(content).map((h) => {
-      let id = h.host.getAttribute('data-id');
-      if (!id || seen.has(id)) { id = uid(); h.host.setAttribute('data-id', id); }
+      let id = h.el.getAttribute('data-id');                 // data-id lives on the top-level element
+      if (!id || seen.has(id)) { id = uid(); h.el.setAttribute('data-id', id); }
       seen.add(id);
       const desc = { id, type: h.type, listType: h.listType };
-      if (kindOf(h.type) === 'atomic') desc.data = BLOCKS[h.type].read(h.host);
-      else desc.delta = serializeHost(h.host, h.type);
+      const k = kindOf(h.type);
+      if (k === 'atomic') desc.data = BLOCKS[h.type].read(h.el);
+      else {
+        desc.delta = serializeHost(h.host, h.type);           // serialize the editable region
+        if (k === 'wrapped') desc.meta = BLOCKS[h.type].readMeta(h.el);
+      }
       return desc;
     });
   }
@@ -309,10 +325,15 @@ export function bindParagraphSpike(editor, doc) {
         if (m.get('type') !== d.type) m.set('type', d.type);
         const lt = d.listType || null;
         if ((m.get('listType') || null) !== lt) { if (lt) m.set('listType', lt); else if (m.has('listType')) m.delete('listType'); }
-        if (kindOf(d.type) === 'atomic') {
+        const k = kindOf(d.type);
+        if (k === 'atomic') {
           if (JSON.stringify(m.get('data')) !== JSON.stringify(d.data)) m.set('data', d.data);
         } else {
           reconcileText(m.get('text'), d.delta);
+          if (k === 'wrapped' && d.meta) {
+            if (m.get('emoji') !== d.meta.emoji) m.set('emoji', d.meta.emoji);
+            if (m.get('color') !== d.meta.color) m.set('color', d.meta.color);
+          }
         }
       }
     }, LOCAL);
@@ -399,16 +420,17 @@ export function bindParagraphSpike(editor, doc) {
     const patched = new Map();          // id -> {lo, hi} char range replaced (Infinity hi = full rebuild)
 
     const existing = new Map();
-    for (const { host } of flattenHosts(content)) {
-      const id = host.getAttribute('data-id');
-      if (id) existing.set(id, host);
+    for (const { el } of flattenHosts(content)) {
+      const id = el.getAttribute('data-id');               // data-id on the top-level element
+      if (id) existing.set(id, el);
     }
 
     const blockEl = (m, tag, type) => {
       const id = m.get('id');
+      const kind = kindOf(type);
       // Atomic block (image/…): reuse the existing element if its data matches,
       // else (re)create from the schema. No editable text.
-      if (kindOf(type) === 'atomic') {
+      if (kind === 'atomic') {
         const data = m.get('data') || {};
         const el = existing.get(id);
         if (el && el.tagName.toLowerCase() === tag &&
@@ -419,6 +441,25 @@ export function bindParagraphSpike(editor, doc) {
         return made;
       }
       const delta = m.get('text').toDelta();
+      // Wrapped block (callout): top-level wrapper + a separate editable body.
+      if (kind === 'wrapped') {
+        const spec = BLOCKS[type];
+        const meta = { emoji: m.get('emoji'), color: m.get('color') };
+        let el = existing.get(id), body;
+        if (el && el.tagName.toLowerCase() === tag && el.classList.contains('rune-callout')) {
+          spec.applyMeta(el, meta);
+          body = spec.body(el);
+          if (!inlineMatches(body, type, delta)) { patched.set(id, patchInline(body, delta)); rerendered.add(id); }
+        } else {
+          const made = spec.createWrapper(cdoc, meta);
+          el = made.wrapper; body = made.body;
+          el.setAttribute('data-id', id);
+          renderInline(body, delta);
+          patched.set(id, { lo: 0, hi: Infinity });
+          rerendered.add(id);
+        }
+        return el;
+      }
       let el = existing.get(id);
       if (el && el.tagName.toLowerCase() === tag) {
         if (!inlineMatches(el, type, delta)) {
@@ -476,7 +517,7 @@ export function bindParagraphSpike(editor, doc) {
     const sel = getSel();
     if (cap && cap.rel && sel && rerendered.has(cap.blockId)) {
       const abs = Y.createAbsolutePositionFromRelativePosition(cap.rel, doc);
-      const host = flattenHosts(content).find((h) => h.host.getAttribute('data-id') === cap.blockId)?.host;
+      const host = flattenHosts(content).find((h) => idOfEntry(h) === cap.blockId)?.host;
       const range = patched.get(cap.blockId);
       const inReplaced = !range || !abs || (abs.index >= range.lo && abs.index <= range.hi);
       if (abs && host && inReplaced) setCaretInHost(host, abs.index, sel);

@@ -44,7 +44,7 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
   }
 
   function setCaret(id, index) {
-    const host = flattenHosts(content).find((h) => h.host.getAttribute('data-id') === id)?.host;
+    const host = flattenHosts(content).find((h) => h.el.getAttribute('data-id') === id)?.host;
     if (!host) return;
     const pt = domPointInHost(host, index);
     const r = cdoc.createRange();

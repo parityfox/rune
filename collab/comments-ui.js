@@ -24,7 +24,7 @@ export function bindCommentsUI(editor, doc, store, { onChange } = {}) {
     const threads = store.list();
     for (const t of threads) {
       if (t.resolved || t.orphaned) continue;
-      const host = hosts.find((h) => h.host.getAttribute('data-id') === t.blockId)?.host;
+      const host = hosts.find((h) => h.el.getAttribute('data-id') === t.blockId)?.host;
       if (!host) continue;
       const p1 = domPointInHost(host, t.from);
       const p2 = domPointInHost(host, t.to);

@@ -96,12 +96,42 @@ export const BLOCKS = {
     },
   },
 
-  // Opaque (atomic) — structurally complex blocks synced as a whole sanitized
-  // HTML unit. v1 limitation: no concurrent intra-block (cell/body) editing;
-  // a remote change re-renders the whole block. Full per-cell/per-body
-  // concurrency is future work.
-  table:   opaqueBlock('table'),
-  callout: opaqueBlock('div'),
+  // Opaque (atomic) — structurally complex block synced as a whole sanitized
+  // HTML unit. v1 limitation: no concurrent intra-cell editing; a remote change
+  // re-renders the whole table. Full per-cell concurrency is future work (#18).
+  table: opaqueBlock('table'),
+
+  // Wrapped (#18) — a decorated block whose editable region is a sub-element.
+  // Model: a Y.Text (the body's inline content, with marks) + emoji/color attrs,
+  // so the callout body supports concurrent editing like any paragraph.
+  callout: {
+    tag: 'div', kind: 'wrapped',
+    body: (el) => el.querySelector('.rune-callout-body') || el,
+    readMeta: (el) => ({
+      emoji: el.querySelector('.rune-callout-icon')?.textContent || '💡',
+      color: (el.className.match(/rune-callout--([\w-]+)/) || [])[1] || 'gray',
+    }),
+    createWrapper: (doc, meta = {}) => {
+      const div = doc.createElement('div');
+      div.className = `rune-callout rune-callout--${meta.color || 'gray'}`;
+      div.setAttribute('data-type', 'callout');
+      const icon = doc.createElement('span');
+      icon.className = 'rune-callout-icon';
+      icon.setAttribute('contenteditable', 'false');
+      icon.textContent = meta.emoji || '💡';
+      const body = doc.createElement('div');
+      body.className = 'rune-callout-body';
+      div.append(icon, body);
+      return { wrapper: div, body };
+    },
+    applyMeta: (el, meta = {}) => {                       // update icon/color on a reused wrapper
+      const icon = el.querySelector('.rune-callout-icon');
+      const emoji = meta.emoji || '💡';
+      if (icon && icon.textContent !== emoji) icon.textContent = emoji;
+      const want = `rune-callout rune-callout--${meta.color || 'gray'}`;
+      if (el.className !== want) el.className = want;
+    },
+  },
 };
 
 function opaqueBlock(tag) {

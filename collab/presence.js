@@ -67,7 +67,7 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
     const resolve = (p) => {
       if (!p) return null;
       const abs = Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(p.rel), doc);
-      const host = hosts.find((h) => h.host.getAttribute('data-id') === p.block)?.host;
+      const host = hosts.find((h) => h.el.getAttribute('data-id') === p.block)?.host;
       if (!abs || !host) return null;
       const dp = domPointInHost(host, abs.index);
       return dp || { node: host, off: 0 };
@@ -105,7 +105,7 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
       // caret + name label at the head
       const cr = cdoc.createRange(); cr.setStart(headPt.node, headPt.off); cr.collapse(true);
       let rect = cr.getBoundingClientRect();
-      if (!rect || (!rect.height && !rect.width)) rect = (hosts.find((h) => h.host.getAttribute('data-id') === state.cursor.head.block)?.host || content).getBoundingClientRect();
+      if (!rect || (!rect.height && !rect.width)) rect = (hosts.find((h) => h.el.getAttribute('data-id') === state.cursor.head.block)?.host || content).getBoundingClientRect();
       const p = local(rect);
       const caret = cdoc.createElement('div');
       caret.style.cssText = `position:absolute;left:${p.x}px;top:${p.y}px;width:2px;height:${p.h}px;background:${col};`;

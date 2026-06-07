@@ -454,41 +454,33 @@ export const MyPlugin = {
 
 ## 🤝 Collaborative Editing
 
-Opt-in real-time collaboration (Yjs-based) lives in `collab/`. Multiple users edit
-the same document with live cursors, presence, comments, and tracked-change
-suggestions — over a network or in-process.
+Opt-in real-time collaboration (Yjs-based) lives in `collab/`. Multiple users
+edit the same document — over a network or in-process — with **live presence**
+(cursors, selection highlights, typing), **comments**, **tracked-change
+suggestions**, **offline persistence**, and full block coverage (incl.
+per-cell tables and callout bodies). The core editor stays dependency-free; the
+collab layer's deps (Yjs, ws, y-websocket, y-indexeddb) are dev/server-only.
 
 ```js
-import { WebSocketProvider } from './collab/provider.js';
+import * as Y from 'yjs';
+import { WebSocketProvider }  from './collab/provider.js';
 import { bindParagraphSpike } from './collab/paragraph-binding.js';
-import { bindPresence } from './collab/presence.js';
+import { bindPresence }       from './collab/presence.js';
 
-const provider = new WebSocketProvider('ws://localhost:1234', 'my-doc', new Y.Doc());
-bindParagraphSpike(editor, provider.doc);
-bindPresence(editor, provider.doc, provider.awareness, { name: 'Alice', color: '#2563eb' });
-provider.onStatus(({ status, lastSynced }) => renderConnectionUI(status, lastSynced));
+const doc = new Y.Doc();
+const provider = new WebSocketProvider('ws://localhost:1234', 'my-doc', doc);
+bindParagraphSpike(editor, doc);
+bindPresence(editor, doc, provider.awareness, { name: 'Alice', color: '#2563eb' });
 ```
 
-Run the live two-pane demo: `npm run collab-server` (reference server) and open
-`/examples/collab`.
+Try the live two-pane demo: `npm run collab-server` then open
+`/examples/collab` (also runs in-process from static files).
 
-**Reference server & auth.** `server/collab-server.mjs` is a minimal Yjs sync +
-awareness relay — reference only; bring your own backend in production. It takes
-an optional `authorize` hook to gate connections (default: open):
+📚 **Full documentation:**
 
-```js
-import { startServer } from './server/collab-server.mjs';
-
-startServer(1234, {
-  // called before the WebSocket upgrade; return false (or throw) to reject (401).
-  authorize: async (req) => verifyJwt(new URL(req.url, 'ws://x').searchParams.get('token')),
-});
-```
-
-Clients pass the token via `params`: `new WebSocketProvider(url, room, doc, { params: { token } })`.
-
-The core editor stays dependency-free; the collab layer's deps (Yjs, ws,
-y-websocket, y-indexeddb) are dev/server-only.
+- **[Collaboration overview](./docs/collaboration.md)** — architecture, the document model, every feature, testing, limitations
+- **[API reference](./docs/collaboration-api.md)** — all `collab/` modules with signatures + examples
+- **[Server & deployment](./docs/collaboration-server.md)** — reference server, `authorize()` auth hook, persistence, production
 
 ## 🗂 Project Structure
 
@@ -520,10 +512,24 @@ rune/
 ├── adapters/
 │   ├── react/                 ← useRune hook + RuneEditor component
 │   └── web-component/         ← <rune-editor> custom element
+├── collab/                    ← collaborative editing (Yjs) — see docs/
+│   ├── provider.js            ← WebSocketProvider (networked transport)
+│   ├── memory-hub.js          ← in-process transport (demos/tests)
+│   ├── paragraph-binding.js   ← Yjs Doc ⇄ editor DOM binding
+│   ├── schema.js              ← declarative DOM ⇄ model mapping
+│   ├── presence.js            ← remote cursors, selections, typing
+│   ├── comments.js + comments-ui.js
+│   ├── suggestions.js + suggestion-mode.js
+│   └── providers/indexeddb.js ← local-first persistence
+├── server/
+│   └── collab-server.mjs      ← reference Yjs sync server (npm run collab-server)
+├── docs/                      ← in-depth guides (collaboration, API, server)
 ├── styles/
 │   └── rune.css
 ├── examples/
-│   └── index.html
+│   ├── index.html
+│   └── collab.html            ← two-pane collaboration demo
+├── tests/                     ← Vitest unit + tests/e2e (Playwright)
 ├── rune.config.js             ← feature flags (edit this!)
 └── package.json
 ```

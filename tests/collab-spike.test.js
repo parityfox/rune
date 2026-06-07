@@ -302,6 +302,29 @@ describe('collab spike: two-editor convergence + caret', () => {
     expect(span.getAttribute('title')).toContain('Alice');               // author surfaced via title (color not the only signal)
   });
 
+  it('minimal inline patching: a remote edit to one run preserves the OTHER run\'s DOM node', () => {
+    setContent(edA, '<p>hello <strong>world</strong></p>');
+    let pB = edB.content.querySelector('p');
+    expect(pB.childNodes.length).toBe(2);
+    const helloNode = pB.childNodes[0];                  // "hello " text node
+    const worldNode = pB.querySelector('strong');
+    edA.content.querySelector('strong').firstChild.data = 'WORLD';   // edit only the bold run
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    pB = edB.content.querySelector('p');
+    expect(pB.textContent).toBe('hello WORLD');          // converged
+    expect(pB.childNodes[0]).toBe(helloNode);            // unchanged run node preserved (same object)
+    expect(pB.querySelector('strong')).not.toBe(worldNode);  // changed run node replaced
+  });
+
+  it('minimal inline patching: editing the leading run leaves the trailing run node intact', () => {
+    setContent(edA, '<p>hello <strong>world</strong></p>');
+    const boldBefore = edB.content.querySelector('strong');
+    edA.content.querySelector('p').firstChild.data = 'HELLO ';       // edit only run 0
+    edA.content.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(edB.content.querySelector('p').textContent).toBe('HELLO world');
+    expect(edB.content.querySelector('strong')).toBe(boldBefore);    // trailing run node preserved
+  });
+
   it('renders + round-trips suggestion (tracked-change) marks', () => {
     setContent(edA, '<p>hello world</p>');
     docA.getArray('blocks').get(0).get('text').format(0, 5, { suggestion: { id: 's1', type: 'delete', author: 'Alice' } });

@@ -31,13 +31,13 @@ for enabling [collaborative editing](./collaboration.md).
 ## Install
 
 ```bash
-npm install rune-editor      # or: yarn add rune-editor   /   pnpm add rune-editor
+npm install @parityfox/rune-editor      # or: yarn add @parityfox/rune-editor   /   pnpm add @parityfox/rune-editor
 ```
 
 Import the stylesheet **once** in your app entry point:
 
 ```js
-import 'rune-editor/styles';
+import '@parityfox/rune-editor/styles';
 ```
 
 **From source (no install):** clone the repo and serve it statically —
@@ -77,15 +77,15 @@ the box — `npm install` then import. No special configuration needed. The
 snippets below assume a bundler unless stated otherwise.
 
 > If your bundler complains about `.jsx` in the React adapter, ensure JSX/ESM
-> transforms apply to `node_modules/rune-editor/adapters` (most setups do this
+> transforms apply to `node_modules/@parityfox/rune-editor/adapters` (most setups do this
 > by default; some require adding it to the transform include list).
 
 ### Vanilla JS
 
 ```js
-import { createFromConfig } from 'rune-editor';
+import { createFromConfig } from '@parityfox/rune-editor';
 import config from './rune.config.js';   // copied from the package
-import 'rune-editor/styles';
+import '@parityfox/rune-editor/styles';
 
 const editor = createFromConfig('#app', config, {
   content: '<p>Start writing…</p>',
@@ -97,7 +97,7 @@ const editor = createFromConfig('#app', config, {
 element as `target`. For finer control, use the `Editor` class directly:
 
 ```js
-import { Editor, Paragraph, Heading, Bold, Italic } from 'rune-editor';
+import { Editor, Paragraph, Heading, Bold, Italic } from '@parityfox/rune-editor';
 const editor = new Editor(document.querySelector('#app'), {
   extensions: [Paragraph, Heading, Bold, Italic],
   content: '<p>Hello</p>',
@@ -119,7 +119,7 @@ exposes ESM (e.g. [esm.sh](https://esm.sh)):
 </script>
 
 <script type="module">
-  import { Editor, Paragraph, Heading, Bold, Italic, BulletList } from 'rune-editor';
+  import { Editor, Paragraph, Heading, Bold, Italic, BulletList } from '@parityfox/rune-editor';
   new Editor(document.querySelector('#app'), {
     extensions: [Paragraph, Heading, Bold, Italic, BulletList],
     content: '<p>Hello, no bundler!</p>',
@@ -128,16 +128,16 @@ exposes ESM (e.g. [esm.sh](https://esm.sh)):
 ```
 
 Self-hosting instead of a CDN? Point the import map at your copied
-`node_modules/rune-editor/src/index.js` and serve the folder.
+`node_modules/@parityfox/rune-editor/src/index.js` and serve the folder.
 
 ### React
 
 Install React in your app, then use the adapter:
 
 ```jsx
-import { RuneEditor } from 'rune-editor/react';
+import { RuneEditor } from '@parityfox/rune-editor/react';
 import config from './rune.config.js';
-import 'rune-editor/styles';
+import '@parityfox/rune-editor/styles';
 
 export default function App() {
   return (
@@ -156,7 +156,7 @@ Props: `extensions`, `content`, `onChange`, `placeholder`, `toolbar`,
 use the hook directly:
 
 ```jsx
-import { useRune } from 'rune-editor/react';
+import { useRune } from '@parityfox/rune-editor/react';
 function Editorish() {
   const { ref, editor } = useRune({ extensions: config.extensions, content: '<p>Hi</p>' });
   return <div ref={ref} />;
@@ -171,7 +171,7 @@ The editor touches the DOM, so render it **client-side only** — disable SSR:
 'use client';
 import dynamic from 'next/dynamic';
 const RuneEditor = dynamic(
-  () => import('rune-editor/react').then((m) => m.RuneEditor),
+  () => import('@parityfox/rune-editor/react').then((m) => m.RuneEditor),
   { ssr: false },
 );
 ```
@@ -183,9 +183,9 @@ No dedicated adapter — mount the `Editor` on a ref:
 ```vue
 <script setup>
 import { onMounted, onBeforeUnmount, ref } from 'vue';
-import { createFromConfig } from 'rune-editor';
+import { createFromConfig } from '@parityfox/rune-editor';
 import config from './rune.config.js';
-import 'rune-editor/styles';
+import '@parityfox/rune-editor/styles';
 
 const el = ref(null);
 let editor;
@@ -201,9 +201,9 @@ onBeforeUnmount(() => editor?.destroy?.());
 ```svelte
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { createFromConfig } from 'rune-editor';
+  import { createFromConfig } from '@parityfox/rune-editor';
   import config from './rune.config.js';
-  import 'rune-editor/styles';
+  import '@parityfox/rune-editor/styles';
 
   let el, editor;
   onMount(() => { editor = createFromConfig(el, config, { content: '<p>Hi</p>' }); });
@@ -225,8 +225,8 @@ web component in templates.
 Framework-agnostic — works in plain HTML, Angular, Vue, Svelte, etc.:
 
 ```html
-<link rel="stylesheet" href="node_modules/rune-editor/styles/rune.css">
-<script type="module" src="node_modules/rune-editor/adapters/web-component/rune-editor.js"></script>
+<link rel="stylesheet" href="node_modules/@parityfox/rune-editor/styles/rune.css">
+<script type="module" src="node_modules/@parityfox/rune-editor/adapters/web-component/rune-editor.js"></script>
 
 <rune-editor content="<p>Hello world</p>" placeholder="Start writing…"></rune-editor>
 
@@ -277,9 +277,9 @@ See **[collaboration-server.md](./collaboration-server.md)** for the
 
 ```js
 import * as Y from 'yjs';
-import { WebSocketProvider }  from 'rune-editor/collab/provider.js';   // path-style import; see note
-import { bindParagraphSpike } from 'rune-editor/collab/paragraph-binding.js';
-import { bindPresence }       from 'rune-editor/collab/presence.js';
+import { WebSocketProvider }  from '@parityfox/rune-editor/collab/provider.js';   // path-style import; see note
+import { bindParagraphSpike } from '@parityfox/rune-editor/collab/paragraph-binding.js';
+import { bindPresence }       from '@parityfox/rune-editor/collab/presence.js';
 
 const doc = new Y.Doc();
 const provider = new WebSocketProvider('ws://localhost:1234', 'my-doc', doc);
@@ -304,8 +304,8 @@ the demo bundles the Yjs deps into one file. Rebuild it with `npm run build:demo
 A 30-second smoke test (with a bundler):
 
 ```js
-import { Editor, Paragraph, Bold } from 'rune-editor';
-import 'rune-editor/styles';
+import { Editor, Paragraph, Bold } from '@parityfox/rune-editor';
+import '@parityfox/rune-editor/styles';
 const ed = new Editor(document.body.appendChild(document.createElement('div')),
   { extensions: [Paragraph, Bold], content: '<p>it works</p>' });
 console.log(ed.getHtml());
@@ -313,11 +313,11 @@ console.log(ed.getHtml());
 
 | Symptom | Fix |
 |---|---|
-| **No styling / unstyled toolbar** | You didn't `import 'rune-editor/styles'` (or link `styles/rune.css`) once at your entry. |
+| **No styling / unstyled toolbar** | You didn't `import '@parityfox/rune-editor/styles'` (or link `styles/rune.css`) once at your entry. |
 | **`Cannot use import statement` / CJS error** | Rune is ESM-only. Use a bundler, `<script type="module">`, or Node ESM — not `require()`. |
 | **Crashes during SSR / "document is not defined"** | Render client-side only (Next.js: `dynamic(..., { ssr: false })`; others: mount in `onMounted`/`onMount`). |
 | **Bare specifier `rune-editor` not found in the browser** | Add an [import map](#plain-html--no-bundler) or use a bundler/CDN. |
-| **React adapter `.jsx` won't transform** | Let your bundler transform `node_modules/rune-editor/adapters`. |
+| **React adapter `.jsx` won't transform** | Let your bundler transform `node_modules/@parityfox/rune-editor/adapters`. |
 | **`Cannot find package 'yjs'`** | Install the [collaboration deps](#enabling-collaboration); for no-bundler, bundle them (`npm run build:demo`) or use a CDN. |
 | **Editor not destroyed on unmount (leaks)** | Call `editor.destroy()` in your framework's teardown hook. |
 

@@ -11,7 +11,7 @@
 
 **A clean, extensible rich text editor — built from scratch.**
 
-[![npm version](https://img.shields.io/npm/v/rune-editor?style=flat-square&color=2383e2&label=npm)](https://www.npmjs.com/package/rune-editor)
+[![npm version](https://img.shields.io/npm/v/@parityfox/rune-editor?style=flat-square&color=2383e2&label=npm)](https://www.npmjs.com/package/@parityfox/rune-editor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
 [![Zero dependencies](https://img.shields.io/badge/dependencies-zero-blue?style=flat-square)](package.json)
@@ -40,19 +40,19 @@ Most rich text editors are either too heavy (ProseMirror, Slate) or too opiniona
 
 ```bash
 # npm
-npm install rune-editor
+npm install @parityfox/rune-editor
 
 # yarn
-yarn add rune-editor
+yarn add @parityfox/rune-editor
 
 # pnpm
-pnpm add rune-editor
+pnpm add @parityfox/rune-editor
 ```
 
 Import the stylesheet once in your app entry point:
 
 ```js
-import 'rune-editor/styles';
+import '@parityfox/rune-editor/styles';
 ```
 
 > **From source:** clone the repo and open `examples/index.html` with any static server (`npx serve . -p 4000`).
@@ -66,9 +66,9 @@ import 'rune-editor/styles';
 ### Vanilla JS (recommended)
 
 ```js
-import { createFromConfig } from 'rune-editor';
+import { createFromConfig } from '@parityfox/rune-editor';
 import config from './rune.config.js';
-import 'rune-editor/styles';
+import '@parityfox/rune-editor/styles';
 
 const editor = createFromConfig('#app', config, {
   content: '<p>Start writing…</p>',
@@ -79,9 +79,9 @@ const editor = createFromConfig('#app', config, {
 ### React
 
 ```jsx
-import { RuneEditor } from 'rune-editor/react';
+import { RuneEditor } from '@parityfox/rune-editor/react';
 import config from './rune.config.js';
-import 'rune-editor/styles';
+import '@parityfox/rune-editor/styles';
 
 export default function App() {
   return (
@@ -97,8 +97,8 @@ export default function App() {
 ### Web Component
 
 ```html
-<link rel="stylesheet" href="node_modules/rune-editor/styles/rune.css">
-<script type="module" src="node_modules/rune-editor/adapters/web-component/rune-editor.js"></script>
+<link rel="stylesheet" href="node_modules/@parityfox/rune-editor/styles/rune.css">
+<script type="module" src="node_modules/@parityfox/rune-editor/adapters/web-component/rune-editor.js"></script>
 
 <rune-editor content="<p>Hello world</p>" placeholder="Start writing…"></rune-editor>
 

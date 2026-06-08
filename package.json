@@ -1,6 +1,6 @@
 {
   "name": "@parityfox/rune-editor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publishConfig": {
     "access": "public"
   },
@@ -24,7 +24,8 @@
     "styles/",
     "rune.config.js",
     "collab/",
-    "server/"
+    "server/",
+    "assets/"
   ],
   "keywords": [
     "rich-text-editor",

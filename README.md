@@ -1,8 +1,8 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/rune-wordmark-bone.png">
-  <img alt="Rune" src="assets/rune-wordmark-ink.png" width="200">
+  <source media="(prefers-color-scheme: dark)" srcset="https://cdn.jsdelivr.net/npm/@parityfox/rune-editor@1.0.1/assets/rune-wordmark-bone.png">
+  <img alt="Rune" src="https://cdn.jsdelivr.net/npm/@parityfox/rune-editor@1.0.1/assets/rune-wordmark-ink.png" width="200">
 </picture>
 
 **A headless WYSIWYG editor — what you write is what you get.**

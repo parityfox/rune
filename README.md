@@ -1,15 +1,11 @@
 <div align="center">
 
-```
-██████╗ ██╗   ██╗███╗   ██╗███████╗
-██╔══██╗██║   ██║████╗  ██║██╔════╝
-██████╔╝██║   ██║██╔██╗ ██║█████╗
-██╔══██╗██║   ██║██║╚██╗██║██╔══╝
-██║  ██║╚██████╔╝██║ ╚████║███████╗
-╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/parityfox/rune/main/assets/rune-wordmark-bone.png">
+  <img alt="Rune" src="https://raw.githubusercontent.com/parityfox/rune/main/assets/rune-wordmark-ink.png" width="200">
+</picture>
 
-**A clean, extensible rich text editor — built from scratch.**
+**A headless WYSIWYG editor — what you write is what you get.**
 
 [![npm version](https://img.shields.io/npm/v/@parityfox/rune-editor?style=flat-square&color=2383e2&label=npm)](https://www.npmjs.com/package/@parityfox/rune-editor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)

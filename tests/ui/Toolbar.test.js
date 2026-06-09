@@ -12,7 +12,7 @@ function mockEditor(item) {
 }
 
 describe('Toolbar aria-pressed (#56)', () => {
-  it('reflects toggle state via aria-pressed on plain toggle buttons', () => {
+  it('reflects toggle state via aria-pressed on plain toggle buttons', async () => {
     let active = false;
     const item = {
       name: 'bold', title: 'Bold', icon: 'B', action: 'toggleBold',
@@ -21,15 +21,18 @@ describe('Toolbar aria-pressed (#56)', () => {
     const editor = mockEditor(item);
     const tb = new Toolbar(editor);
     const btn = tb.el.querySelector('.rune-toolbar-btn');
+    const frame = () => new Promise((r) => requestAnimationFrame(r));   // flush coalesced update
 
     expect(btn.getAttribute('aria-pressed')).toBe('false');
 
     active = true;
     editor.events.emit('selectionchange');
+    await frame();
     expect(btn.getAttribute('aria-pressed')).toBe('true');
 
     active = false;
     editor.events.emit('selectionchange');
+    await frame();
     expect(btn.getAttribute('aria-pressed')).toBe('false');
 
     tb.destroy();

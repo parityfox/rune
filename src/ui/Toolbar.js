@@ -10,6 +10,7 @@ export class Toolbar {
     this._popup    = null;   // the floating popup DOM node (appended to body)
     this._tip      = null;   // per-instance tooltip (not shared across editors)
     this._tipTimer = null;
+    this._updateRaf = null;  // rAF handle coalescing active-state recomputes
     this._render();
     this._bindEditorEvents();
   }
@@ -204,6 +205,14 @@ export class Toolbar {
     try { this.editor.selection.restore(this._savedRange); } catch { /* range went stale */ }
   }
 
+  // Recompute active state at most once per frame — _updateActive runs
+  // queryCommandState/DOM walks for every item, and it's bound to both change
+  // and selectionchange (≈twice per keystroke).
+  _scheduleUpdate() {
+    if (this._updateRaf) return;
+    this._updateRaf = requestAnimationFrame(() => { this._updateRaf = null; this._updateActive(); });
+  }
+
   _bindEditorEvents() {
     this.editor.events.on('selectionchange', () => {
       const sel = window.getSelection();
@@ -211,9 +220,9 @@ export class Toolbar {
           this.editor.content.contains(sel.getRangeAt(0).commonAncestorContainer)) {
         this._savedRange = this.editor.selection.save();   // remember the live editor selection
       }
-      this._updateActive();
+      this._scheduleUpdate();
     });
-    this.editor.events.on('change',          () => this._updateActive());
+    this.editor.events.on('change',          () => this._scheduleUpdate());
 
     this._outsideClick = (e) => {
       if (this._popup && !this._popup.contains(e.target) && !this._openBtn?.contains(e.target)) {
@@ -236,6 +245,7 @@ export class Toolbar {
 
   destroy() {
     this._closePopup();
+    cancelAnimationFrame(this._updateRaf);
     document.removeEventListener('mousedown', this._outsideClick);
     clearTimeout(this._tipTimer);
     this._tip?.remove();

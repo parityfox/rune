@@ -31,13 +31,27 @@ export class EventBus {
   }
 
   emit(event, ...args) {
-    const listeners = this._listeners[event] || [];
-    const remaining = [];
-    for (const listener of listeners) {
-      listener.fn(...args);
-      if (!listener.once) remaining.push(listener);
+    const listeners = this._listeners[event];
+    if (!listeners || listeners.length === 0) return this;
+
+    // Iterate a snapshot so a handler that subscribes/unsubscribes mid-emit
+    // can't corrupt the loop, and isolate each handler so one that throws can't
+    // suppress the rest or break once() cleanup.
+    const snapshot = listeners.slice();
+    for (const listener of snapshot) {
+      try {
+        listener.fn(...args);
+      } catch (err) {
+        console.error(`[Rune] "${event}" listener threw:`, err);
+      }
     }
-    this._listeners[event] = remaining;
+
+    // Drop the once-listeners that just fired, preserving any on()/off() done
+    // during emit (rebuild from the current list, not the snapshot).
+    const fired = snapshot.filter(l => l.once);
+    if (fired.length && this._listeners[event]) {
+      this._listeners[event] = this._listeners[event].filter(l => !fired.includes(l));
+    }
     return this;
   }
 

@@ -1228,3 +1228,23 @@ mark.rune-search-match.is-active {
   opacity: 1;
   text-decoration: underline;
 }
+
+/* ── Reduced motion ──────────────────────────────────────────────
+   Honor prefers-reduced-motion: drop transitions, transform-based reveals,
+   and the infinite upload pulse for users with motion sensitivity. The popups
+   (toolbar/bubble/slash menus, tooltip, find-replace) are appended to
+   document.body, so they're listed explicitly alongside the editor subtree. */
+@media (prefers-reduced-motion: reduce) {
+  .rune-editor *,
+  .rune-toolbar-popup,
+  .rune-bubble-menu,
+  .rune-slash-menu,
+  .rune-table-menu,
+  .rune-tooltip,
+  .rune-fr-panel {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

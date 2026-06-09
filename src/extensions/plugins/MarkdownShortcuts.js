@@ -45,6 +45,9 @@ function _handleSpace(editor, e) {
   if (!block || block.tagName === 'PRE' || block.tagName === 'LI') return;
   // Don't trigger inside callouts or task lists
   if (block.dataset?.type === 'callout' || block.dataset?.type === 'task-list') return;
+  // Only convert when the caret sits right after the marker (block end), so a
+  // space typed mid-text or with the caret elsewhere doesn't reformat the block.
+  if (!editor.selection.isAtBlockEnd()) return;
 
   const text = block.textContent.trim();
 
@@ -66,6 +69,7 @@ function _handleEnter(editor, e) {
   const block = editor.selection.getBlock();
   if (!block || block.tagName === 'PRE') return;
   if (block.dataset?.type === 'callout' || block.dataset?.type === 'task-list') return;
+  if (!editor.selection.isAtBlockEnd()) return;
 
   const text = block.textContent.trim();
 

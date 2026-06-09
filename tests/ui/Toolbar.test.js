@@ -35,6 +35,18 @@ describe('Toolbar aria-pressed (#56)', () => {
     tb.destroy();
   });
 
+  it('activates the command on click, not just mousedown (#54 keyboard)', () => {
+    const item = { name: 'bold', title: 'Bold', icon: 'B', action: 'toggleBold', type: 'mark' };
+    const editor = mockEditor(item);
+    const tb = new Toolbar(editor);
+    const btn = tb.el.querySelector('.rune-toolbar-btn');
+
+    // A keyboard activation dispatches 'click' with no preceding 'mousedown'.
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(editor.cmd).toHaveBeenCalledWith('toggleBold');
+    tb.destroy();
+  });
+
   it('does not put aria-pressed on dropdown buttons', () => {
     const item = {
       name: 'heading', title: 'Heading', icon: 'H',

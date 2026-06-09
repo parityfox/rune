@@ -68,7 +68,11 @@ export class Toolbar {
     // announces on/off; dropdowns/panels use aria-expanded instead.
     if (item.isActive) btn.setAttribute('aria-pressed', 'false');
     btn.innerHTML = item.icon;
-    btn.addEventListener('mousedown', (e) => { e.preventDefault(); if (item.action) this.editor.cmd(item.action, ...(item.args || [])); });
+    // mousedown only prevents the default (which would steal the editor's
+    // selection); the actual command runs on 'click' so keyboard activation
+    // (Enter/Space, which dispatch click but never mousedown) works too.
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => this._runItem(item));
     attachTooltip(btn, item.title);
     this.el.appendChild(btn);
     item._el = btn;
@@ -83,16 +87,17 @@ export class Toolbar {
     btn.innerHTML = item.icon + `<svg class="rune-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>`;
     attachTooltip(btn, item.title);
 
-    btn.addEventListener('mousedown', (e) => {
-      e.preventDefault();
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => {
       if (this._openBtn === btn) { this._closePopup(); return; }
       this._closePopup();
 
       const popup = el('div', { class: 'rune-toolbar-popup rune-popup-list', role: 'menu' });
       for (const dItem of item.dropdown) {
         const dBtn = el('button', { class: 'rune-toolbar-dropdown-item', type: 'button', role: 'menuitem' }, dItem.label);
-        dBtn.addEventListener('mousedown', (ev) => {
-          ev.preventDefault();
+        dBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
+        dBtn.addEventListener('click', () => {
+          this._restoreSelection();
           this.editor.cmd(dItem.action, ...(dItem.args || []));
           this._closePopup();
         });
@@ -124,8 +129,8 @@ export class Toolbar {
 
     attachTooltip(btn, item.title);
 
-    btn.addEventListener('mousedown', (e) => {
-      e.preventDefault();
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => {
       if (this._openBtn === btn) { this._closePopup(); return; }
       this._closePopup();
 
@@ -180,8 +185,29 @@ export class Toolbar {
 
   // ─── Editor events ─────────────────────────────────────────
 
+  // Run a toolbar item's command, first restoring the editor selection — needed
+  // for keyboard activation, where focusing the button collapses the selection.
+  _runItem(item) {
+    if (!item.action) return;
+    this._restoreSelection();
+    this.editor.cmd(item.action, ...(item.args || []));
+  }
+
+  _restoreSelection() {
+    if (!this._savedRange) return;
+    this.editor.content.focus();
+    try { this.editor.selection.restore(this._savedRange); } catch { /* range went stale */ }
+  }
+
   _bindEditorEvents() {
-    this.editor.events.on('selectionchange', () => this._updateActive());
+    this.editor.events.on('selectionchange', () => {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount &&
+          this.editor.content.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+        this._savedRange = this.editor.selection.save();   // remember the live editor selection
+      }
+      this._updateActive();
+    });
     this.editor.events.on('change',          () => this._updateActive());
 
     this._outsideClick = (e) => {

@@ -57,8 +57,10 @@ export class BubbleMenu {
     if (item.isActive) btn.setAttribute('aria-pressed', 'false');
     btn.innerHTML = item.icon;
 
-    btn.addEventListener('mousedown', (e) => {
-      e.preventDefault();
+    // mousedown preserves the selection; the command runs on click so keyboard
+    // activation works (Enter/Space dispatch click, not mousedown).
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => {
       if (item.action) this.editor.cmd(item.action, ...(item.args || []));
       setTimeout(() => this._updateActive(), 10);
     });
@@ -86,8 +88,8 @@ export class BubbleMenu {
       item._bubbleIndicatorEl = bar;
     }
 
-    btn.addEventListener('mousedown', (e) => {
-      e.preventDefault();
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => {
       if (this._openBtn === btn) { this._closePopup(); return; }
       this._closePopup();
 

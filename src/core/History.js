@@ -1,8 +1,9 @@
-// Strip base64 data URIs from snapshots to save memory.
-// A placeholder is stored instead; on undo/redo the images will show
-// as broken until the next edit re-triggers the upload hook.
-const DATA_URI_RE = /\ssrc="data:[^"]{256,}"/g;
-const DATA_URI_PLACEHOLDER = ' src=""';
+// Strip large base64 data URIs from snapshots so the byte cap reflects real
+// text content rather than embedded media (which would otherwise evict real undo
+// states). The attribute is kept but emptied; on undo/redo such media shows as
+// broken until the next edit re-triggers the upload hook. Covers src/href/srcset
+// (the common carriers); note snapshotting is still O(document) per boundary.
+const DATA_URI_RE = /\s(src|href|srcset)="data:[^"]{256,}"/g;
 
 // Caret as an absolute text offset within the content root, so it survives the
 // innerHTML rebuild on undo/redo (returns null when there's no caret in content).
@@ -89,8 +90,8 @@ export class History {
   _push() {
     const raw = this.editor.content.innerHTML;
 
-    // Strip large base64 data URIs to save memory
-    const html = raw.replace(DATA_URI_RE, DATA_URI_PLACEHOLDER);
+    // Strip large base64 data URIs to save memory (keep the attribute name)
+    const html = raw.replace(DATA_URI_RE, ' $1=""');
 
     const current = this._stack[this._index];
     if (current === html) return;

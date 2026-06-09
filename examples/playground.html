@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rune Playground — config-driven rich text editor</title>
+  <link rel="stylesheet" href="../styles/rune.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+      color: #1a1a1a; background: #f7f7f5; height: 100vh; display: flex; flex-direction: column;
+    }
+    [data-theme="dark"] body, body[data-theme="dark"] { color: #e8e8e6; background: #141414; }
+    header {
+      display: flex; align-items: center; gap: 12px; padding: 10px 18px;
+      border-bottom: 1px solid #e9e9e7; background: #fff;
+    }
+    [data-theme="dark"] header { background: #191919; border-color: #2f2f2f; }
+    header h1 { font-size: 16px; margin: 0; font-weight: 700; }
+    header .spacer { flex: 1; }
+    header button {
+      font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 6px;
+      border: 1px solid #e0e0dd; background: #fff; cursor: pointer; color: inherit;
+    }
+    [data-theme="dark"] header button { background: #222; border-color: #333; }
+    main { flex: 1; display: grid; grid-template-columns: 240px 1fr 360px; min-height: 0; }
+    .pane { overflow-y: auto; padding: 16px; min-width: 0; }
+    .config { border-right: 1px solid #e9e9e7; background: #fbfbfa; }
+    [data-theme="dark"] .config { background: #1b1b1b; border-color: #2f2f2f; }
+    .config h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #8a8a86; margin: 16px 0 6px; }
+    .config h2:first-child { margin-top: 0; }
+    .config label { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; cursor: pointer; }
+    .editor-pane { display: flex; flex-direction: column; gap: 10px; background: #fff; }
+    [data-theme="dark"] .editor-pane { background: #141414; }
+    #editor { border: 1px solid #e9e9e7; border-radius: 10px; }
+    [data-theme="dark"] #editor { border-color: #2f2f2f; }
+    .output { border-left: 1px solid #e9e9e7; background: #fbfbfa; display: flex; flex-direction: column; }
+    [data-theme="dark"] .output { background: #1b1b1b; border-color: #2f2f2f; }
+    .tabs { display: flex; gap: 4px; padding: 12px 16px 0; }
+    .tabs button {
+      font: inherit; font-size: 12px; padding: 5px 11px; border: none; border-radius: 6px 6px 0 0;
+      background: transparent; cursor: pointer; color: #8a8a86;
+    }
+    .tabs button.active { background: #1a1a1a; color: #fff; }
+    [data-theme="dark"] .tabs button.active { background: #2a2a2a; }
+    pre#out {
+      flex: 1; margin: 0; padding: 14px 16px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+      font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 1.6; color: inherit;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Rune Playground</h1>
+    <span style="font-size:13px;color:#8a8a86">toggle config → the editor rebuilds live</span>
+    <span class="spacer"></span>
+    <button id="copyConfig">Copy config</button>
+    <button id="themeBtn">🌙 Dark</button>
+  </header>
+  <main>
+    <div class="pane config" id="config"></div>
+    <div class="pane editor-pane">
+      <div id="editor"></div>
+    </div>
+    <div class="output">
+      <div class="tabs">
+        <button data-tab="html" class="active">HTML</button>
+        <button data-tab="markdown">Markdown</button>
+        <button data-tab="json">JSON</button>
+      </div>
+      <pre id="out"></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { createFromConfig } from '../src/createFromConfig.js';
+    import baseConfig from '../rune.config.js';
+
+    const INITIAL = `<h2>Rune Playground</h2>
+<p>Toggle features on the left and watch the toolbar, slash menu, and behaviour rebuild instantly.</p>
+<ul><li>Type <code>/</code> for the command palette</li><li>Select text for the bubble menu</li><li>Try <strong>**bold**</strong> or <code>\`code\`</code> as you type</li></ul>
+<blockquote>Headless by design — every flag here maps to <code>rune.config.js</code>.</blockquote>`;
+
+    const GROUPS = [['marks', 'Marks'], ['blocks', 'Blocks'], ['formatting', 'Formatting'], ['plugins', 'Plugins']];
+    const configEl = document.getElementById('config');
+    const out = document.getElementById('out');
+    let editor, tab = 'html';
+
+    // ── Build the config toggle panel from the config's own keys ──
+    function toggle(group, key, checked) {
+      const id = `${group}.${key}`;
+      const wrap = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = checked; cb.dataset.group = group; cb.dataset.key = key;
+      cb.addEventListener('change', () => remount());
+      wrap.append(cb, document.createTextNode(key));
+      return wrap;
+    }
+    for (const [group, label] of GROUPS) {
+      if (!baseConfig[group]) continue;
+      const h = document.createElement('h2'); h.textContent = label; configEl.appendChild(h);
+      for (const key of Object.keys(baseConfig[group])) {
+        configEl.appendChild(toggle(group, key, baseConfig[group][key] !== false));
+      }
+    }
+    // UI toggles
+    const uiHead = document.createElement('h2'); uiHead.textContent = 'Interface'; configEl.appendChild(uiHead);
+    const uiToggles = {};
+    for (const [key, on] of [['toolbar', true], ['bubbleMenu', true], ['slashMenu', true]]) {
+      const wrap = document.createElement('label');
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = on;
+      cb.addEventListener('change', () => remount());
+      uiToggles[key] = cb;
+      wrap.append(cb, document.createTextNode(key));
+      configEl.appendChild(wrap);
+    }
+
+    // ── Assemble a config from the current toggle states ──
+    function buildConfig() {
+      const c = {
+        ...baseConfig,
+        marks: { ...baseConfig.marks }, blocks: { ...baseConfig.blocks },
+        formatting: { ...baseConfig.formatting }, plugins: { ...baseConfig.plugins },
+        toolbar: { ...baseConfig.toolbar, enabled: uiToggles.toolbar.checked },
+        bubbleMenu: { ...baseConfig.bubbleMenu, enabled: uiToggles.bubbleMenu.checked },
+        slashMenu: { ...baseConfig.slashMenu, enabled: uiToggles.slashMenu.checked },
+      };
+      configEl.querySelectorAll('input[data-group]').forEach((cb) => {
+        c[cb.dataset.group][cb.dataset.key] = cb.checked;
+      });
+      return c;
+    }
+
+    function updateOutput() {
+      if (!editor) return;
+      out.textContent = tab === 'html' ? editor.getHtml()
+        : tab === 'markdown' ? editor.getMarkdown()
+        : JSON.stringify(editor.getJSON(), null, 2);
+    }
+
+    function remount() {
+      const html = editor ? editor.getHtml() : INITIAL;
+      editor?.destroy();
+      editor = createFromConfig('#editor', buildConfig(), { content: html, attribution: false, onChange: updateOutput });
+      updateOutput();
+    }
+
+    // ── Output tabs ──
+    document.querySelectorAll('.tabs button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tabs button').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active'); tab = btn.dataset.tab; updateOutput();
+      });
+    });
+
+    // ── Theme + copy ──
+    document.getElementById('themeBtn').addEventListener('click', (e) => {
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+      e.target.textContent = dark ? '🌙 Dark' : '☀️ Light';
+    });
+    document.getElementById('copyConfig').addEventListener('click', (e) => {
+      const c = buildConfig();
+      const slim = { marks: c.marks, blocks: c.blocks, formatting: c.formatting, plugins: c.plugins,
+        toolbar: { enabled: c.toolbar.enabled }, bubbleMenu: { enabled: c.bubbleMenu.enabled }, slashMenu: { enabled: c.slashMenu.enabled } };
+      navigator.clipboard?.writeText('export default ' + JSON.stringify(slim, null, 2));
+      e.target.textContent = 'Copied ✓'; setTimeout(() => (e.target.textContent = 'Copy config'), 1200);
+    });
+
+    remount();
+    window.__playground = { get editor() { return editor; }, buildConfig };
+  </script>
+</body>
+</html>

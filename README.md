@@ -13,7 +13,7 @@
 [![Zero dependencies](https://img.shields.io/badge/dependencies-zero-blue?style=flat-square)](package.json)
 [![Vanilla JS](https://img.shields.io/badge/built%20with-Vanilla%20JS-f7df1e?style=flat-square&logo=javascript&logoColor=black)](src/)
 
-[**Getting Started**](#-installation) · [**Live Demo**](#-quick-start) · [**API Docs**](#-api) · [**Contribute**](CONTRIBUTING.md)
+[**Getting Started**](#-installation) · [**Live Playground**](https://parityfox.github.io/rune/examples/playground.html) · [**API Docs**](#-api) · [**Contribute**](CONTRIBUTING.md)
 
 </div>
 
@@ -58,6 +58,8 @@ import '@parityfox/rune-editor/styles';
 ---
 
 ## ⚡ Quick Start
+
+> 🛝 **[Try the live Playground](https://parityfox.github.io/rune/examples/playground.html)** — toggle `rune.config.js` flags and watch the toolbar, slash menu, and behaviour rebuild instantly, with live HTML / Markdown / JSON output. Run it locally with `npm run example`, then open `http://localhost:4000/examples/playground.html`.
 
 ### Vanilla JS (recommended)
 

@@ -76,13 +76,13 @@ const editor = createFromConfig('#app', config, {
 
 ```jsx
 import { RuneEditor } from '@parityfox/rune-editor/react';
-import config from './rune.config.js';
+import { StarterKit } from '@parityfox/rune-editor';
 import '@parityfox/rune-editor/styles';
 
 export default function App() {
   return (
     <RuneEditor
-      extensions={config.extensions}
+      extensions={StarterKit}
       content="<p>Hello</p>"
       onChange={(html) => console.log(html)}
     />

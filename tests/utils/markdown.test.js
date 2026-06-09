@@ -63,6 +63,17 @@ describe('htmlToMarkdown', () => {
     expect(result).toBe('1. a\n2. b');
   });
 
+  it('indents nested lists instead of flattening them (#35)', () => {
+    const result = htmlToMarkdown('<ul><li>a<ul><li>a1</li><li>a2</li></ul></li><li>b</li></ul>');
+    expect(result).toBe('- a\n  - a1\n  - a2\n- b');
+  });
+
+  it('keeps inline marks inside task items (#35)', () => {
+    const html = '<ul class="rune-task-list"><li class="rune-task-item" data-checked="true">' +
+      '<span class="rune-task-content">do <strong>bold</strong></span></li></ul>';
+    expect(htmlToMarkdown(html)).toBe('- [x] do **bold**');
+  });
+
   it('converts code blocks', () => {
     const result = htmlToMarkdown('<pre><code>const x = 1;</code></pre>');
     expect(result).toBe('```\nconst x = 1;\n```');

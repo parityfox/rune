@@ -52,20 +52,14 @@ function _block(node) {
     return [...node.querySelectorAll('li.rune-task-item')]
       .map(li => {
         const checked = li.dataset.checked === 'true';
-        const text = li.querySelector('.rune-task-content')?.textContent ?? _inline(li);
+        const ct = li.querySelector('.rune-task-content');
+        const text = ct ? _inline(ct) : _inline(li);   // keep inline marks inside tasks (#35)
         return `- [${checked ? 'x' : ' '}] ${text}`;
       }).join('\n');
   }
 
-  if (tag === 'ul') {
-    return [...node.querySelectorAll(':scope > li')]
-      .map(li => `- ${_inline(li)}`).join('\n');
-  }
-
-  if (tag === 'ol') {
-    return [...node.querySelectorAll(':scope > li')]
-      .map((li, i) => `${i + 1}. ${_inline(li)}`).join('\n');
-  }
+  if (tag === 'ul') return _listItems(node, false, 0).join('\n');
+  if (tag === 'ol') return _listItems(node, true, 0).join('\n');
 
   // Callout → blockquote with emoji prefix
   if (tag === 'div' && node.dataset.type === 'callout') {
@@ -95,6 +89,22 @@ function _block(node) {
 
   // Fallback: treat as paragraph
   return _inline(node);
+}
+
+// Render a list and its nested sub-lists, indenting 2 spaces per level (#35).
+function _listItems(listEl, ordered, depth) {
+  const indent = '  '.repeat(depth);
+  const out = [];
+  let i = 0;
+  for (const li of [...listEl.children].filter(c => c.tagName === 'LI')) {
+    const marker = ordered ? `${++i}.` : '-';
+    out.push(`${indent}${marker} ${_inline(li)}`);   // _inline skips nested ul/ol
+    for (const child of li.children) {
+      if (child.tagName === 'UL')      out.push(..._listItems(child, false, depth + 1));
+      else if (child.tagName === 'OL') out.push(..._listItems(child, true,  depth + 1));
+    }
+  }
+  return out;
 }
 
 // ── Inline ────────────────────────────────────────────────────
@@ -129,6 +139,7 @@ function _inline(node) {
     if (child.nodeType !== Node.ELEMENT_NODE) continue;
 
     const t = child.tagName.toLowerCase();
+    if (t === 'ul' || t === 'ol')      { continue; }   // nested lists emitted at block level (#35)
     if (t === 'br')                    { out += '\n'; continue; }
     if (t === 'strong' || t === 'b')   { out += `**${_inline(child)}**`; continue; }
     if (t === 'em'     || t === 'i')   { out += `*${_inline(child)}*`;   continue; }

@@ -1,3 +1,10 @@
+// textContent of a block with <br> line breaks turned into real newlines.
+function _blockText(el) {
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll('br').forEach(br => br.replaceWith(document.createTextNode('\n')));
+  return clone.textContent || '';
+}
+
 export const CodeBlock = {
   name: 'codeBlock',
   type: 'block',
@@ -11,14 +18,21 @@ export const CodeBlock = {
         editor.history.saveNow();
 
         if (block.tagName === 'PRE') {
+          // Code -> paragraph: turn the code's newlines back into <br> so
+          // multi-line code doesn't collapse onto a single line.
           const p = document.createElement('p');
-          p.textContent = block.textContent;
+          (block.textContent || '').split('\n').forEach((line, i) => {
+            if (i > 0) p.appendChild(document.createElement('br'));
+            if (line) p.appendChild(document.createTextNode(line));
+          });
+          if (!p.firstChild) p.innerHTML = '<br>';
           editor.content.replaceChild(p, block);
           editor.selection.setAtEnd(p);
         } else {
+          // Paragraph -> code: preserve <br> line breaks as real newlines.
           const pre = document.createElement('pre');
           const code = document.createElement('code');
-          code.textContent = block.textContent;
+          code.textContent = _blockText(block);
           pre.appendChild(code);
           editor.content.replaceChild(pre, block);
           editor.selection.setAtEnd(pre);

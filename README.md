@@ -90,6 +90,18 @@ export default function App() {
 }
 ```
 
+> **Next.js / SSR:** the editor is browser-only (it touches the DOM on mount).
+> In the App Router, render it from a Client Component (`'use client'`) or load
+> it with `next/dynamic` and `{ ssr: false }`:
+>
+> ```jsx
+> import dynamic from 'next/dynamic';
+> const RuneEditor = dynamic(
+>   () => import('@parityfox/rune-editor/react').then((m) => m.RuneEditor),
+>   { ssr: false }
+> );
+> ```
+
 ### Web Component
 
 ```html

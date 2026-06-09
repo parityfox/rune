@@ -4,6 +4,43 @@
 const DATA_URI_RE = /\ssrc="data:[^"]{256,}"/g;
 const DATA_URI_PLACEHOLDER = ' src=""';
 
+// Caret as an absolute text offset within the content root, so it survives the
+// innerHTML rebuild on undo/redo (returns null when there's no caret in content).
+function _captureCaret(content) {
+  const doc = content.ownerDocument;
+  const sel = doc.defaultView?.getSelection?.();
+  if (!sel || !sel.rangeCount) return null;
+  const r = sel.getRangeAt(0);
+  if (!content.contains(r.startContainer)) return null;
+  let offset = 0;
+  const walker = doc.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    if (node === r.startContainer) return offset + r.startOffset;
+    offset += node.textContent.length;
+  }
+  return offset;
+}
+
+function _restoreCaret(content, offset) {
+  if (offset == null) return;
+  const doc = content.ownerDocument;
+  const sel = doc.defaultView?.getSelection?.();
+  if (!sel) return;
+  const walker = doc.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+  let node, acc = 0, target = null, targetOff = 0;
+  while ((node = walker.nextNode())) {
+    const len = node.textContent.length;
+    if (acc + len >= offset) { target = node; targetOff = offset - acc; break; }
+    acc += len;
+  }
+  const r = doc.createRange();
+  if (target) r.setStart(target, Math.min(targetOff, target.textContent.length));
+  else { r.selectNodeContents(content); r.collapse(false); }
+  r.collapse(true);
+  try { sel.removeAllRanges(); sel.addRange(r); } catch { /* detached */ }
+}
+
 /**
  * EditorHistory — the contract `Editor` depends on for undo/redo. Lets the
  * snapshot history below be swapped for an alternative (e.g. a Yjs UndoManager
@@ -31,6 +68,7 @@ export class History {
     this._maxBytes = maxBytes;
     this._totalBytes = 0;
     this._stack = [];
+    this._carets = [];      // caret offset per snapshot (parallel to _stack)
     this._index = -1;
     this._timer = null;
     this._debounce = debounce;
@@ -57,12 +95,16 @@ export class History {
     const current = this._stack[this._index];
     if (current === html) return;
 
+    const caret = _captureCaret(this.editor.content);
+
     // Drop any redo states and recalculate byte total
     const kept = this._stack.slice(0, this._index + 1);
     this._totalBytes = kept.reduce((sum, s) => sum + s.length, 0);
     this._stack = kept;
+    this._carets = this._carets.slice(0, this._index + 1);
 
     this._stack.push(html);
+    this._carets.push(caret);
     this._totalBytes += html.length;
     this._index = this._stack.length - 1;
 
@@ -70,6 +112,7 @@ export class History {
     while (this._stack.length > 1 &&
            (this._stack.length > this.maxSize || this._totalBytes > this._maxBytes)) {
       this._totalBytes -= this._stack.shift().length;
+      this._carets.shift();
       this._index--;
     }
   }
@@ -104,6 +147,7 @@ export class History {
   _apply(html) {
     this.editor.content.innerHTML = html;
     this.editor._ensureContent();
+    _restoreCaret(this.editor.content, this._carets[this._index]);
     // Route through _notifyChange so undo/redo also fire the onChange callback,
     // not just the internal 'change' event — otherwise framework bindings that
     // mirror editor state desync after every undo.
@@ -117,6 +161,7 @@ export class History {
   destroy() {
     clearTimeout(this._timer);
     this._stack = [];
+    this._carets = [];
     this._index = -1;
     this._totalBytes = 0;
   }

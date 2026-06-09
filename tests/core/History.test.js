@@ -131,6 +131,34 @@ describe('History', () => {
     expect(h._stack.length).toBe(1);
   });
 
+  it('restores the caret offset on undo (#28)', () => {
+    const content = document.createElement('div');
+    content.innerHTML = '<p>hello</p>';
+    document.body.appendChild(content);
+    const editor = { content, events: { emit: () => {} }, _ensureContent: () => {} };
+    editor._notifyChange = () => {};
+    const h = new History(editor);
+
+    const sel = window.getSelection();
+    const setCaret = (node, off) => {
+      const r = document.createRange(); r.setStart(node, off); r.collapse(true);
+      sel.removeAllRanges(); sel.addRange(r);
+    };
+
+    setCaret(content.querySelector('p').firstChild, 5);   // end of "hello"
+    h.saveNow();                                          // snapshot A (caret 5)
+
+    content.querySelector('p').textContent = 'hello world';
+    setCaret(content.querySelector('p').firstChild, 11);
+    h.saveNow();                                          // snapshot B (caret 11)
+
+    h.undo();
+    expect(content.querySelector('p').textContent).toBe('hello');
+    expect(window.getSelection().getRangeAt(0).startOffset).toBe(5);
+
+    content.remove();
+  });
+
   it('emits change event with correct shape on undo', () => {
     const editor = mockEditor();
     const h = new History(editor);

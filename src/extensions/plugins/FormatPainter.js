@@ -14,7 +14,15 @@ export const FormatPainter = {
   type: 'plugin',
 
   init(editor) {
-    _state.set(editor, { active: false, format: null, _handler: null });
+    const state = { active: false, format: null, _handler: null };
+    _state.set(editor, state);
+    // If the editor is destroyed while the painter is armed, the onMouseUp
+    // listener (and the rune-painter-active class) would stay bound to the
+    // detached content node. Tear it down with the editor.
+    editor.events.on('destroy', () => {
+      _deactivate(editor, state);
+      _state.delete(editor);
+    });
   },
 
   commands(editor) {

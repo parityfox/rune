@@ -10,6 +10,7 @@ import { BulletList } from '../src/extensions/blocks/BulletList.js';
 import { sanitize, sanitizeContent } from '../src/utils/html.js';
 import { Image } from '../src/extensions/blocks/Image.js';
 import { VideoEmbed } from '../src/extensions/blocks/VideoEmbed.js';
+import { FormatPainter } from '../src/extensions/plugins/FormatPainter.js';
 
 describe('Editor', () => {
   let target;
@@ -319,6 +320,32 @@ describe('Editor', () => {
       onChange.mockClear();
       editor.setHtml('<p>replaced</p>');
       expect(onChange).toHaveBeenCalled();
+    });
+  });
+
+  describe('FormatPainter lifecycle (#53)', () => {
+    it('unbinds the armed mouseup listener and class when the editor is destroyed', () => {
+      document.queryCommandState = () => false;
+      editor = new Editor(target, {
+        extensions: [Paragraph, FormatPainter],
+        toolbar: false, bubbleMenu: false, slashMenu: false,
+        content: '<p>hi</p>',
+      });
+      const p = editor.content.querySelector('p');
+      const range = document.createRange();
+      range.selectNodeContents(p);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+
+      editor.cmd('activateFormatPainter');
+      expect(editor.content.classList.contains('rune-painter-active')).toBe(true);
+
+      const removeSpy = vi.spyOn(editor.content, 'removeEventListener');
+      editor.destroy();
+      expect(removeSpy).toHaveBeenCalledWith('mouseup', expect.any(Function));
+      expect(editor.content.classList.contains('rune-painter-active')).toBe(false);
+      editor = null; // already destroyed
     });
   });
 

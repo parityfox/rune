@@ -22,6 +22,10 @@ const MESSAGE_AWARENESS = 1;
 
 const docs = new Map();   // room name -> WSSharedDoc
 
+// Room names come straight off the URL path; constrain them so a client can't
+// spin up unbounded Y.Docs under arbitrary or oversized names.
+const ROOM_RE = /^[A-Za-z0-9_.:-]{1,128}$/;
+
 class WSSharedDoc extends Y.Doc {
   constructor(name) {
     super();
@@ -135,7 +139,7 @@ export function setupWSConnection(conn, req) {
  *   open, so the demo stays zero-config. Plug real auth in here, e.g.:
  *     authorize: async (req) => verifyJwt(new URL(req.url, 'ws://x').searchParams.get('token'))
  */
-export function startServer(port = process.env.PORT || 1234, { authorize } = {}) {
+export function startServer(port = process.env.PORT || 1234, { authorize, maxRooms = 10000 } = {}) {
   const server = http.createServer((_, res) => { res.writeHead(200); res.end('Rune collab server'); });
   // Cap inbound frames (ws default is 100MB) so one client can't buffer a huge
   // payload into the shared doc and fan it out to every peer.
@@ -144,6 +148,9 @@ export function startServer(port = process.env.PORT || 1234, { authorize } = {})
 
   server.on('upgrade', async (req, socket, head) => {
     const room = (req.url || '/').slice(1).split('?')[0] || 'default';
+    // Reject malformed room names and refuse to open new rooms past the cap.
+    if (!ROOM_RE.test(room)) { socket.write('HTTP/1.1 400 Bad Request\r\n\r\n'); socket.destroy(); return; }
+    if (!docs.has(room) && docs.size >= maxRooms) { socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n'); socket.destroy(); return; }
     let ok = true;
     if (authorize) { try { ok = await authorize(req, room); } catch { ok = false; } }
     if (!ok) { socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy(); return; }

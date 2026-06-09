@@ -97,6 +97,27 @@ describe('WebSocket transport (reference server + provider)', () => {
     try { bad.close(); } catch { /* already gone */ }
   }, 10000);
 
+  it('rejects malformed/oversized room names (#45)', async () => {
+    srv = startServer(0);
+    const url = `ws://localhost:${await port(srv)}`;
+
+    // A 200-char room exceeds the 128-char limit -> 400 -> socket destroyed.
+    const bad = new WebSocket(`${url}/${'x'.repeat(200)}`);
+    const rejected = await new Promise((res) => {
+      bad.on('close', () => res(true));
+      bad.on('error', () => res(true));
+      bad.on('open',  () => res(false));
+      setTimeout(() => res(false), 1500);
+    });
+    expect(rejected).toBe(true);
+
+    // A normal room still connects and syncs.
+    const docA = new Y.Doc(), docB = new Y.Doc();
+    a = new WebSocketProvider(url, 'good-room', docA, { WebSocketPolyfill: WebSocket });
+    b = new WebSocketProvider(url, 'good-room', docB, { WebSocketPolyfill: WebSocket });
+    expect(await until(() => a.synced && b.synced)).toBe(true);
+  }, 10000);
+
   it('reconnects and re-syncs after the server bounces, surfacing status', async () => {
     srv = startServer(0);
     const p = await port(srv);

@@ -256,7 +256,7 @@ export function domPointInHost(host, index) {
 
 // ─── binding ────────────────────────────────────────────────────────────────
 
-export function bindParagraphSpike(editor, doc) {
+export function bindParagraph(editor, doc) {
   const blocks = doc.getArray('blocks');
   const content = editor.content;
   const cdoc = content.ownerDocument;
@@ -611,3 +611,6 @@ export function bindParagraphSpike(editor, doc) {
 }
 
 export const _internals = { serializeInline, renderInline, reconcileText, sameAttrs, flattenHosts };
+
+// Deprecated alias for the pre-1.x "spike" name; prefer bindParagraph.
+export { bindParagraph as bindParagraphSpike };

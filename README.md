@@ -477,15 +477,23 @@ collab layer's deps (Yjs, ws, y-websocket, y-indexeddb) are dev/server-only.
 
 ```js
 import * as Y from 'yjs';
-import { WebSocketProvider }  from '@parityfox/rune-editor/collab/provider.js';
-import { bindParagraphSpike } from '@parityfox/rune-editor/collab/paragraph-binding.js';
-import { bindPresence }       from '@parityfox/rune-editor/collab/presence.js';
+import { WebSocketProvider, collab } from '@parityfox/rune-editor/collab';
 
-const doc = new Y.Doc();
-const provider = new WebSocketProvider('ws://localhost:1234', 'my-doc', doc);
-bindParagraphSpike(editor, doc);
-bindPresence(editor, doc, provider.awareness, { name: 'Alice', color: '#2563eb' });
+const provider = new WebSocketProvider('wss://your-host', 'my-doc', new Y.Doc());
+
+const session = collab(editor, provider, {
+  user: { name: 'Alice', color: '#2563eb' },
+  presence: true,      // remote cursors + typing labels
+  comments: true,      // threaded comments  → session.comments (CommentStore)
+  suggestions: true,   // tracked changes    → session.suggestions (SuggestionStore)
+});
+// session.setSuggesting(true) to record edits as suggestions
+// session.destroy()  — also runs automatically on editor.destroy()
 ```
+
+> The individual binders (`bindParagraph`, `bindPresence`, `CommentStore`,
+> `SuggestionStore`, `persistLocally`, …) are still exported from
+> `@parityfox/rune-editor/collab` if you want to wire features by hand.
 
 Try the live two-pane demo: `npm run collab-server` then open
 `/examples/collab` (also runs in-process from static files).

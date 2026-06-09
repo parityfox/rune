@@ -93,10 +93,10 @@
 
 - [ ] **Mention** — `@username` triggers an autocomplete dropdown; configurable data source via `fetchMentions` hook
 - [ ] **Hashtag** — `#tag` auto-links; configurable `onHashtag` hook
-- [ ] **Comments / annotations** — highlight a text range, attach a threaded comment; comments panel on the right
-- [ ] **Track changes** — show insertions/deletions with author colour; accept / reject individual changes
-- [ ] **Collaborative editing** — real-time multi-user sync via Yjs CRDT + WebSocket/WebRTC provider
-- [ ] **Presence indicators** — show other users' cursors and selections with name labels
+- [x] **Collaborative editing** — real-time multi-user sync via Yjs CRDT + WebSocket provider (`@parityfox/rune-editor/collab`, `collab()` facade). _v1 limits: single-block comments/suggestions; multi-block paste flattens; reorder clones blocks._
+- [x] **Presence indicators** — remote cursors, selection highlights, and typing labels via Yjs Awareness
+- [~] **Comments / annotations** — threaded comments anchored via RelativePositions with orphan detection (single-block ranges in v1; side panel UI is consumer-provided)
+- [~] **Track changes** — tracked-change suggestions with per-change accept/reject and author colour (single-block ranges in v1)
 
 ---
 

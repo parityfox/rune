@@ -33,8 +33,11 @@ import { createFromConfig } from '../../src/createFromConfig.js';
 import defaultConfig        from '../../rune.config.js';
 
 class RuneEditorElement extends HTMLElement {
+  // `attribution` is intentionally not observed: the "Made with Rune" credit is
+  // applied once at mount (connectedCallback reads the attribute), so observing
+  // it would imply a runtime toggle that doesn't exist.
   static get observedAttributes() {
-    return ['content', 'placeholder', 'readonly', 'attribution'];
+    return ['content', 'placeholder', 'readonly'];
   }
 
   connectedCallback() {

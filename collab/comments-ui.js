@@ -60,13 +60,18 @@ export function bindCommentsUI(editor, doc, store, { onChange } = {}) {
   cdoc.defaultView.addEventListener('resize', onResize);
   render();
 
-  return {
+  let _destroyed = false;
+  const api = {
     render,
     addFromSelection,
     destroy() {
+      if (_destroyed) return;
+      _destroyed = true;
       store.unobserve(render);
       cdoc.defaultView.removeEventListener('resize', onResize);
       layer.remove();
     },
   };
+  editor.events.on('destroy', api.destroy);
+  return api;
 }

@@ -145,10 +145,15 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
 
   content.addEventListener('beforeinput', onBeforeInput);
   content.addEventListener('paste', onPaste, true);
-  return {
+  let _destroyed = false;
+  const api = {
     destroy() {
+      if (_destroyed) return;
+      _destroyed = true;
       content.removeEventListener('beforeinput', onBeforeInput);
       content.removeEventListener('paste', onPaste, true);
     },
   };
+  editor.events.on('destroy', api.destroy);
+  return api;
 }

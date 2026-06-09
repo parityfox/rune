@@ -136,8 +136,13 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
   writeCursor();
   render();
 
-  return {
+  let _destroyed = false;
+  const api = {
     destroy() {
+      if (_destroyed) return;
+      _destroyed = true;
+      clearTimeout(typingTimer);
+      clearTimeout(selThrottle);
       content.removeEventListener('input', onInput);
       cdoc.removeEventListener('selectionchange', onSel);
       awareness.off('change', render);
@@ -147,4 +152,6 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
       layer.remove();
     },
   };
+  editor.events.on('destroy', api.destroy);
+  return api;
 }

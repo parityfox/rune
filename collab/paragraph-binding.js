@@ -592,8 +592,11 @@ export function bindParagraphSpike(editor, doc) {
   if (blocks.length === 0) reconcileFromDom();
   else { applyingRemote = true; try { renderFromModel(); } finally { applyingRemote = false; } }
 
-  return {
+  let _destroyed = false;
+  const api = {
     destroy() {
+      if (_destroyed) return;
+      _destroyed = true;
       content.removeEventListener('input', onInput);
       content.removeEventListener('compositionstart', onCompositionStart);
       content.removeEventListener('compositionend', onCompositionEnd);
@@ -601,6 +604,10 @@ export function bindParagraphSpike(editor, doc) {
       doc.off('beforeTransaction', onBeforeTxn);
     },
   };
+  // Tear down with the editor too, so editor.destroy() alone doesn't leak the
+  // Yjs deep observer and beforeTransaction hook (idempotent with manual destroy).
+  editor.events.on('destroy', api.destroy);
+  return api;
 }
 
 export const _internals = { serializeInline, renderInline, reconcileText, sameAttrs, flattenHosts };

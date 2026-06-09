@@ -62,6 +62,15 @@ describe('collab spike: two-editor convergence + caret', () => {
     expect(clean(edB.getHtml())).toBe('<p>hello</p>');
   });
 
+  it('editor.destroy() alone tears down the collab binding (#52)', () => {
+    // Destroy edB WITHOUT calling b.destroy(): the binding must unhook so the
+    // detached editor stops reacting to remote edits.
+    edB.destroy();
+    const before = edB.content.innerHTML;
+    editPara(edA, 0, 'changed after destroy');
+    expect(edB.content.innerHTML).toBe(before);   // observer removed -> no re-render
+  });
+
   it('converges under concurrent edits in the same paragraph', () => {
     hub.pause();
     editPara(edA, 0, 'Xhello');           // insert at start

@@ -38,6 +38,21 @@ describe('htmlToMarkdown', () => {
     expect(result).toContain('example.com');
   });
 
+  it('escapes brackets in link text so the syntax is not broken (#33)', () => {
+    const result = htmlToMarkdown('<p><a href="https://x.com">a [b] c</a></p>');
+    expect(result).toBe('[a \\[b\\] c](https://x.com)');
+  });
+
+  it('wraps URLs containing parentheses/spaces in angle brackets (#33)', () => {
+    const result = htmlToMarkdown('<p><a href="https://x.com/a(b)">t</a></p>');
+    expect(result).toBe('[t](<https://x.com/a(b)>)');
+  });
+
+  it('preserves relative hrefs instead of resolving to absolute (#33)', () => {
+    const result = htmlToMarkdown('<p><a href="/docs/page">t</a></p>');
+    expect(result).toBe('[t](/docs/page)');
+  });
+
   it('converts unordered lists', () => {
     const result = htmlToMarkdown('<ul><li>a</li><li>b</li></ul>');
     expect(result).toBe('- a\n- b');

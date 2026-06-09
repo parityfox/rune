@@ -75,16 +75,16 @@ function _block(node) {
   if (tag === 'figure' && node.classList.contains('rune-image-block')) {
     const img = node.querySelector('img');
     const cap = node.querySelector('figcaption')?.textContent?.trim() ?? '';
-    const alt = img?.alt || cap;
-    const src = img?.src ?? '';
-    return `![${alt}](${src})${cap ? `\n*${cap}*` : ''}`;
+    const alt = img?.getAttribute('alt') || cap;
+    const src = img?.getAttribute('src') ?? '';
+    return `![${_escapeLinkText(alt)}](${_mdUrl(src)})${cap ? `\n*${cap}*` : ''}`;
   }
 
   // Video embed
   if (tag === 'figure' && node.classList.contains('rune-video-block')) {
     const iframe = node.querySelector('iframe');
     const cap    = node.querySelector('figcaption')?.textContent?.trim() ?? '';
-    return `[${cap || 'Video'}](${iframe?.src ?? ''})`;
+    return `[${_escapeLinkText(cap || 'Video')}](${_mdUrl(iframe?.getAttribute('src') ?? '')})`;
   }
 
   if (tag === 'table') return _table(node);
@@ -94,6 +94,19 @@ function _block(node) {
 }
 
 // ── Inline ────────────────────────────────────────────────────
+
+// Escape Markdown-significant brackets so link/image text can't break the
+// surrounding [text](url) / ![alt](src) syntax.
+function _escapeLinkText(s) {
+  return String(s).replace(/[\[\]]/g, '\\$&');
+}
+
+// URLs containing spaces or parentheses break the (url) form; wrap those in
+// angle brackets (CommonMark allows <…> destinations) so they survive.
+function _mdUrl(url) {
+  const u = String(url || '');
+  return /[\s()]/.test(u) ? `<${u}>` : u;
+}
 
 function _inline(node) {
   let out = '';
@@ -110,7 +123,7 @@ function _inline(node) {
     if (t === 'em'     || t === 'i')   { out += `*${_inline(child)}*`;   continue; }
     if (t === 's')                     { out += `~~${_inline(child)}~~`; continue; }
     if (t === 'code')                  { out += `\`${child.textContent}\``; continue; }
-    if (t === 'a')                     { out += `[${_inline(child)}](${child.href})`; continue; }
+    if (t === 'a')                     { out += `[${_escapeLinkText(_inline(child))}](${_mdUrl(child.getAttribute('href') || '')})`; continue; }
     if (t === 'u')                     { out += `<u>${_inline(child)}</u>`; continue; }
     if (t === 'sup')                   { out += `<sup>${_inline(child)}</sup>`; continue; }
     if (t === 'sub')                   { out += `<sub>${_inline(child)}</sub>`; continue; }

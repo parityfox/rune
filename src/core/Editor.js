@@ -5,6 +5,7 @@ import { Selection } from './Selection.js';
 import { CommandRegistry, CommandChain } from './Commands.js';
 import { normalizeHtml, sanitize, sanitizeContent, _isDangerousUrl } from '../utils/html.js';
 import { runInputRules, runPasteRules } from './InputRules.js';
+import { Decorations } from './Decorations.js';
 import { htmlToMarkdown } from '../utils/markdown.js';
 import { el, getBlockElement } from '../utils/dom.js';
 import { uid } from '../utils/id.js';
@@ -99,6 +100,9 @@ export class Editor {
     this._bindEvents();
     this._initPlugins();
     this._initUI();
+
+    // Non-destructive overlay for highlights/comments/cursors (keeps getHtml clean).
+    this.decorations = new Decorations(this);
 
     // Setting the initial content (in _mount) is not a user-facing "change", and
     // onChange handlers commonly reference the editor instance — which the caller

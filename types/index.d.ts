@@ -137,6 +137,25 @@ export class History implements EditorHistory {
   destroy(): void;
 }
 
+export interface DecorationPoint { path: number[]; offset: number; }
+export interface DecorationSpec {
+  from: DecorationPoint;
+  to: DecorationPoint;
+  class?: string;
+  attrs?: Record<string, string>;
+  onClick?: (id: string, event: MouseEvent) => void;
+  type?: string;
+}
+
+/** Non-destructive overlay layer (highlights, comment ranges, cursors…). */
+export class Decorations {
+  add(spec: DecorationSpec): string | null;
+  remove(id: string): void;
+  clear(type?: string): void;
+  fromCurrentSelection(cls: string, opts?: Partial<DecorationSpec>): string | null;
+  destroy(): void;
+}
+
 export class Schema {
   register(ext: Extension): void;
   getBlock(name: string): Extension | undefined;
@@ -156,6 +175,7 @@ export class Editor {
   readonly events: EventBus;
   readonly schema: Schema;
   readonly selection: Selection;
+  readonly decorations: Decorations;
   history: EditorHistory;
   options: EditorOptions;
 

@@ -437,6 +437,35 @@ describe('Editor', () => {
     });
   });
 
+  describe('decorations (#82)', () => {
+    it('adds/clears decorations without polluting getHtml', () => {
+      create({ content: '<p>hello world</p>' });
+      const t = editor.content.querySelector('p').firstChild;
+      const r = document.createRange(); r.setStart(t, 0); r.setEnd(t, 5);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+
+      const id = editor.decorations.fromCurrentSelection('rune-hl-test', { type: 'comment' });
+      expect(id).toBeTruthy();
+      expect(editor.decorations._items.size).toBe(1);
+      expect(editor.wrapper.querySelector('.rune-decoration-layer')).toBeTruthy();
+
+      // The editable HTML is untouched by decorations.
+      expect(editor.getHtml()).toBe('<p>hello world</p>');
+
+      editor.decorations.clear('comment');
+      expect(editor.decorations._items.size).toBe(0);
+
+      const id2 = editor.decorations.add({
+        from: editor.decorations._point(t, 0),
+        to: editor.decorations._point(t, 5),
+        class: 'x',
+      });
+      expect(editor.decorations._items.has(id2)).toBe(true);
+      editor.decorations.remove(id2);
+      expect(editor.decorations._items.size).toBe(0);
+    });
+  });
+
   describe('security', () => {
     it('setLink rejects javascript: URIs', () => {
       create({ content: '<p>text</p>' });

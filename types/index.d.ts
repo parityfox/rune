@@ -90,6 +90,12 @@ export interface PasteRule {
 export interface Extension {
   name: string;
   type: ExtensionType;
+  /** Optional manifest fields (extension registry). */
+  version?: string;
+  kind?: string;
+  dependsOn?: string[];
+  conflictsWith?: string[];
+  lazy?: () => Promise<{ default?: Extension } | Extension>;
   tag?: string | string[];
   match?: (el: Element) => boolean;
   hasMark?: (el: Element) => boolean;
@@ -220,6 +226,8 @@ export class Editor {
 
   /** Announce a message to assistive technology via the live region. */
   announce(msg: string): void;
+  /** Register an extension at runtime (or async via a `lazy` loader). */
+  use(ext: Extension): this | Promise<Extension | null>;
   /** Swap the undo/redo implementation (used by the collab binding). */
   replaceHistory(impl: EditorHistory): void;
   destroy(): void;

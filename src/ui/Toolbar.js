@@ -16,6 +16,15 @@ export class Toolbar {
     this._bindEditorEvents();
   }
 
+  /** Rebuild the toolbar (e.g. after an extension is added at runtime). */
+  refresh() {
+    this._closePopup();
+    this.el.textContent = '';
+    this._render();
+    this._setupRovingTabindex();
+    this._updateActive();
+  }
+
   // WAI-ARIA toolbar pattern: one tab stop, arrow keys move between controls.
   _setupRovingTabindex() {
     const btns = () => [...this.el.querySelectorAll('button')];

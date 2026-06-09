@@ -382,6 +382,22 @@ document.documentElement.dataset.theme = 'dark';
 
 ## 🔌 Writing Extensions
 
+Extensions can declare an optional **manifest** so the registry can order and
+validate them: `dependsOn` (registered after its deps), `conflictsWith`, a
+`version`/`kind`, and a `lazy: () => import('…')` loader. Register at runtime with
+`editor.use(ext)` (returns a Promise for lazy extensions). Publish third-party
+extensions with the `rune-extension` npm keyword so they're discoverable.
+
+```js
+export const MyExt = {
+  name: 'myExt', type: 'plugin', version: '1.0.0',
+  dependsOn: ['link'], conflictsWith: ['otherExt'],
+  commands(editor) { return { /* … */ }; },
+};
+editor.use(MyExt);                                  // runtime add
+editor.use({ name: 'heavy', lazy: () => import('./heavy.js') });  // async
+```
+
 <details>
 <summary><strong>Block extension</strong></summary>
 

@@ -518,6 +518,36 @@ describe('Editor', () => {
     });
   });
 
+  describe('extension registry (#92)', () => {
+    it('registers extensions in dependsOn order', () => {
+      const order = [];
+      const A = { name: 'rega', type: 'plugin', init: () => order.push('a') };
+      const B = { name: 'regb', type: 'plugin', dependsOn: ['rega'], init: () => order.push('b') };
+      editor = new Editor(target, { extensions: [B, A, Paragraph], toolbar: false, bubbleMenu: false, slashMenu: false });
+      expect(order.indexOf('a')).toBeLessThan(order.indexOf('b'));
+    });
+
+    it('throws on a missing dependency', () => {
+      expect(() => new Editor(target, { extensions: [{ name: 'x', type: 'plugin', dependsOn: ['nope'] }], toolbar: false, bubbleMenu: false, slashMenu: false }))
+        .toThrow(/depends on missing/);
+    });
+
+    it('editor.use() registers an extension at runtime', () => {
+      create();
+      let ran = false;
+      editor.use({ name: 'rt', type: 'plugin', commands: () => ({ rtCmd: () => { ran = true; } }) });
+      editor.cmd('rtCmd');
+      expect(ran).toBe(true);
+    });
+
+    it('editor.use() supports a lazy loader', async () => {
+      create();
+      const real = { name: 'lz', type: 'plugin', commands: () => ({ lzCmd: () => 'ok' }) };
+      await editor.use({ name: 'lz', lazy: () => Promise.resolve({ default: real }) });
+      expect(editor.cmd('lzCmd')).toBe('ok');
+    });
+  });
+
   describe('mark active state', () => {
     it('isActive(bold) reflects the <strong> mark, not heading font-weight', () => {
       create({ content: '<h1>Heading</h1><p><strong>b</strong> plain</p>' });

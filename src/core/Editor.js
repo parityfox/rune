@@ -6,6 +6,7 @@ import { CommandRegistry, CommandChain } from './Commands.js';
 import { normalizeHtml, sanitize, sanitizeContent, _isDangerousUrl } from '../utils/html.js';
 import { runInputRules, runPasteRules } from './InputRules.js';
 import { Decorations } from './Decorations.js';
+import { resolveExtensions, unwrapLazy } from './ExtensionRegistry.js';
 import { htmlToMarkdown } from '../utils/markdown.js';
 import { markdownToHtml } from '../utils/markdownToHtml.js';
 import { el, getBlockElement } from '../utils/dom.js';
@@ -137,21 +138,55 @@ export class Editor {
   // ─── Extension Registration ──────────────────────────────────────────────
 
   _registerExtensions() {
-    for (const ext of this.options.extensions) {
-      this.schema.register(ext);
-
-      // Auto-register toggle command for marks that declare execCommand.
-      // Uses ext.toggleCommand if specified, otherwise derives from ext.name.
-      if (ext.type === 'mark' && ext.execCommand) {
-        const cmd = ext.execCommand;
-        const name = ext.toggleCommand || ('toggle' + ext.name.charAt(0).toUpperCase() + ext.name.slice(1));
-        this.commands.register(name, () => this._execFormat(cmd));
-      }
-
-      if (ext.commands) this.commands.registerAll(ext.commands(this));
+    // Order + validate via manifests (dependsOn / conflictsWith), then register.
+    const ordered = resolveExtensions(this.options.extensions || []);
+    for (const ext of ordered) {
+      if (ext.lazy) { this._useLazy(ext); continue; }   // async-loaded; registered when ready
+      this._registerOne(ext);
     }
     // Always register built-in commands
     this._registerBuiltinCommands();
+  }
+
+  _registerOne(ext) {
+    this.schema.register(ext);
+
+    // Auto-register toggle command for marks that declare execCommand.
+    // Uses ext.toggleCommand if specified, otherwise derives from ext.name.
+    if (ext.type === 'mark' && ext.execCommand) {
+      const cmd = ext.execCommand;
+      const name = ext.toggleCommand || ('toggle' + ext.name.charAt(0).toUpperCase() + ext.name.slice(1));
+      this.commands.register(name, () => this._execFormat(cmd));
+    }
+    if (ext.commands) this.commands.registerAll(ext.commands(this));
+
+    // Invalidate cached collections so newly-added items appear.
+    this.schema._toolbarItemsCache = null;
+    this.schema._inputRulesCache = null;
+    this.schema._pasteRulesCache = null;
+  }
+
+  /**
+   * Register an extension at runtime (after construction). Pass a resolved
+   * extension, or one with a `lazy: () => import(...)` loader (returns a Promise).
+   */
+  use(ext) {
+    if (ext?.lazy) return this._useLazy(ext);
+    this._registerOne(ext);
+    if (typeof ext.init === 'function') ext.init(this);   // _initPlugins already ran
+    this.toolbar?.refresh?.();
+    return this;
+  }
+
+  _useLazy(ext) {
+    return Promise.resolve(ext.lazy()).then((mod) => {
+      if (this._destroyed) return null;
+      const real = unwrapLazy(mod);
+      this._registerOne(real);
+      if (typeof real.init === 'function') real.init(this);
+      this.toolbar?.refresh?.();
+      return real;
+    });
   }
 
   _registerBuiltinCommands() {

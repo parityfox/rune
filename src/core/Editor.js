@@ -45,6 +45,7 @@ export class Editor {
       bubbleMenu: true,
       slashMenu: true,
       placeholder: 'Write something…',
+      ariaLabel: 'Rich text editor',   // accessible name for the editable region
       onChange: null,
       attribution: true,        // small "Made with Rune" credit; set false to remove
     }, options);
@@ -320,9 +321,13 @@ export class Editor {
       'data-rune-content': '',
       'aria-multiline': 'true',
       role: 'textbox',
+      'aria-label': this.options.ariaLabel,
     });
 
+    // The placeholder is drawn via CSS ::before, which screen readers don't
+    // reliably expose — mirror it into aria-placeholder so AT announces it.
     this.content.setAttribute('data-placeholder', this.options.placeholder);
+    this.content.setAttribute('aria-placeholder', this.options.placeholder);
     this.wrapper.appendChild(this.content);
 
     // Opt-out attribution credit (ParityFox). Disable with `attribution: false`.

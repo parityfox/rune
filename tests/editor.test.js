@@ -49,6 +49,14 @@ describe('Editor', () => {
       expect(target.classList.contains('rune-editor')).toBe(true);
     });
 
+    it('exposes an accessible name and aria-placeholder on the editable region (#57)', () => {
+      create({ placeholder: 'Type here', ariaLabel: 'My editor' });
+      const content = target.querySelector('.rune-content');
+      expect(content.getAttribute('role')).toBe('textbox');
+      expect(content.getAttribute('aria-label')).toBe('My editor');
+      expect(content.getAttribute('aria-placeholder')).toBe('Type here');
+    });
+
     it('renders an opt-out attribution badge by default', () => {
       create();
       const badge = target.querySelector('.rune-attribution');

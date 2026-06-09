@@ -87,7 +87,10 @@ class RuneEditorElement extends HTMLElement {
     if (!this._editor || oldVal === newVal) return;
     if (name === 'content')     this._editor.setHtml(newVal ?? '');
     if (name === 'readonly')    newVal !== null ? this._editor.disable() : this._editor.enable();
-    if (name === 'placeholder') this._editor.content.dataset.placeholder = newVal ?? '';
+    if (name === 'placeholder') {
+      this._editor.content.dataset.placeholder = newVal ?? '';
+      this._editor.content.setAttribute('aria-placeholder', newVal ?? '');
+    }
   }
 
   // ── Public API (mirrors Editor) ───────────────────────────────

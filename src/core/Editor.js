@@ -65,6 +65,7 @@ export class Editor {
 
     this._destroyed = false;
     this._ready = false;          // suppress onChange until construction finishes
+    this._selRaf = null;          // rAF handle coalescing selectionchange emits
     this._slashQuery = '';
 
     this._mount();
@@ -481,8 +482,14 @@ export class Editor {
   }
 
   _onSelectionChange() {
-    if (this._destroyed) return;
-    this.events.emit('selectionchange', { editor: this });
+    if (this._destroyed || this._selRaf) return;
+    // document 'selectionchange' fires on every caret move and every keystroke;
+    // coalesce bursts into one emit per animation frame.
+    this._selRaf = requestAnimationFrame(() => {
+      this._selRaf = null;
+      if (this._destroyed) return;
+      this.events.emit('selectionchange', { editor: this });
+    });
   }
 
   // ─── Core Utilities ──────────────────────────────────────────────────────
@@ -679,6 +686,7 @@ export class Editor {
   /** Destroy the editor and clean up. */
   destroy() {
     this._destroyed = true;
+    cancelAnimationFrame(this._selRaf);
     this.events.emit('destroy');
     this.content.removeEventListener('input',   this._handlers.input);
     this.content.removeEventListener('keydown', this._handlers.keydown);

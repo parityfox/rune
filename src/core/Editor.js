@@ -21,6 +21,22 @@ function getModKey() {
   return (_modKey = isMac ? 'Meta' : 'Control');
 }
 
+// Nearest ancestor element with the given tag, bounded by the content root.
+function _closestTag(node, tag, content) {
+  let n = node?.nodeType === 1 ? node : node?.parentNode;
+  while (n && n !== content) {
+    if (n.tagName?.toLowerCase() === tag) return n;
+    n = n.parentNode;
+  }
+  return null;
+}
+function _applyAttrs(elm, attrs) {
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') elm.className = v;
+    else elm.setAttribute(k, v);
+  }
+}
+
 // Concise messages announced to assistive tech when these commands run (#63).
 const _CMD_LABELS = {
   toggleBold: 'Bold', toggleItalic: 'Italic', toggleUnderline: 'Underline',
@@ -231,6 +247,43 @@ export class Editor {
           if (!node.textContent && !node.querySelector('img, br')) node.remove();
         });
         self.content.normalize();
+        self._notifyChange();
+      },
+
+      // Generic element-based inline mark: wrap the selection in `tag` (with
+      // attrs), toggle it off if already wrapped in the same mark, or update the
+      // attrs (e.g. recolour a highlight) if wrapped with different attrs.
+      toggleMark(tag, attrs = {}) {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+        const range = sel.getRangeAt(0);
+        if (!self.content.contains(range.commonAncestorContainer)) return;
+        self.history.saveNow();
+
+        const existing = _closestTag(range.commonAncestorContainer, tag, self.content);
+        if (existing) {
+          if (!attrs.class || existing.className === attrs.class) {
+            while (existing.firstChild) existing.parentNode.insertBefore(existing.firstChild, existing);
+            existing.remove();                       // toggle off
+          } else {
+            _applyAttrs(existing, attrs);            // recolour / change attrs
+          }
+          self.content.normalize();
+          self._notifyChange();
+          return;
+        }
+
+        const frag = range.extractContents();
+        // collapse any nested same-tag marks so we don't double-wrap
+        frag.querySelectorAll(tag).forEach(m => { while (m.firstChild) m.parentNode.insertBefore(m.firstChild, m); m.remove(); });
+        const wrapper = document.createElement(tag);
+        _applyAttrs(wrapper, attrs);
+        wrapper.appendChild(frag);
+        range.insertNode(wrapper);
+        const r = document.createRange();
+        r.selectNodeContents(wrapper);
+        sel.removeAllRanges();
+        sel.addRange(r);
         self._notifyChange();
       },
 
@@ -595,16 +648,28 @@ export class Editor {
   isActive(type, attrs = {}) {
     // Check block type
     const block = this.selection.getBlock();
-    if (!block) return false;
-    const blockExt = this.schema.resolveBlock(block);
-    if (blockExt && blockExt.name === type) return true;
-
-    // Check inline mark via queryCommandState
-    const mark = this.schema.getMark(type);
-    if (mark && mark.execCommand) {
-      try { return document.queryCommandState(mark.execCommand); } catch { return false; }
+    if (block) {
+      const blockExt = this.schema.resolveBlock(block);
+      if (blockExt && blockExt.name === type) return true;
     }
 
+    const mark = this.schema.getMark(type);
+    if (mark) {
+      // Legacy execCommand marks (bold/italic/…)
+      if (mark.execCommand) {
+        try { return document.queryCommandState(mark.execCommand); } catch { return false; }
+      }
+      // Element-based marks (highlight, colour, font…): walk ancestors for a
+      // node the mark recognises via its hasMark/match predicate.
+      const pred = mark.hasMark || mark.match;
+      if (pred) {
+        let node = this.selection.getFocusNode();
+        while (node && node !== this.content) {
+          if (node.nodeType === 1 && pred(node)) return true;
+          node = node.parentNode;
+        }
+      }
+    }
     return false;
   }
 

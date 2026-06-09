@@ -402,6 +402,41 @@ describe('Editor', () => {
     });
   });
 
+  describe('toggleMark (#87)', () => {
+    function selectRange(node, start, end) {
+      const r = document.createRange();
+      r.setStart(node, start); r.setEnd(node, end);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    }
+
+    it('wraps the selection in an element mark and toggles it off', () => {
+      create({ content: '<p>hello world</p>' });
+      const t = editor.content.querySelector('p').firstChild;
+      selectRange(t, 0, 5);                       // "hello"
+      editor.cmd('toggleMark', 'mark', { class: 'rune-hl-yellow' });
+      const mark = editor.content.querySelector('mark.rune-hl-yellow');
+      expect(mark).toBeTruthy();
+      expect(mark.textContent).toBe('hello');
+
+      const r = document.createRange(); r.selectNodeContents(mark);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      editor.cmd('toggleMark', 'mark', { class: 'rune-hl-yellow' });
+      expect(editor.content.querySelector('mark')).toBeFalsy();   // toggled off
+    });
+
+    it('recolours when toggled with a different class', () => {
+      create({ content: '<p>hi</p>' });
+      const t = editor.content.querySelector('p').firstChild;
+      selectRange(t, 0, 2);
+      editor.cmd('toggleMark', 'mark', { class: 'rune-hl-yellow' });
+      const mark = editor.content.querySelector('mark');
+      const r = document.createRange(); r.selectNodeContents(mark);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      editor.cmd('toggleMark', 'mark', { class: 'rune-hl-green' });
+      expect(editor.content.querySelector('mark').className).toBe('rune-hl-green');
+    });
+  });
+
   describe('security', () => {
     it('setLink rejects javascript: URIs', () => {
       create({ content: '<p>text</p>' });

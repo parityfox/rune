@@ -1,4 +1,5 @@
 import { el } from '../utils/dom.js';
+import { uid } from '../utils/id.js';
 
 /**
  * SlashMenu — Notion-style "/" command palette.
@@ -7,6 +8,7 @@ export class SlashMenu {
   constructor(editor) {
     this.editor = editor;
     this.el = el('div', { class: 'rune-slash-menu', role: 'listbox', 'aria-label': 'Insert block' });
+    this.el.id = `rune-slash-${uid()}`;
     this.el.style.display = 'none';
     document.body.appendChild(this.el);
 
@@ -154,6 +156,7 @@ export class SlashMenu {
       const row = el('div', {
         class: `rune-slash-item${i === this._activeIndex ? ' is-active' : ''}`,
         role: 'option',
+        id: `${this.el.id}-opt-${i}`,
         'aria-selected': String(i === this._activeIndex),
       });
 
@@ -179,6 +182,14 @@ export class SlashMenu {
       });
       menuEl.appendChild(row);
     });
+
+    // Expose the highlighted option to AT (focus stays in the editor) and keep
+    // it visible in the scrollable menu.
+    const activeRow = menuEl.querySelector('.rune-slash-item.is-active');
+    if (activeRow) {
+      this.editor.content.setAttribute('aria-activedescendant', activeRow.id);
+      activeRow.scrollIntoView({ block: 'nearest' });
+    }
   }
 
   // ─── Select ──────────────────────────────────────────────────
@@ -204,6 +215,7 @@ export class SlashMenu {
 
   // ─── Show / hide ─────────────────────────────────────────────
   _show() {
+    this.editor.content.setAttribute('aria-controls', this.el.id);
     this._renderList();
     this.el.style.display = 'block';
     // Use rAF so the menu is in the DOM and has dimensions before positioning
@@ -214,6 +226,8 @@ export class SlashMenu {
     this._open = false;
     this._query = '';
     this.el.classList.remove('is-open');
+    this.editor.content.removeAttribute('aria-activedescendant');
+    this.editor.content.removeAttribute('aria-controls');
     setTimeout(() => { this.el.style.display = 'none'; }, 150);
     this.editor.events.emit('slash:closed');
   }

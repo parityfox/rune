@@ -38,6 +38,8 @@ import { MarkdownShortcuts } from './plugins/MarkdownShortcuts.js';
 import { FindReplace }       from './plugins/FindReplace.js';
 import { DragReorder }       from './plugins/DragReorder.js';
 import { FormatPainter }     from './plugins/FormatPainter.js';
+import { SmartTypography }   from './plugins/SmartTypography.js';
+import { InlineMarkdown }    from './plugins/InlineMarkdown.js';
 
 // Named exports
 export {
@@ -47,6 +49,7 @@ export {
   HorizontalRule, Callout, TaskList, VideoEmbed, Image, Table,
   TextAlign, LineHeight, Indent, Outdent,
   MarkdownShortcuts, FindReplace, DragReorder, FormatPainter,
+  SmartTypography, InlineMarkdown,
 };
 
 // StarterKit — everything bundled
@@ -57,4 +60,5 @@ export const StarterKit = [
   FontSize, FontFamily, TextColor, TextBackground, Highlight,
   TextAlign, LineHeight, Indent, Outdent,
   MarkdownShortcuts, FindReplace, DragReorder, FormatPainter,
+  SmartTypography, InlineMarkdown,
 ];

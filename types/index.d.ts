@@ -54,15 +54,34 @@ export interface SlashItem {
   action: (editor: Editor) => void;
 }
 
+export interface InputRule {
+  /** Tested against the text in the caret's text node up to the caret. */
+  find: RegExp;
+  /** Replace the matched text (string or computed from the match). */
+  replace?: string | ((match: RegExpExecArray) => string);
+  /** Custom DOM surgery on the matched range (e.g. wrap in a mark). */
+  handler?: (ctx: { editor: Editor; match: RegExpExecArray; range: Range }) => void;
+}
+
+export interface PasteRule {
+  /** Matched against text nodes of pasted, sanitized HTML. */
+  find: RegExp;
+  /** Returns replacement HTML for each match. */
+  replace: (...args: any[]) => string;
+}
+
 export interface Extension {
   name: string;
   type: ExtensionType;
   tag?: string | string[];
   match?: (el: Element) => boolean;
+  hasMark?: (el: Element) => boolean;
   execCommand?: string;
   toggleCommand?: string;
   commands?: (editor: Editor) => Record<string, (...args: any[]) => any>;
   keymap?: Record<string, (editor: Editor) => void>;
+  inputRules?: InputRule[];
+  pasteRules?: PasteRule[];
   init?: (editor: Editor) => void;
   toolbarItem?: ToolbarItem;
   slashItem?: SlashItem;
@@ -227,6 +246,8 @@ export const MarkdownShortcuts: Extension;
 export const FindReplace: Extension;
 export const DragReorder: Extension;
 export const FormatPainter: Extension;
+export const SmartTypography: Extension;
+export const InlineMarkdown: Extension;
 
 // ── Utilities ─────────────────────────────────────────────────
 export function el(tag: string, attrs?: Record<string, any>, ...children: Array<Node | string>): HTMLElement;

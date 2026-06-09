@@ -33,6 +33,8 @@ import { MarkdownShortcuts } from './extensions/plugins/MarkdownShortcuts.js';
 import { FindReplace }       from './extensions/plugins/FindReplace.js';
 import { DragReorder }       from './extensions/plugins/DragReorder.js';
 import { FormatPainter }     from './extensions/plugins/FormatPainter.js';
+import { SmartTypography }   from './extensions/plugins/SmartTypography.js';
+import { InlineMarkdown }    from './extensions/plugins/InlineMarkdown.js';
 
 // Map config keys → extension objects
 const BLOCK_MAP = {
@@ -114,6 +116,8 @@ export function createFromConfig(target, config, overrides = {}) {
   if (plugins.findReplace   !== false) extensions.push(FindReplace);
   if (plugins.dragReorder   !== false) extensions.push(DragReorder);
   if (plugins.formatPainter !== false) extensions.push(FormatPainter);
+  if (plugins.smartTypography !== false) extensions.push(SmartTypography);
+  if (plugins.inlineMarkdown  !== false) extensions.push(InlineMarkdown);
 
   // ── Resolve toolbar items (skip disabled features) ─────────
   const enabledNames = new Set([

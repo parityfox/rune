@@ -58,6 +58,8 @@ const config = {
     findReplace:       true,  // Cmd+F floating find & replace panel
     dragReorder:       true,  // drag handle to reorder blocks
     formatPainter:     true,  // copy format from selection, paint onto another
+    smartTypography:   true,  // -- → —, (c) → ©, "quotes" → curly, linkify on paste
+    inlineMarkdown:    true,  // **bold**, *italic*, `code`, ~~strike~~ as you type
   },
 
   // ── Toolbar ───────────────────────────────────────────────

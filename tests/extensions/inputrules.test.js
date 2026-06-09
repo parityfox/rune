@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Editor } from '../../src/core/Editor.js';
 import { Paragraph } from '../../src/extensions/blocks/Paragraph.js';
+import { SmartTypography } from '../../src/extensions/plugins/SmartTypography.js';
+import { InlineMarkdown } from '../../src/extensions/plugins/InlineMarkdown.js';
+import { runPasteRules } from '../../src/core/InputRules.js';
 
 describe('InputRules engine (#81)', () => {
   let target, editor;
@@ -49,5 +52,49 @@ describe('InputRules engine (#81)', () => {
     expect(code).toBeTruthy();
     expect(code.textContent).toBe('hi');
     expect(editor.content.querySelector('p').textContent).toBe('say hi');
+  });
+});
+
+describe('SmartTypography + InlineMarkdown (#81)', () => {
+  let target, editor;
+  beforeEach(() => { target = document.createElement('div'); document.body.appendChild(target); });
+  afterEach(() => { editor?.destroy(); target.remove(); });
+
+  function type(text, caret, extensions) {
+    editor = new Editor(target, { extensions, toolbar: false, bubbleMenu: false, slashMenu: false, content: '<p></p>' });
+    const p = editor.content.querySelector('p');
+    p.textContent = text;
+    const r = document.createRange();
+    r.setStart(p.firstChild, caret); r.collapse(true);
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    editor.content.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    return p;
+  }
+
+  it('SmartTypography: -- → em dash', () => {
+    expect(type('a--', 3, [Paragraph, SmartTypography]).textContent).toBe('a—');
+  });
+  it('SmartTypography: (c) → ©', () => {
+    expect(type('see (c)', 7, [Paragraph, SmartTypography]).textContent).toBe('see ©');
+  });
+
+  it('InlineMarkdown: **bold** → <strong>', () => {
+    const p = type('**bold**', 8, [Paragraph, InlineMarkdown]);
+    expect(p.querySelector('strong')?.textContent).toBe('bold');
+  });
+  it('InlineMarkdown: *italic* → <em> (not triggered inside **)', () => {
+    const p = type('*it*', 4, [Paragraph, InlineMarkdown]);
+    expect(p.querySelector('em')?.textContent).toBe('it');
+    expect(p.querySelector('strong')).toBeFalsy();
+  });
+  it('InlineMarkdown: `code` → <code>', () => {
+    const p = type('`x`', 3, [Paragraph, InlineMarkdown]);
+    expect(p.querySelector('code')?.textContent).toBe('x');
+  });
+
+  it('SmartTypography paste rule linkifies bare URLs', () => {
+    const out = runPasteRules('<p>see https://x.com ok</p>', SmartTypography.pasteRules);
+    expect(out).toContain('<a href="https://x.com"');
+    expect(out).toContain('>https://x.com</a>');
   });
 });

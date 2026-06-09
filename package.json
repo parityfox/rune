@@ -10,10 +10,11 @@
     "**/*.css"
   ],
   "main": "src/index.js",
+  "types": "./types/index.d.ts",
   "exports": {
-    ".": "./src/index.js",
-    "./react": "./adapters/react/index.js",
-    "./web-component": "./adapters/web-component/rune-editor.js",
+    ".": { "types": "./types/index.d.ts", "default": "./src/index.js" },
+    "./react": { "types": "./types/react.d.ts", "default": "./adapters/react/index.js" },
+    "./web-component": { "types": "./types/web-component.d.ts", "default": "./adapters/web-component/rune-editor.js" },
     "./styles": "./styles/rune.css",
     "./collab/*": "./collab/*",
     "./server/*": "./server/*"
@@ -25,7 +26,8 @@
     "rune.config.js",
     "collab/",
     "server/",
-    "assets/"
+    "assets/",
+    "types/"
   ],
   "keywords": [
     "rich-text-editor",

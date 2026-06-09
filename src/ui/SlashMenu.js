@@ -51,7 +51,10 @@ export class SlashMenu {
   _bindEvents() {
     const { editor } = this;
 
-    editor.events.on('slash:open', () => {
+    // Keep references to every handler so destroy() can detach them — otherwise
+    // the capturing keydown listener and the bus subscriptions pin this SlashMenu
+    // (and the whole editor it closes over) in memory across mount/unmount cycles.
+    this._onSlashOpen = () => {
       const sel = window.getSelection();
       this._triggerRange = sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
       this._caretRect    = this._getCaretRect();
@@ -59,11 +62,13 @@ export class SlashMenu {
       this._open         = true;
       this._filter('');
       this._show();
-    });
+    };
+    editor.events.on('slash:open', this._onSlashOpen);
 
-    editor.events.on('slash:close', () => this._close());
+    this._onSlashClose = () => this._close();
+    editor.events.on('slash:close', this._onSlashClose);
 
-    editor.content.addEventListener('keydown', (e) => {
+    this._onKeydown = (e) => {
       if (!this._open) return;
 
       if (e.key === 'ArrowDown') {
@@ -101,7 +106,8 @@ export class SlashMenu {
         this._query += e.key;
         this._filter(this._query);
       }
-    }, true);
+    };
+    editor.content.addEventListener('keydown', this._onKeydown, true);
 
     // Close on outside click
     this._outsideClick = (e) => {
@@ -246,6 +252,10 @@ export class SlashMenu {
   }
 
   destroy() {
+    const { editor } = this;
+    editor.events.off('slash:open', this._onSlashOpen);
+    editor.events.off('slash:close', this._onSlashClose);
+    editor.content.removeEventListener('keydown', this._onKeydown, true);
     document.removeEventListener('mousedown', this._outsideClick);
     this.el.remove();
   }

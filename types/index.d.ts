@@ -289,6 +289,8 @@ export const TaskList: Extension;
 export const VideoEmbed: Extension;
 export const Image: Extension;
 export const Table: Extension;
+export const Toggle: Extension;
+export const Columns: Extension;
 export const TextAlign: Extension;
 export const LineHeight: Extension;
 export const Indent: Extension;

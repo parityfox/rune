@@ -1307,3 +1307,26 @@ thead .rune-table-cell {
 .rune-presence-avatar.is-idle  { opacity: 0.7; }
 .rune-presence-avatar.is-away  { opacity: 0.4; }
 .rune-presence-avatar.is-following { outline: 2px solid var(--rune-color-accent); outline-offset: 1px; }
+
+/* ── Toggle (collapsible) block ──────────────────────────────── */
+.rune-content .rune-toggle { margin: 4px 0; }
+.rune-content .rune-toggle-summary { display: flex; align-items: flex-start; gap: 4px; }
+.rune-content .rune-toggle-arrow {
+  cursor: pointer; user-select: none; flex-shrink: 0;
+  padding: 2px 4px; color: var(--rune-color-muted);
+  transition: transform 120ms ease;
+}
+.rune-content .rune-toggle.is-open > .rune-toggle-summary > .rune-toggle-arrow { transform: rotate(90deg); }
+.rune-content .rune-toggle-title { flex: 1; font-weight: 500; }
+.rune-content .rune-toggle-body { margin-left: 24px; }
+.rune-content .rune-toggle:not(.is-open) > .rune-toggle-body { display: none; }
+
+/* ── Columns block ───────────────────────────────────────────── */
+.rune-content .rune-columns { display: flex; gap: 18px; margin: 6px 0; align-items: flex-start; }
+.rune-content .rune-column {
+  flex: 1; min-width: 0;
+  padding: 4px 8px;
+  border-radius: var(--rune-radius);
+  outline: 1px dashed transparent;
+}
+.rune-content .rune-column:hover { outline-color: var(--rune-color-border); }

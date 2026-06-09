@@ -28,6 +28,8 @@ import { TaskList }         from './blocks/TaskList.js';
 import { VideoEmbed }       from './blocks/VideoEmbed.js';
 import { Image }            from './blocks/Image.js';
 import { Table }            from './blocks/Table.js';
+import { Toggle }           from './blocks/Toggle.js';
+import { Columns }          from './blocks/Columns.js';
 
 // Formatting (block-level)
 import { TextAlign }   from './formatting/TextAlign.js';
@@ -50,7 +52,7 @@ export {
   FontSize, FontFamily, TextColor, TextBackground, Highlight,
   Mention, Hashtag,
   Paragraph, Heading, BulletList, OrderedList, Blockquote, CodeBlock,
-  HorizontalRule, Callout, TaskList, VideoEmbed, Image, Table,
+  HorizontalRule, Callout, TaskList, VideoEmbed, Image, Table, Toggle, Columns,
   TextAlign, LineHeight, Indent, Outdent,
   MarkdownShortcuts, FindReplace, DragReorder, FormatPainter,
   SmartTypography, InlineMarkdown, Emoji,
@@ -60,7 +62,7 @@ export {
 // source / are opinionated), so they're exported but not bundled here.
 export const StarterKit = [
   Paragraph, Heading, BulletList, OrderedList, Blockquote, CodeBlock,
-  HorizontalRule, Callout, TaskList, VideoEmbed, Image, Table,
+  HorizontalRule, Callout, TaskList, VideoEmbed, Image, Table, Toggle, Columns,
   Bold, Italic, Underline, Strike, Code, Link, Superscript, Subscript,
   FontSize, FontFamily, TextColor, TextBackground, Highlight,
   TextAlign, LineHeight, Indent, Outdent,

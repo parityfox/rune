@@ -2,6 +2,11 @@
  * Selection — helpers for working with the browser Selection API
  * inside the editor's content area.
  */
+// Content regions of container blocks whose direct children are themselves blocks.
+function _isContainerRegion(el) {
+  return el?.classList?.contains?.('rune-toggle-body') || el?.classList?.contains?.('rune-column');
+}
+
 export class Selection {
   constructor(editor) {
     this.editor = editor;
@@ -71,14 +76,22 @@ export class Selection {
     return this.getBlock();
   }
 
-  /** Get the block-level element (direct child of content) at the caret. */
+  /**
+   * Get the block-level element at the caret — a direct child of the content
+   * root, OR of a container block's content region (toggle body / column), so
+   * block commands target the inner block when editing inside a container.
+   */
   getBlock() {
     const { content } = this.editor;
     let node = this.getFocusNode();
-    while (node && node.parentNode !== content) {
-      node = node.parentNode;
+    while (node && node !== content) {
+      const parent = node.parentNode;
+      if (parent === content || _isContainerRegion(parent)) {
+        return node.nodeType === 1 ? node : null;
+      }
+      node = parent;
     }
-    return node && node.nodeType === 1 ? node : null;
+    return null;
   }
 
   /** Return all block elements that overlap the current selection. */

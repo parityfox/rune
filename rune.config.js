@@ -24,6 +24,8 @@ const config = {
     videoEmbed:     true,   // YouTube / Vimeo embed
     image:          true,   // <figure><img>
     table:          true,   // <table>
+    toggle:         true,   // collapsible section
+    columns:        true,   // side-by-side columns
   },
 
   // ── Inline Marks ─────────────────────────────────────────

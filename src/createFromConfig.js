@@ -26,6 +26,8 @@ import { TaskList }        from './extensions/blocks/TaskList.js';
 import { VideoEmbed }      from './extensions/blocks/VideoEmbed.js';
 import { Image }           from './extensions/blocks/Image.js';
 import { Table }           from './extensions/blocks/Table.js';
+import { Toggle }          from './extensions/blocks/Toggle.js';
+import { Columns }         from './extensions/blocks/Columns.js';
 import { TextAlign }   from './extensions/formatting/TextAlign.js';
 import { LineHeight }  from './extensions/formatting/LineHeight.js';
 import { Indent }      from './extensions/formatting/Indent.js';
@@ -53,6 +55,8 @@ const BLOCK_MAP = {
   videoEmbed:     VideoEmbed,
   image:          Image,
   table:          Table,
+  toggle:         Toggle,
+  columns:        Columns,
 };
 
 const MARK_MAP = {

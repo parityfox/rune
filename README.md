@@ -477,9 +477,9 @@ collab layer's deps (Yjs, ws, y-websocket, y-indexeddb) are dev/server-only.
 
 ```js
 import * as Y from 'yjs';
-import { WebSocketProvider }  from './collab/provider.js';
-import { bindParagraphSpike } from './collab/paragraph-binding.js';
-import { bindPresence }       from './collab/presence.js';
+import { WebSocketProvider }  from '@parityfox/rune-editor/collab/provider.js';
+import { bindParagraphSpike } from '@parityfox/rune-editor/collab/paragraph-binding.js';
+import { bindPresence }       from '@parityfox/rune-editor/collab/presence.js';
 
 const doc = new Y.Doc();
 const provider = new WebSocketProvider('ws://localhost:1234', 'my-doc', doc);

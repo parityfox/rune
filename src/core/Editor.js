@@ -64,6 +64,7 @@ export class Editor {
     this.selection = new Selection(this);
 
     this._destroyed = false;
+    this._ready = false;          // suppress onChange until construction finishes
     this._slashQuery = '';
 
     this._mount();
@@ -71,6 +72,11 @@ export class Editor {
     this._bindEvents();
     this._initPlugins();
     this._initUI();
+
+    // Setting the initial content (in _mount) is not a user-facing "change", and
+    // onChange handlers commonly reference the editor instance — which the caller
+    // hasn't received yet mid-constructor. Only fire onChange after this point.
+    this._ready = true;
   }
 
   // ─── Extension Registration ──────────────────────────────────────────────
@@ -522,7 +528,7 @@ export class Editor {
   _notifyChange() {
     const html = this.getHtml();
     this.events.emit('change', { editor: this, html });
-    if (typeof this.options.onChange === 'function') {
+    if (this._ready && typeof this.options.onChange === 'function') {
       this.options.onChange(html, this);
     }
   }

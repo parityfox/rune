@@ -189,6 +189,14 @@ describe('Editor', () => {
       expect(onChange).toHaveBeenCalled();
     });
 
+    it('does not fire onChange during construction with initial content (#26 regression)', () => {
+      const onChange = vi.fn();
+      create({ onChange, content: '<p>seed</p>' });
+      expect(onChange).not.toHaveBeenCalled();   // initial content is not a change
+      editor.setHtml('<p>after</p>');            // but a later change does fire it
+      expect(onChange).toHaveBeenCalledTimes(1);
+    });
+
     it('emits change event', () => {
       const fn = vi.fn();
       create();

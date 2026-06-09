@@ -75,6 +75,28 @@ describe('WebSocket transport (reference server + provider)', () => {
     expect(await until(() => b.synced)).toBe(true);   // accepted
   }, 10000);
 
+  it('survives a malformed frame without crashing the server (#43)', async () => {
+    srv = startServer(0);
+    const url = `ws://localhost:${await port(srv)}`;
+
+    // A raw client sends a truncated sync message (type byte, no body) that
+    // makes y-protocols throw. Pre-fix this became an uncaughtException and
+    // killed the whole process; now the bad connection is dropped instead.
+    const bad = new WebSocket(`${url}/attack`);
+    await new Promise((r) => bad.on('open', r));
+    bad.send(new Uint8Array([0]));                 // MESSAGE_SYNC, empty body
+    await new Promise((r) => setTimeout(r, 200));
+
+    // The server must still be alive: a normal pair can connect and converge.
+    const docA = new Y.Doc(), docB = new Y.Doc();
+    a = new WebSocketProvider(url, 'survivors', docA, { WebSocketPolyfill: WebSocket });
+    b = new WebSocketProvider(url, 'survivors', docB, { WebSocketPolyfill: WebSocket });
+    expect(await until(() => a.synced && b.synced)).toBe(true);
+    docA.getText('t').insert(0, 'still alive');
+    expect(await until(() => docB.getText('t').toString() === 'still alive')).toBe(true);
+    try { bad.close(); } catch { /* already gone */ }
+  }, 10000);
+
   it('reconnects and re-syncs after the server bounces, surfacing status', async () => {
     srv = startServer(0);
     const p = await port(srv);

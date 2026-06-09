@@ -8,10 +8,18 @@ import { htmlToMarkdown } from '../utils/markdown.js';
 import { el, getBlockElement } from '../utils/dom.js';
 import { uid } from '../utils/id.js';
 
-const _isMac = navigator.userAgentData
-  ? navigator.userAgentData.platform === 'macOS'
-  : /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-const MOD = _isMac ? 'Meta' : 'Control';
+// Resolve the platform modifier key lazily. Reading `navigator` at module load
+// crashes SSR/Node (Next.js, Nuxt) the instant the package is imported, so we
+// defer the probe to first use (keydown only ever runs in a browser) and memoize.
+let _modKey = null;
+function getModKey() {
+  if (_modKey) return _modKey;
+  if (typeof navigator === 'undefined') return (_modKey = 'Control');
+  const isMac = navigator.userAgentData
+    ? navigator.userAgentData.platform === 'macOS'
+    : /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+  return (_modKey = isMac ? 'Meta' : 'Control');
+}
 
 /**
  * Rune Editor
@@ -223,10 +231,10 @@ export class Editor {
             self.content.querySelector(`a[href="${CSS.escape(href)}"]`);
           if (anchor) {
             anchor.setAttribute('target', '_blank');
-            anchor.setAttribute('rel', 'noopener');
+            anchor.setAttribute('rel', 'noopener noreferrer');
           }
         } else {
-          const a = el('a', { href, target: '_blank', rel: 'noopener' }, text || href);
+          const a = el('a', { href, target: '_blank', rel: 'noopener noreferrer' }, text || href);
           self._insertNode(a);
         }
         self._notifyChange();
@@ -343,20 +351,27 @@ export class Editor {
   }
 
   _initUI() {
-    // Toolbar is imported dynamically to avoid circular deps
+    // Toolbar is imported dynamically to avoid circular deps. The constructor
+    // returns before these promises resolve, so destroy() may run first (fast
+    // unmount, React StrictMode double-mount). Bail if the editor is already
+    // torn down, otherwise the UI mounts on a dead editor — orphaning body
+    // popups and document listeners that nothing ever cleans up.
     if (this.options.toolbar) {
       import('../ui/Toolbar.js').then(({ Toolbar }) => {
+        if (this._destroyed) return;
         this.toolbar = new Toolbar(this);
         this.wrapper.prepend(this.toolbar.el);
       });
     }
     if (this.options.bubbleMenu) {
       import('../ui/BubbleMenu.js').then(({ BubbleMenu }) => {
+        if (this._destroyed) return;
         this.bubbleMenu = new BubbleMenu(this);
       });
     }
     if (this.options.slashMenu) {
       import('../ui/SlashMenu.js').then(({ SlashMenu }) => {
+        if (this._destroyed) return;
         this.slashMenu = new SlashMenu(this);
       });
     }
@@ -400,13 +415,13 @@ export class Editor {
     }
 
     // Built-in shortcuts
-    if (key === `${MOD === 'Meta' ? 'Meta' : 'Control'}+z`) {
+    const mod = getModKey();
+    if (key === `${mod}+z`) {
       e.preventDefault();
       this.chain().undo().run();
       return;
     }
-    if (key === `${MOD === 'Meta' ? 'Meta' : 'Control'}+Shift+z` ||
-        key === `${MOD === 'Meta' ? 'Meta' : 'Control'}+y`) {
+    if (key === `${mod}+Shift+z` || key === `${mod}+y`) {
       e.preventDefault();
       this.chain().redo().run();
       return;
@@ -567,7 +582,9 @@ export class Editor {
     this.content.innerHTML = normalizeHtml(sanitizeContent(html));
     this._ensureContent();
     this.history.saveNow();
-    this.events.emit('change', { editor: this, html: this.getHtml() });
+    // Route through _notifyChange so the onChange callback fires too — not just
+    // the 'change' event. Framework bindings that mirror editor state rely on it.
+    this._notifyChange();
   }
 
   /** Get plain text. */

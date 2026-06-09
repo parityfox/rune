@@ -34,7 +34,6 @@ export class History {
     this._index = -1;
     this._timer = null;
     this._debounce = debounce;
-    this._ignoreNext = false;
   }
 
   /** Save a snapshot (debounced). */
@@ -76,6 +75,13 @@ export class History {
   }
 
   undo() {
+    // Flush the live document into the stack before stepping back. Commands
+    // snapshot their PRE-mutation state (a coalescing boundary) and never push
+    // the result; typing pushes on a debounce. Either way the latest state may
+    // not be on the stack yet when undo is invoked, which would make undo skip
+    // it (or no-op on the very first command). _push() de-dupes, so this is
+    // free when the current state is already recorded.
+    this._captureCurrent();
     if (this._index <= 0) return false;
     this._index--;
     this._apply(this._stack[this._index]);
@@ -89,11 +95,19 @@ export class History {
     return true;
   }
 
+  /** Commit any unsaved live state to the stack (cancels a pending debounce). */
+  _captureCurrent() {
+    clearTimeout(this._timer);
+    this._push();
+  }
+
   _apply(html) {
-    this._ignoreNext = true;
     this.editor.content.innerHTML = html;
-    this.editor.events.emit('change', { editor: this.editor, html });
     this.editor._ensureContent();
+    // Route through _notifyChange so undo/redo also fire the onChange callback,
+    // not just the internal 'change' event — otherwise framework bindings that
+    // mirror editor state desync after every undo.
+    this.editor._notifyChange();
   }
 
   get canUndo() { return this._index > 0; }

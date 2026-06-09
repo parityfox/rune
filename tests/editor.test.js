@@ -250,6 +250,94 @@ describe('Editor', () => {
     });
   });
 
+  describe('undo/redo (command-flow regression)', () => {
+    // Commands snapshot their PRE-mutation state then mutate the DOM, and the
+    // mutation (being programmatic) fires no input event — so the result is
+    // never pushed. undo() must flush the live state before stepping back.
+    it('undoes a command-style change snapshotted only before the mutation', () => {
+      create({ content: '<p>hello</p>' });
+      editor.history.saveNow();                       // boundary (de-dupes)
+      editor.content.innerHTML = '<h1>hello</h1>';    // mutate, no input event
+      expect(editor.history.undo()).toBe(true);
+      expect(editor.content.innerHTML).toContain('<p>hello</p>');
+    });
+
+    it('makes the FIRST command on a fresh document undoable', () => {
+      create({ content: '<p>only</p>' });
+      // No prior edits: the pre-mutation snapshot equals the initial one and is
+      // de-duped, so the result is the only unsaved state.
+      editor.history.saveNow();
+      editor.content.innerHTML = '<blockquote>only</blockquote>';
+      expect(editor.history.undo()).toBe(true);
+      expect(editor.content.innerHTML).toContain('<p>only</p>');
+    });
+
+    it('redo restores the command result after undo', () => {
+      create({ content: '<p>hello</p>' });
+      editor.history.saveNow();
+      editor.content.innerHTML = '<h1>hello</h1>';
+      editor.history.undo();
+      expect(editor.history.redo()).toBe(true);
+      expect(editor.content.innerHTML).toContain('<h1>hello</h1>');
+    });
+
+    it('undoes a real setBlock command back to a paragraph', () => {
+      create({ content: '<p>hello</p>' });
+      const p = editor.content.querySelector('p');
+      const range = document.createRange();
+      range.selectNodeContents(p);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+
+      editor.cmd('setBlock', 'heading');
+      expect(editor.content.querySelector('h1')).toBeTruthy();
+
+      editor.history.undo();
+      expect(editor.content.querySelector('h1')).toBeFalsy();
+      expect(editor.content.querySelector('p')).toBeTruthy();
+    });
+
+    it('fires onChange on undo and redo (#26)', () => {
+      const onChange = vi.fn();
+      create({ content: '<p>hello</p>', onChange });
+      editor.history.saveNow();
+      editor.content.innerHTML = '<h1>hello</h1>';
+
+      onChange.mockClear();
+      editor.history.undo();
+      expect(onChange).toHaveBeenCalled();
+
+      onChange.mockClear();
+      editor.history.redo();
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    it('fires onChange on setHtml (#26)', () => {
+      const onChange = vi.fn();
+      create({ content: '<p>hello</p>', onChange });
+      onChange.mockClear();
+      editor.setHtml('<p>replaced</p>');
+      expect(onChange).toHaveBeenCalled();
+    });
+  });
+
+  describe('async UI init teardown (#49)', () => {
+    it('does not mount toolbar/menus after destroy() runs before the dynamic import resolves', async () => {
+      editor = new Editor(target, {
+        extensions: [Paragraph],
+        toolbar: true, bubbleMenu: true, slashMenu: true,
+      });
+      editor.destroy();
+      // Let the pending dynamic imports settle.
+      await new Promise((r) => setTimeout(r, 20));
+      expect(editor.toolbar).toBeUndefined();
+      expect(editor.bubbleMenu).toBeUndefined();
+      expect(editor.slashMenu).toBeUndefined();
+      editor = null; // already destroyed; skip afterEach double-destroy
+    });
+  });
+
   describe('security', () => {
     it('setLink rejects javascript: URIs', () => {
       create({ content: '<p>text</p>' });

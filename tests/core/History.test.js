@@ -4,11 +4,18 @@ import { History } from '../../src/core/History.js';
 function mockEditor(html = '<p>initial</p>') {
   const content = document.createElement('div');
   content.innerHTML = html;
-  return {
+  const editor = {
     content,
     events: { emit: vi.fn() },
     _ensureContent: vi.fn(),
+    options: {},
   };
+  // Mirror the real Editor: _apply() routes through _notifyChange, which emits
+  // the 'change' event (with the current serialized html) and fires onChange.
+  editor._notifyChange = vi.fn(() => {
+    editor.events.emit('change', { editor, html: content.innerHTML });
+  });
+  return editor;
 }
 
 describe('History', () => {

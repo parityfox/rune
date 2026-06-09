@@ -98,7 +98,14 @@ export function setupWSConnection(conn, req) {
   const doc = getDoc(room);
   doc.conns.set(conn, new Set());
 
-  conn.on('message', (data) => onMessage(conn, doc, new Uint8Array(data)));
+  // Never let a malformed frame escape the handler: a single truncated/garbage
+  // message makes lib0/y-protocols throw, which would otherwise become an
+  // uncaughtException and kill the whole process (every room, every user).
+  // Drop the offending connection instead.
+  conn.on('message', (data) => {
+    try { onMessage(conn, doc, new Uint8Array(data)); }
+    catch { closeConn(doc, conn); }
+  });
   conn.on('close', () => closeConn(doc, conn));
 
   // 1. sync step 1 (offer our state vector)
@@ -130,7 +137,9 @@ export function setupWSConnection(conn, req) {
  */
 export function startServer(port = process.env.PORT || 1234, { authorize } = {}) {
   const server = http.createServer((_, res) => { res.writeHead(200); res.end('Rune collab server'); });
-  const wss = new WebSocketServer({ noServer: true });   // we drive the upgrade so we can gate it
+  // Cap inbound frames (ws default is 100MB) so one client can't buffer a huge
+  // payload into the shared doc and fan it out to every peer.
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 5 * 1024 * 1024 });   // we drive the upgrade so we can gate it
   wss.on('connection', setupWSConnection);
 
   server.on('upgrade', async (req, socket, head) => {

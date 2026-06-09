@@ -9,6 +9,7 @@ import { Decorations } from './Decorations.js';
 import { resolveExtensions, unwrapLazy } from './ExtensionRegistry.js';
 import { htmlToMarkdown } from '../utils/markdown.js';
 import { markdownToHtml } from '../utils/markdownToHtml.js';
+import { htmlToJson, jsonToHtml } from '../utils/json.js';
 import { el, getBlockElement } from '../utils/dom.js';
 import { uid } from '../utils/id.js';
 
@@ -796,6 +797,16 @@ export class Editor {
   /** Convert editor content to Markdown. */
   getMarkdown() {
     return htmlToMarkdown(this.getHtml());
+  }
+
+  /** Get the content as a portable JSON document. */
+  getJSON() {
+    return htmlToJson(this.getHtml());
+  }
+
+  /** Replace the content from a JSON document. */
+  setJSON(doc) {
+    this.setHtml(jsonToHtml(doc));
   }
 
   /** Replace the editor content from a Markdown string. */

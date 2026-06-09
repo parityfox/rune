@@ -489,6 +489,20 @@ describe('Editor', () => {
     });
   });
 
+  describe('JSON document (#83)', () => {
+    it('getJSON returns a portable doc and setJSON restores it', () => {
+      create({ content: '<h2>Hi</h2><p><strong>bold</strong> text</p>' });
+      const json = editor.getJSON();
+      expect(json.type).toBe('doc');
+      expect(json.content[0]).toEqual({ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Hi' }] });
+
+      editor.setHtml('<p>cleared</p>');
+      editor.setJSON(json);
+      expect(editor.content.querySelector('h2')?.textContent).toBe('Hi');
+      expect(editor.content.querySelector('strong')?.textContent).toBe('bold');
+    });
+  });
+
   describe('decorations (#82)', () => {
     it('adds/clears decorations without polluting getHtml', () => {
       create({ content: '<p>hello world</p>' });

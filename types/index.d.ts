@@ -216,6 +216,8 @@ export class Editor {
   getMarkdown(): string;
   setMarkdown(md: string): void;
   insertMarkdown(md: string): void;
+  getJSON(): RuneDoc;
+  setJSON(doc: RuneDoc): void;
   print(): void;
   isEmpty(): boolean;
 
@@ -312,6 +314,22 @@ export function getCaretRect(): DOMRect | null;
 export function getSelectionRect(): DOMRect | null;
 export function htmlToMarkdown(html: string): string;
 export function markdownToHtml(md: string): string;
+
+export interface RuneMark { type: string; attrs?: Record<string, unknown>; }
+export interface RuneNode {
+  type: string;
+  attrs?: Record<string, unknown>;
+  content?: RuneNode[];
+  text?: string;
+  marks?: RuneMark[];
+  html?: string;
+}
+export interface RuneDoc { type: 'doc'; content: RuneNode[]; }
+
+/** Parse editor HTML into a portable JSON document (needs a DOM). */
+export function htmlToJson(html: string): RuneDoc;
+/** Render a JSON document to an HTML string (no DOM — server-safe). */
+export function jsonToHtml(doc: RuneDoc): string;
 export function uid(): string;
 export function sanitize(html: string): string;
 export function sanitizeContent(html: string): string;

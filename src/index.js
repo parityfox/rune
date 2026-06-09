@@ -31,3 +31,4 @@ export * from './utils/html.js';
 export * from './utils/id.js';
 export { htmlToMarkdown } from './utils/markdown.js';
 export { markdownToHtml } from './utils/markdownToHtml.js';
+export { htmlToJson, jsonToHtml } from './utils/json.js';

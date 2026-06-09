@@ -1,0 +1,50 @@
+import { describe, it, expect } from 'vitest';
+import { htmlToJson, jsonToHtml } from '../../src/utils/json.js';
+
+describe('JSON document model (#83)', () => {
+  it('parses headings, paragraphs, and marks', () => {
+    const doc = htmlToJson('<h2>Title</h2><p>a <strong>b</strong> c</p>');
+    expect(doc).toEqual({
+      type: 'doc',
+      content: [
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Title' }] },
+        { type: 'paragraph', content: [
+          { type: 'text', text: 'a ' },
+          { type: 'text', text: 'b', marks: [{ type: 'bold' }] },
+          { type: 'text', text: ' c' },
+        ] },
+      ],
+    });
+  });
+
+  it('renders JSON to HTML with no DOM', () => {
+    const html = jsonToHtml({ type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'x', marks: [{ type: 'bold' }] }] },
+    ] });
+    expect(html).toBe('<p><strong>x</strong></p>');
+  });
+
+  it('round-trips common blocks and marks', () => {
+    const html = '<h1>H</h1><p>a <strong><em>bi</em></strong> <a href="https://x.com">l</a></p>' +
+      '<ul><li>one</li><li>two</li></ul><blockquote>q</blockquote>' +
+      '<pre><code class="language-js">code</code></pre><hr>';
+    expect(jsonToHtml(htmlToJson(html))).toBe(html);
+  });
+
+  it('preserves mark nesting order', () => {
+    const html = '<p><strong><em>x</em></strong></p>';
+    expect(jsonToHtml(htmlToJson(html))).toBe(html);
+  });
+
+  it('passes unknown blocks through losslessly', () => {
+    const html = '<table><tbody><tr><td>x</td></tr></tbody></table>';
+    const doc = htmlToJson(html);
+    expect(doc.content[0].type).toBe('html');
+    expect(jsonToHtml(doc)).toBe(html);
+  });
+
+  it('escapes text in jsonToHtml', () => {
+    expect(jsonToHtml({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a <b> & c' }] }] }))
+      .toBe('<p>a &lt;b&gt; &amp; c</p>');
+  });
+});

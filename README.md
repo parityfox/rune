@@ -163,11 +163,15 @@ editor.getText()        // → plain text
 editor.getMarkdown()    // → Markdown string
 editor.setMarkdown(md)  // ← replace content from Markdown
 editor.insertMarkdown(md)// ← insert Markdown at the caret
+editor.getJSON()        // → portable JSON document
+editor.setJSON(doc)     // ← replace content from JSON
 editor.print()          // → opens clean print dialog
 ```
 
 Markdown-looking text is also converted automatically on paste (disable with
-`pasteMarkdown: false`). `markdownToHtml(md)` is exported for DOM-free use.
+`pasteMarkdown: false`). `markdownToHtml(md)` is exported for DOM-free use, and
+`jsonToHtml(doc)` renders a JSON document to HTML with **no DOM** — so you can
+store JSON and render it server-side (Node) without a browser.
 
 ---
 

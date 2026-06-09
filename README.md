@@ -202,10 +202,14 @@ const config = {
     fontFamily:     true,
     textColor:      true,
     textBackground: true,
+  },
+
+  formatting: {
     textAlign:      true,
     lineHeight:     true,
     indent:         true,
     outdent:        true,
+    clearFormat:    true,
   },
 
   plugins: {

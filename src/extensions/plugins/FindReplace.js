@@ -45,32 +45,20 @@ export const FindReplace = {
 
     _openers.set(editor, _open);
 
-    // ── Patch getHtml to strip search marks ─────────────────────
-    const _origGetHtml = editor.getHtml.bind(editor);
-    editor.getHtml = () => {
-      if (!_panel) return _origGetHtml();
-      const clone = editor.content.cloneNode(true);
-      clone.querySelectorAll('mark.rune-search-match').forEach(m => {
-        while (m.firstChild) m.parentNode.insertBefore(m.firstChild, m);
-        m.remove();
-      });
-      return clone.innerHTML;
-    };
+    // Highlights live in the decoration overlay (not injected into the editable
+    // tree), so getHtml()/getMarkdown() stay clean — no monkey-patching needed.
 
-    // ── Re-highlight when content changes (debounced) ───────────
-    // Re-walking the whole document on every keystroke is O(document); coalesce
-    // bursts into one re-scan and preserve the active match across it.
+    // ── Re-search when content changes (debounced) ──────────────
     editor.events.on('change', () => {
       if (!_panel || !_query || _replacing) return;
       clearTimeout(_rehlTimer);
       _rehlTimer = setTimeout(() => {
         if (!_panel || !_query) return;
         const keep = _current;
-        _clearHighlights();
-        _batchHighlight(_query);
+        _search(_query);
         if (_matches.length) {
           _current = Math.min(Math.max(0, keep), _matches.length - 1);
-          _activateMatch(_current);
+          _renderDecos();
         }
         _updateCount();
       }, 150);
@@ -107,9 +95,7 @@ export const FindReplace = {
       // ── Events ─────────────────────────────────────────────────
 
       findInput.addEventListener('input', () => {
-        _query = findInput.value;
-        _clearHighlights();
-        _batchHighlight(_query);
+        _search(findInput.value);
         _updateCount();
       });
 
@@ -128,18 +114,15 @@ export const FindReplace = {
 
       replBtn.addEventListener('mousedown', (e) => {
         e.preventDefault();
-        // Splice the replaced match out and advance to the NEXT one, rather than
-        // re-scanning (which reset navigation to match #1 and could re-match the
-        // freshly-inserted replacement text). #31, #32
+        // In-place replace + offset shift advances to the next match without a
+        // full re-scan (so navigation doesn't reset and replacements aren't
+        // re-matched). #31, #32
         _replaceCurrent(replInput.value);
-        if (_matches.length) _activateMatch(_current);
         _updateCount();
       });
 
       replAllBtn.addEventListener('mousedown', (e) => {
         e.preventDefault();
-        // No re-scan: all matches are gone and the replacement text must not be
-        // re-highlighted as new matches. #32
         _replaceAll(replInput.value);
         _updateCount();
       });
@@ -147,95 +130,67 @@ export const FindReplace = {
       return panel;
     }
 
-    // ── Search & highlight ───────────────────────────────────────
+    // ── Search & highlight (decoration overlay, no DOM injection) ─
 
-    function _batchHighlight(query) {
+    // _matches are non-overlapping offset descriptors { node, start, end }.
+    function _search(query) {
+      _query = query;
       _matches = [];
       _current = -1;
+      editor.decorations.clear('find');
       if (!query.trim()) return;
 
-      // Collect all text nodes before any DOM modification
-      const textNodes = [];
-      const walker = document.createTreeWalker(
-        editor.content,
-        NodeFilter.SHOW_TEXT,
-        {
-          acceptNode(node) {
-            if (node.parentElement?.tagName === 'MARK') return NodeFilter.FILTER_REJECT;
-            if (!node.textContent) return NodeFilter.FILTER_SKIP;
-            return NodeFilter.FILTER_ACCEPT;
-          },
-        }
-      );
+      const q = query.toLowerCase();
+      const walker = document.createTreeWalker(editor.content, NodeFilter.SHOW_TEXT, {
+        acceptNode: (n) => (n.textContent ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
+      });
       let node;
-      while ((node = walker.nextNode())) textNodes.push(node);
-
-      const qLower = query.toLowerCase();
-      for (const textNode of textNodes) {
-        _matches.push(..._highlightTextNode(textNode, qLower));
+      while ((node = walker.nextNode())) {
+        const lower = node.textContent.toLowerCase();
+        let pos = 0, idx;
+        while ((idx = lower.indexOf(q, pos)) !== -1) {
+          _matches.push({ node, start: idx, end: idx + q.length });
+          pos = idx + q.length;                    // non-overlapping
+        }
       }
-
-      if (_matches.length > 0) {
-        _current = 0;
-        _activateMatch(0);
-      }
+      if (_matches.length) _current = 0;
+      _renderDecos();
+      _scrollToActive();
     }
 
-    function _highlightTextNode(textNode, qLower) {
-      const text  = textNode.textContent;
-      const lower = text.toLowerCase();
-      const positions = [];
-      let pos = 0, idx;
-      while ((idx = lower.indexOf(qLower, pos)) !== -1) {
-        positions.push({ start: idx, end: idx + qLower.length });
-        pos = idx + 1;
-      }
-      if (positions.length === 0) return [];
+    function _matchRange(m) {
+      const r = document.createRange();
+      r.setStart(m.node, m.start);
+      r.setEnd(m.node, m.end);
+      return r;
+    }
 
-      const parent   = textNode.parentNode;
-      const fragment = document.createDocumentFragment();
-      const marks    = [];
-      let lastIdx    = 0;
+    function _renderDecos() {
+      editor.decorations.clear('find');
+      _matches.forEach((m, i) => {
+        editor.decorations.addRange(_matchRange(m), {
+          class: 'rune-search-match' + (i === _current ? ' is-active' : ''),
+          type: 'find',
+        });
+      });
+    }
 
-      for (const { start, end } of positions) {
-        if (start > lastIdx) fragment.appendChild(document.createTextNode(text.slice(lastIdx, start)));
-        const mark = document.createElement('mark');
-        mark.className  = 'rune-search-match';
-        mark.textContent = text.slice(start, end);
-        fragment.appendChild(mark);
-        marks.push(mark);
-        lastIdx = end;
-      }
-      if (lastIdx < text.length) fragment.appendChild(document.createTextNode(text.slice(lastIdx)));
-
-      parent.replaceChild(fragment, textNode);
-      return marks;
+    function _scrollToActive() {
+      const m = _matches[_current];
+      m?.node?.parentElement?.scrollIntoView?.({ block: 'nearest' });
     }
 
     function _clearHighlights() {
-      const marks = [...editor.content.querySelectorAll('mark.rune-search-match')];
-      for (const mark of marks) {
-        const parent = mark.parentNode;
-        while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
-        parent.removeChild(mark);
-        parent.normalize();
-      }
+      editor.decorations.clear('find');
       _matches = [];
       _current = -1;
-    }
-
-    function _activateMatch(idx) {
-      _matches.forEach(m => m.classList.remove('is-active'));
-      const mark = _matches[idx];
-      if (!mark) return;
-      mark.classList.add('is-active');
-      mark.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
 
     function _step(dir) {
       if (_matches.length === 0) return;
       _current = (_current + dir + _matches.length) % _matches.length;
-      _activateMatch(_current);
+      _renderDecos();
+      _scrollToActive();
     }
 
     function _updateCount() {
@@ -245,30 +200,41 @@ export const FindReplace = {
         : `${_current + 1}/${_matches.length}`;
     }
 
-    // ── Replace ──────────────────────────────────────────────────
+    // ── Replace (in-place via replaceData; offsets shift, no node split) ─
 
     function _replaceCurrent(replacement) {
       if (_current < 0 || _current >= _matches.length) return;
       editor.history.saveNow();
-      const mark = _matches[_current];
-      const parent = mark.parentNode;
-      parent.replaceChild(document.createTextNode(replacement), mark);
-      parent.normalize();                          // merge the new text with neighbours
+      const m = _matches[_current];
+      const len = m.end - m.start;
+      m.node.replaceData(m.start, len, replacement);
+      const delta = replacement.length - len;
+      // Shift later matches in the same node past the replaced region.
+      for (let j = _current + 1; j < _matches.length; j++) {
+        if (_matches[j].node === m.node && _matches[j].start >= m.end) {
+          _matches[j].start += delta;
+          _matches[j].end += delta;
+        }
+      }
       _matches.splice(_current, 1);                // remove it; _current now points at the next
       if (_current >= _matches.length) _current = _matches.length - 1;
       _replacing = true;
       editor._notifyChange();
       _replacing = false;
+      _renderDecos();
     }
 
     function _replaceAll(replacement) {
       if (_matches.length === 0) return;
       editor.history.saveNow();
-      for (const mark of [..._matches]) {
-        mark.parentNode.replaceChild(document.createTextNode(replacement), mark);
+      // Replace last-to-first so earlier offsets stay valid.
+      for (let i = _matches.length - 1; i >= 0; i--) {
+        const m = _matches[i];
+        m.node.replaceData(m.start, m.end - m.start, replacement);
       }
       _matches = [];
       _current = -1;
+      editor.decorations.clear('find');
       _replacing = true;
       editor._notifyChange();
       _replacing = false;

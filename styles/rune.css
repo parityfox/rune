@@ -1118,16 +1118,14 @@ thead .rune-table-cell {
 }
 .rune-fr-btn--text:hover { background: var(--rune-color-hover); color: var(--rune-color-fg); }
 
-/* Search match highlights */
-mark.rune-search-match {
-  background: #fff176;
-  color: inherit;
+/* Search match highlights — painted in the decoration overlay (not the text). */
+.rune-decoration-layer .rune-search-match {
+  background: rgba(255, 213, 0, 0.45);
   border-radius: 2px;
-  padding: 0 1px;
 }
-mark.rune-search-match.is-active {
-  background: #ff9800;
-  color: #fff;
+.rune-decoration-layer .rune-search-match.is-active {
+  background: rgba(255, 152, 0, 0.6);
+  outline: 1px solid rgba(255, 152, 0, 0.9);
 }
 
 /* ── Drag handle & drop indicator ─────────────────────────── */

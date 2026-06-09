@@ -50,6 +50,22 @@ describe('FindReplace replace navigation (#31/#32)', () => {
     expect(editor.getHtml().replace(/<\/?p>/g, '')).toBe('foo bar foo');
   });
 
+  it('keeps getHtml pristine while searching — highlights use the overlay (#82)', () => {
+    editor = new Editor(target, {
+      extensions: [Paragraph, FindReplace],
+      toolbar: false, bubbleMenu: false, slashMenu: false,
+      content: '<p>foo foo</p>',
+    });
+    const panel = openPanel();
+    const find = panel.querySelector('.rune-fr-find');
+    find.value = 'foo';
+    find.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(panel.querySelector('.rune-fr-count').textContent).toBe('1/2');
+    expect(editor.getHtml()).toBe('<p>foo foo</p>');             // no <mark> injected
+    expect(editor.content.querySelector('mark')).toBeFalsy();
+  });
+
   it('Replace All does not re-match its own replacement text (#32)', () => {
     editor = new Editor(target, {
       extensions: [Paragraph, FindReplace],

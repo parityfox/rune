@@ -48,6 +48,16 @@ export class Decorations {
     return id;
   }
 
+  /** Add a decoration from a live DOM Range (converted to {path,offset} points). */
+  addRange(range, opts = {}) {
+    if (!range || !this.editor.content.contains(range.commonAncestorContainer)) return null;
+    return this.add({
+      from: this._point(range.startContainer, range.startOffset),
+      to: this._point(range.endContainer, range.endOffset),
+      ...opts,
+    });
+  }
+
   remove(id) { if (this._items.delete(id)) this._schedule(); }
 
   /** Clear all decorations, or only those of a given `type`. */

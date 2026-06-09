@@ -21,6 +21,15 @@ function getModKey() {
   return (_modKey = isMac ? 'Meta' : 'Control');
 }
 
+// Concise messages announced to assistive tech when these commands run (#63).
+const _CMD_LABELS = {
+  toggleBold: 'Bold', toggleItalic: 'Italic', toggleUnderline: 'Underline',
+  toggleStrike: 'Strikethrough', toggleCode: 'Code',
+  insertTable: 'Table inserted', insertCallout: 'Callout inserted',
+  insertTaskList: 'Task list inserted', insertImage: 'Image inserted',
+  setLink: 'Link added', clearFormat: 'Formatting cleared',
+};
+
 /**
  * Rune Editor
  *
@@ -349,6 +358,11 @@ export class Editor {
       }, 'Made with Rune'));
     }
 
+    // Visually-hidden polite live region for screen-reader announcements (#63).
+    this.live = el('div', { class: 'rune-live-region', 'aria-live': 'polite', 'aria-atomic': 'true' });
+    this.live.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);border:0;';
+    this.wrapper.appendChild(this.live);
+
     this.target.appendChild(this.wrapper);
     this.target.classList.add('rune-editor');
 
@@ -542,11 +556,29 @@ export class Editor {
 
   // ─── Public API ──────────────────────────────────────────────────────────
 
+  /** Announce a message to assistive technology via the live region. */
+  announce(msg) {
+    if (this.live) this.live.textContent = msg;
+  }
+
+  _announceCommand(name) {
+    const label = _CMD_LABELS[name];
+    if (!label) return;
+    if (name.startsWith('toggle')) {
+      const type = name.slice(6, 7).toLowerCase() + name.slice(7);
+      this.announce(`${label} ${this.isActive(type) ? 'on' : 'off'}`);
+    } else {
+      this.announce(label);
+    }
+  }
+
   /** Execute a command by name. */
   cmd(name, ...args) {
     const fn = this.commands.get(name);
     if (!fn) { console.warn(`[Rune] Unknown command: "${name}"`); return false; }
-    return fn(...args);
+    const result = fn(...args);
+    this._announceCommand(name);
+    return result;
   }
 
   /** Start a command chain: editor.chain().toggleBold().run() */

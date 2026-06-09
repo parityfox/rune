@@ -206,6 +206,27 @@ describe('Editor', () => {
     });
   });
 
+  describe('live region (#63)', () => {
+    it('renders a visually-hidden polite live region', () => {
+      create();
+      const live = target.querySelector('.rune-live-region');
+      expect(live).toBeTruthy();
+      expect(live.getAttribute('aria-live')).toBe('polite');
+    });
+
+    it('announce() writes to the live region', () => {
+      create();
+      editor.announce('Hello AT');
+      expect(target.querySelector('.rune-live-region').textContent).toBe('Hello AT');
+    });
+
+    it('announces labeled commands', () => {
+      create();
+      editor.cmd('clearFormat');
+      expect(target.querySelector('.rune-live-region').textContent).toBe('Formatting cleared');
+    });
+  });
+
   describe('destroy', () => {
     it('emits destroy event', () => {
       create();

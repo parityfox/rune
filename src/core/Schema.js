@@ -102,6 +102,28 @@ export class Schema {
     return this._toolbarItemsCache;
   }
 
+  /** Collect input rules from every extension (cached). */
+  getInputRules() {
+    if (!this._inputRulesCache) {
+      this._inputRulesCache = [];
+      for (const ext of [...this._blocks.values(), ...this._marks.values(), ...this._formatting.values(), ...this._plugins.values()]) {
+        if (Array.isArray(ext.inputRules)) this._inputRulesCache.push(...ext.inputRules);
+      }
+    }
+    return this._inputRulesCache;
+  }
+
+  /** Collect paste rules from every extension (cached). */
+  getPasteRules() {
+    if (!this._pasteRulesCache) {
+      this._pasteRulesCache = [];
+      for (const ext of [...this._blocks.values(), ...this._marks.values(), ...this._formatting.values(), ...this._plugins.values()]) {
+        if (Array.isArray(ext.pasteRules)) this._pasteRulesCache.push(...ext.pasteRules);
+      }
+    }
+    return this._pasteRulesCache;
+  }
+
   /** Collect all slash menu items. */
   getSlashItems() {
     const items = [];

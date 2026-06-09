@@ -4,6 +4,7 @@ import { Schema } from './Schema.js';
 import { Selection } from './Selection.js';
 import { CommandRegistry, CommandChain } from './Commands.js';
 import { normalizeHtml, sanitize, sanitizeContent, _isDangerousUrl } from '../utils/html.js';
+import { runInputRules, runPasteRules } from './InputRules.js';
 import { htmlToMarkdown } from '../utils/markdown.js';
 import { el, getBlockElement } from '../utils/dom.js';
 import { uid } from '../utils/id.js';
@@ -476,8 +477,11 @@ export class Editor {
     document.addEventListener('selectionchange', this._handlers.selectionchange);
   }
 
-  _onInput() {
+  _onInput(e) {
     this._ensureContent();
+    // Auto-formatting input rules (smart typography, inline markdown…); skip
+    // mid-IME-composition. A fired rule handles its own history + change notify.
+    if (!e?.isComposing && runInputRules(this, this.schema.getInputRules())) return;
     this.history.save();
     this._notifyChange();
   }
@@ -540,9 +544,10 @@ export class Editor {
 
   _onPaste(e) {
     e.preventDefault();
-    const text = e.clipboardData.getData('text/html') ||
-                 e.clipboardData.getData('text/plain');
-    const clean = sanitize(text);
+    const text = (e.clipboardData?.getData('text/html') ||
+                  e.clipboardData?.getData('text/plain') || '');
+    let clean = sanitize(text);
+    clean = runPasteRules(clean, this.schema.getPasteRules());   // e.g. linkify bare URLs
     document.execCommand('insertHTML', false, clean);
     this._notifyChange();
     this.events.emit('paste', { editor: this });

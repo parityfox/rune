@@ -91,11 +91,15 @@ function _captureFormat(editor) {
   if (!sel || !sel.rangeCount) return null;
 
   const anchor = sel.anchorNode;
+  // Note: element-only marks like inline <code> and links are intentionally not
+  // painted (links carry a URL; code needs schema-specific handling).
   const format = {
     bold:          document.queryCommandState('bold'),
     italic:        document.queryCommandState('italic'),
     underline:     document.queryCommandState('underline'),
     strikeThrough: document.queryCommandState('strikeThrough'),
+    superscript:   document.queryCommandState('superscript'),
+    subscript:     document.queryCommandState('subscript'),
     fontSize:      null,
     fontFamily:    null,
     color:         null,
@@ -131,6 +135,8 @@ function _applyFormat(editor, format) {
   if (format.italic        !== document.queryCommandState('italic'))        document.execCommand('italic');
   if (format.underline     !== document.queryCommandState('underline'))     document.execCommand('underline');
   if (format.strikeThrough !== document.queryCommandState('strikeThrough')) document.execCommand('strikeThrough');
+  if (format.superscript   !== document.queryCommandState('superscript'))   document.execCommand('superscript');
+  if (format.subscript     !== document.queryCommandState('subscript'))     document.execCommand('subscript');
 
   // 2. Apply inline styles. Skip entirely when no styles were captured — the
   // boolean marks above already ran, and extract/re-insert here would only

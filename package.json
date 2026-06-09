@@ -67,6 +67,8 @@
     "yjs": "^13.6.31"
   },
   "peerDependencies": {
+    "react": ">=17",
+    "react-dom": ">=17",
     "ws": "^8.0.0",
     "y-indexeddb": "^9.0.0",
     "y-protocols": "^1.0.0",
@@ -74,6 +76,8 @@
     "yjs": "^13.6.0"
   },
   "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
     "ws": { "optional": true },
     "y-indexeddb": { "optional": true },
     "y-protocols": { "optional": true },

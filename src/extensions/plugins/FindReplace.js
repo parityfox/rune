@@ -18,6 +18,8 @@ export const FindReplace = {
     let _current = -1;
     let _query   = '';
     let _countEl = null;
+    let _replacing = false;   // suppress change-driven re-highlight during a replace
+    let _rehlTimer = null;    // debounce timer for change-driven re-highlight
 
     // ── Open / close ────────────────────────────────────────────
 
@@ -30,6 +32,7 @@ export const FindReplace = {
     }
 
     function _close() {
+      clearTimeout(_rehlTimer);
       _clearHighlights();
       _panel?.classList.remove('is-open');
       const p = _panel;
@@ -54,12 +57,23 @@ export const FindReplace = {
       return clone.innerHTML;
     };
 
-    // ── Re-highlight when content changes ───────────────────────
+    // ── Re-highlight when content changes (debounced) ───────────
+    // Re-walking the whole document on every keystroke is O(document); coalesce
+    // bursts into one re-scan and preserve the active match across it.
     editor.events.on('change', () => {
-      if (!_panel || !_query) return;
-      _clearHighlights();
-      _batchHighlight(_query);
-      _updateCount();
+      if (!_panel || !_query || _replacing) return;
+      clearTimeout(_rehlTimer);
+      _rehlTimer = setTimeout(() => {
+        if (!_panel || !_query) return;
+        const keep = _current;
+        _clearHighlights();
+        _batchHighlight(_query);
+        if (_matches.length) {
+          _current = Math.min(Math.max(0, keep), _matches.length - 1);
+          _activateMatch(_current);
+        }
+        _updateCount();
+      }, 150);
     });
 
     // ── Panel builder ────────────────────────────────────────────

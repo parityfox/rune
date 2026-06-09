@@ -572,9 +572,10 @@ export class Editor {
 
   /** Get editor HTML content. */
   getHtml() {
-    // Clone and clean internal attributes
-    const clone = this.content.cloneNode(true);
-    return clone.innerHTML;
+    // Serialize directly — this runs on every change (and per keystroke via
+    // _notifyChange), so the previous cloneNode(true) was an O(document) copy
+    // with no purpose (nothing was cleaned off the clone).
+    return this.content.innerHTML;
   }
 
   /** Set editor HTML content. */

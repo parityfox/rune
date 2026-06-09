@@ -20,6 +20,9 @@ import * as awarenessProtocol from 'y-protocols/awareness';
 const MESSAGE_SYNC = 0;
 const MESSAGE_AWARENESS = 1;
 
+const MAX_BUFFERED = 8 * 1024 * 1024;   // backpressure: drop a consumer buffering > 8MB
+const MSG_RATE     = 400;               // max inbound messages/sec per connection
+
 const docs = new Map();   // room name -> WSSharedDoc
 
 // Room names come straight off the URL path; constrain them so a client can't
@@ -68,6 +71,7 @@ function getDoc(name) {
 
 function send(doc, conn, bytes) {
   if (conn.readyState !== 0 && conn.readyState !== 1) { closeConn(doc, conn); return; }
+  if (conn.bufferedAmount > MAX_BUFFERED) { closeConn(doc, conn); return; }   // slow consumer
   try { conn.send(bytes, (err) => err && closeConn(doc, conn)); }
   catch { closeConn(doc, conn); }
 }
@@ -106,7 +110,11 @@ export function setupWSConnection(conn, req) {
   // message makes lib0/y-protocols throw, which would otherwise become an
   // uncaughtException and kill the whole process (every room, every user).
   // Drop the offending connection instead.
+  let msgs = 0, windowStart = Date.now();
   conn.on('message', (data) => {
+    const now = Date.now();
+    if (now - windowStart >= 1000) { windowStart = now; msgs = 0; }
+    if (++msgs > MSG_RATE) { closeConn(doc, conn); return; }   // too chatty -> drop the connection
     try { onMessage(conn, doc, new Uint8Array(data)); }
     catch { closeConn(doc, conn); }
   });

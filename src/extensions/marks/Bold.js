@@ -3,6 +3,7 @@ export const Bold = {
   type: 'mark',
   tag: 'strong',
   execCommand: 'bold',
+  hasMark: (el) => el.tagName === 'STRONG' || el.tagName === 'B',
 
   keymap: {
     'Meta+b':    (editor) => editor.chain().toggleBold().run(),

@@ -3,6 +3,7 @@ export const Italic = {
   type: 'mark',
   tag: 'em',
   execCommand: 'italic',
+  hasMark: (el) => el.tagName === 'EM' || el.tagName === 'I',
 
   keymap: {
     'Meta+i':    (editor) => editor.chain().toggleItalic().run(),

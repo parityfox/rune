@@ -3,6 +3,7 @@ export const Underline = {
   type: 'mark',
   tag: 'u',
   execCommand: 'underline',
+  hasMark: (el) => el.tagName === 'U',
 
   keymap: {
     'Meta+u':    (editor) => editor.chain().toggleUnderline().run(),

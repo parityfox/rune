@@ -518,6 +518,20 @@ describe('Editor', () => {
     });
   });
 
+  describe('mark active state', () => {
+    it('isActive(bold) reflects the <strong> mark, not heading font-weight', () => {
+      create({ content: '<h1>Heading</h1><p><strong>b</strong> plain</p>' });
+      const caretIn = (sel) => {
+        const r = document.createRange(); r.selectNodeContents(editor.content.querySelector(sel)); r.collapse(true);
+        const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      };
+      caretIn('h1');
+      expect(editor.isActive('bold')).toBe(false);   // headings are weight 600, not bold marks
+      caretIn('strong');
+      expect(editor.isActive('bold')).toBe(true);
+    });
+  });
+
   describe('security', () => {
     it('setLink rejects javascript: URIs', () => {
       create({ content: '<p>text</p>' });

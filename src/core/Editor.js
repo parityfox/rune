@@ -697,12 +697,9 @@ export class Editor {
 
     const mark = this.schema.getMark(type);
     if (mark) {
-      // Legacy execCommand marks (bold/italic/…)
-      if (mark.execCommand) {
-        try { return document.queryCommandState(mark.execCommand); } catch { return false; }
-      }
-      // Element-based marks (highlight, colour, font…): walk ancestors for a
-      // node the mark recognises via its hasMark/match predicate.
+      // Prefer an element-based predicate: it accurately detects the mark's own
+      // element and avoids queryCommandState false-positives (e.g. bold reports
+      // active inside any heading because headings are font-weight:600).
       const pred = mark.hasMark || mark.match;
       if (pred) {
         let node = this.selection.getFocusNode();
@@ -710,6 +707,11 @@ export class Editor {
           if (node.nodeType === 1 && pred(node)) return true;
           node = node.parentNode;
         }
+        return false;
+      }
+      // Fall back to the legacy execCommand state for marks without a predicate.
+      if (mark.execCommand) {
+        try { return document.queryCommandState(mark.execCommand); } catch { return false; }
       }
     }
     return false;

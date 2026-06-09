@@ -3,6 +3,7 @@ export const Strike = {
   type: 'mark',
   tag: 's',
   execCommand: 'strikeThrough',
+  hasMark: (el) => el.tagName === 'S' || el.tagName === 'STRIKE' || el.tagName === 'DEL',
 
   keymap: {
     'Meta+Shift+s':    (editor) => editor.chain().toggleStrike().run(),

@@ -1,34 +1,5 @@
 import { el } from '../utils/dom.js';
 
-// ── Shared tooltip ────────────────────────────────────────────
-let _tip = null, _tipTimer = null;
-function getTooltip() {
-  if (!_tip) { _tip = document.createElement('div'); _tip.className = 'rune-tooltip'; document.body.appendChild(_tip); }
-  return _tip;
-}
-function showTooltip(btn, text) {
-  clearTimeout(_tipTimer);
-  const tip = getTooltip();
-  tip.textContent = text;
-  tip.classList.add('is-visible');
-  const r = btn.getBoundingClientRect();
-  const tr = tip.getBoundingClientRect();
-  let left = r.left + r.width / 2 - tr.width / 2;
-  if (left < 8) left = 8;
-  if (left + tr.width > window.innerWidth - 8) left = window.innerWidth - tr.width - 8;
-  tip.style.left = `${left}px`;
-  tip.style.top  = `${r.bottom + 6}px`;
-}
-function hideTooltip() {
-  clearTimeout(_tipTimer);
-  _tipTimer = setTimeout(() => _tip?.classList.remove('is-visible'), 80);
-}
-function attachTooltip(btn, text) {
-  btn.addEventListener('mouseenter', () => showTooltip(btn, text));
-  btn.addEventListener('mouseleave', hideTooltip);
-  btn.addEventListener('mousedown',  hideTooltip);
-}
-
 // ── Toolbar ───────────────────────────────────────────────────
 
 export class Toolbar {
@@ -37,8 +8,42 @@ export class Toolbar {
     this.el        = el('div', { class: 'rune-toolbar', role: 'toolbar', 'aria-label': 'Text formatting' });
     this._openBtn  = null;   // button that opened the current popup
     this._popup    = null;   // the floating popup DOM node (appended to body)
+    this._tip      = null;   // per-instance tooltip (not shared across editors)
+    this._tipTimer = null;
     this._render();
     this._bindEditorEvents();
+  }
+
+  // ── Tooltip (per-instance so destroying one editor can't remove another's) ──
+  _getTooltip() {
+    if (!this._tip) {
+      this._tip = document.createElement('div');
+      this._tip.className = 'rune-tooltip';
+      document.body.appendChild(this._tip);
+    }
+    return this._tip;
+  }
+  _showTooltip(btn, text) {
+    clearTimeout(this._tipTimer);
+    const tip = this._getTooltip();
+    tip.textContent = text;
+    tip.classList.add('is-visible');
+    const r = btn.getBoundingClientRect();
+    const tr = tip.getBoundingClientRect();
+    let left = r.left + r.width / 2 - tr.width / 2;
+    if (left < 8) left = 8;
+    if (left + tr.width > window.innerWidth - 8) left = window.innerWidth - tr.width - 8;
+    tip.style.left = `${left}px`;
+    tip.style.top  = `${r.bottom + 6}px`;
+  }
+  _hideTooltip() {
+    clearTimeout(this._tipTimer);
+    this._tipTimer = setTimeout(() => this._tip?.classList.remove('is-visible'), 80);
+  }
+  _attachTooltip(btn, text) {
+    btn.addEventListener('mouseenter', () => this._showTooltip(btn, text));
+    btn.addEventListener('mouseleave', () => this._hideTooltip());
+    btn.addEventListener('mousedown',  () => this._hideTooltip());
   }
 
   // ─── Render ────────────────────────────────────────────────
@@ -73,7 +78,7 @@ export class Toolbar {
     // (Enter/Space, which dispatch click but never mousedown) works too.
     btn.addEventListener('mousedown', (e) => e.preventDefault());
     btn.addEventListener('click', () => this._runItem(item));
-    attachTooltip(btn, item.title);
+    this._attachTooltip(btn, item.title);
     this.el.appendChild(btn);
     item._el = btn;
   }
@@ -85,7 +90,7 @@ export class Toolbar {
       'aria-label': item.title, 'aria-haspopup': 'true',
     });
     btn.innerHTML = item.icon + `<svg class="rune-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>`;
-    attachTooltip(btn, item.title);
+    this._attachTooltip(btn, item.title);
 
     btn.addEventListener('mousedown', (e) => e.preventDefault());
     btn.addEventListener('click', () => {
@@ -127,7 +132,7 @@ export class Toolbar {
       item._toolbarIndicatorEl = bar;
     }
 
-    attachTooltip(btn, item.title);
+    this._attachTooltip(btn, item.title);
 
     btn.addEventListener('mousedown', (e) => e.preventDefault());
     btn.addEventListener('click', () => {
@@ -232,10 +237,9 @@ export class Toolbar {
   destroy() {
     this._closePopup();
     document.removeEventListener('mousedown', this._outsideClick);
-    // Shared singleton tooltip — safe for single-editor pages.
-    // Multi-editor pages: next hover silently recreates via getTooltip().
-    if (_tip) { _tip.remove(); _tip = null; }
-    clearTimeout(_tipTimer);
+    clearTimeout(this._tipTimer);
+    this._tip?.remove();
+    this._tip = null;
     this.el.remove();
   }
 }

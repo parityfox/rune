@@ -7,7 +7,7 @@
   /* Palette */
   --rune-color-bg:           #ffffff;
   --rune-color-fg:           #1a1a1a;
-  --rune-color-muted:        #9b9b9b;
+  --rune-color-muted:        #6b6b6b;
   --rune-color-border:       #e9e9e7;
   --rune-color-accent:       #2383e2;
   --rune-color-accent-hover: #1a6fc4;
@@ -44,7 +44,7 @@
 .rune-dark, [data-theme="dark"] {
   --rune-color-bg:        #191919;
   --rune-color-fg:        #e8e8e6;
-  --rune-color-muted:     #787774;
+  --rune-color-muted:     #9a9a96;
   --rune-color-border:    #2f2f2f;
   --rune-color-surface:   #222222;
   --rune-color-hover:     #2a2a2a;

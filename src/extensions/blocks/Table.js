@@ -241,7 +241,30 @@ export const Table = {
       const allRows = [...table.querySelectorAll('tr')];
       if (allRows.length <= 1) { _deleteTable(cell); return; }
       editor.history.saveNow();
-      cell.closest('tr').remove();
+      const tr = cell.closest('tr');
+      const inHead = !!tr.closest('thead');
+      tr.remove();
+      // Removing the header row would leave an empty <thead> and make the first
+      // data row render/export as the header. Promote the first body row to head.
+      if (inHead) {
+        const thead = table.querySelector('thead');
+        const firstBodyRow = table.querySelector('tbody')?.querySelector('tr');
+        if (thead && thead.querySelectorAll('tr').length === 0) {
+          if (firstBodyRow) {
+            [...firstBodyRow.children].forEach((c) => {
+              if (c.tagName === 'TD') {
+                const th = document.createElement('th');
+                th.className = c.className;
+                while (c.firstChild) th.appendChild(c.firstChild);
+                c.replaceWith(th);
+              }
+            });
+            thead.appendChild(firstBodyRow);
+          } else {
+            thead.remove();
+          }
+        }
+      }
       editor._notifyChange();
     }
 

@@ -14,6 +14,8 @@
   "exports": {
     ".": { "types": "./types/index.d.ts", "default": "./src/index.js" },
     "./react": { "types": "./types/react.d.ts", "default": "./adapters/react/index.js" },
+    "./vue": { "types": "./types/vue.d.ts", "default": "./adapters/vue/index.js" },
+    "./svelte": { "types": "./types/svelte.d.ts", "default": "./adapters/svelte/index.js" },
     "./web-component": { "types": "./types/web-component.d.ts", "default": "./adapters/web-component/rune-editor.js" },
     "./styles": "./styles/rune.css",
     "./collab": { "types": "./types/collab.d.ts", "default": "./collab/index.js" },
@@ -75,6 +77,8 @@
   "peerDependencies": {
     "react": ">=17",
     "react-dom": ">=17",
+    "vue": ">=3.2",
+    "svelte": ">=3",
     "ws": "^8.0.0",
     "y-indexeddb": "^9.0.0",
     "y-protocols": "^1.0.0",
@@ -84,6 +88,8 @@
   "peerDependenciesMeta": {
     "react": { "optional": true },
     "react-dom": { "optional": true },
+    "vue": { "optional": true },
+    "svelte": { "optional": true },
     "ws": { "optional": true },
     "y-indexeddb": { "optional": true },
     "y-protocols": { "optional": true },

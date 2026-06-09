@@ -102,6 +102,34 @@ export default function App() {
 > );
 > ```
 
+### Vue 3
+
+```vue
+<script setup>
+import { RuneEditor } from '@parityfox/rune-editor/vue';
+import { StarterKit } from '@parityfox/rune-editor';
+import '@parityfox/rune-editor/styles';
+</script>
+
+<template>
+  <RuneEditor :extensions="StarterKit" content="<p>Hello</p>" @change="(html) => console.log(html)" />
+  <!-- or the composable: const { el, editor } = useRune({ … }); <div ref="el" /> -->
+</template>
+```
+
+### Svelte
+
+```svelte
+<script>
+  import { rune } from '@parityfox/rune-editor/svelte';
+  import { StarterKit } from '@parityfox/rune-editor';
+  import '@parityfox/rune-editor/styles';
+  let html = '<p>Hello</p>';
+</script>
+
+<div use:rune={{ extensions: StarterKit, content: html, onChange: (h) => (html = h) }} />
+```
+
 ### Web Component
 
 ```html

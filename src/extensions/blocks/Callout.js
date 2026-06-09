@@ -19,9 +19,16 @@ export const Callout = {
   match: (el) => el.dataset?.type === 'callout',
 
   commands(editor) {
-    // Click icon to change emoji
+    // Open the emoji picker by pointer or keyboard (the icon is role=button).
     editor.content.addEventListener('click', (e) => {
-      const icon = e.target.closest('.rune-callout-icon');
+      const icon = e.target.closest?.('.rune-callout-icon');
+      if (!icon) return;
+      e.preventDefault();
+      _openEmojiPicker(editor, icon);
+    });
+    editor.content.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const icon = e.target.closest?.('.rune-callout-icon');
       if (!icon) return;
       e.preventDefault();
       _openEmojiPicker(editor, icon);
@@ -39,6 +46,9 @@ export const Callout = {
         const icon = document.createElement('span');
         icon.className = 'rune-callout-icon';
         icon.setAttribute('contenteditable', 'false');
+        icon.setAttribute('role', 'button');
+        icon.setAttribute('tabindex', '0');
+        icon.setAttribute('aria-label', 'Change callout icon');
         icon.textContent = emoji;
 
         const body = document.createElement('div');
@@ -161,8 +171,8 @@ function _openEmojiPicker(editor, iconEl) {
     btn.className = 'rune-panel-emoji-btn';
     btn.type = 'button';
     btn.textContent = emoji;
-    btn.addEventListener('mousedown', (e) => {
-      e.preventDefault();
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => {
       iconEl.textContent = emoji;
       picker.remove();
       editor._notifyChange();
@@ -172,6 +182,10 @@ function _openEmojiPicker(editor, iconEl) {
 
   picker.appendChild(grid);
   document.body.appendChild(picker);
+  picker.querySelector('button')?.focus();   // move keyboard focus into the picker
+  picker.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { picker.remove(); iconEl.focus?.(); }
+  });
 
   // Position below the icon
   const r = iconEl.getBoundingClientRect();

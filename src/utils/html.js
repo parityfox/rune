@@ -72,7 +72,11 @@ const ALLOWED_ATTRS = new Set(['href', 'target', 'rel', 'src', 'alt', 'class',
 // Extra attributes kept only for trusted editor content (embeds, captions,
 // checkboxes). None can execute script.
 const CONTENT_ATTRS = new Set(['contenteditable', 'data-placeholder',
-  'frameborder', 'allowfullscreen', 'allow', 'sandbox']);
+  'frameborder', 'allowfullscreen', 'allow', 'sandbox',
+  // a11y attributes on the editor's own controls (e.g. task checkboxes) — none
+  // can execute script, and preserving them keeps a getHtml()->setHtml() round
+  // trip accessible.
+  'role', 'tabindex', 'aria-checked', 'aria-label']);
 const CONTENT_ALLOWED = new Set([...ALLOWED_ATTRS, ...CONTENT_ATTRS]);
 
 function _stripAttrs(el, opts) {

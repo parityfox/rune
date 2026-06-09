@@ -7,17 +7,31 @@ export const TaskList = {
   match: (el) => el.classList.contains('rune-task-list'),
 
   commands(editor) {
-    // Toggle checkbox on click
-    editor.content.addEventListener('mousedown', (e) => {
-      const cb = e.target.closest('.rune-task-checkbox');
-      if (!cb) return;
-      e.preventDefault();
+    const _toggle = (cb) => {
       const li = cb.closest('.rune-task-item');
       if (!li) return;
       const checked = li.dataset.checked === 'true';
       li.dataset.checked = checked ? 'false' : 'true';
       cb.textContent = checked ? '☐' : '☑';
+      cb.setAttribute('aria-checked', String(!checked));
       editor._notifyChange();
+    };
+
+    // Toggle on pointer…
+    editor.content.addEventListener('mousedown', (e) => {
+      const cb = e.target.closest?.('.rune-task-checkbox');
+      if (!cb) return;
+      e.preventDefault();
+      _toggle(cb);
+    });
+
+    // …and on keyboard (the checkbox is role=checkbox, tabindex=0).
+    editor.content.addEventListener('keydown', (e) => {
+      if (e.key !== ' ' && e.key !== 'Enter') return;
+      const cb = e.target.closest?.('.rune-task-checkbox');
+      if (!cb) return;
+      e.preventDefault();
+      _toggle(cb);
     });
 
     // Enter / Backspace inside task list
@@ -131,6 +145,9 @@ function _makeTaskItem(text) {
   const cb = document.createElement('span');
   cb.className = 'rune-task-checkbox';
   cb.setAttribute('contenteditable', 'false');
+  cb.setAttribute('role', 'checkbox');
+  cb.setAttribute('tabindex', '0');
+  cb.setAttribute('aria-checked', 'false');
   cb.textContent = '☐';
 
   const content = document.createElement('span');

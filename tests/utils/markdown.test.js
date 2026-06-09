@@ -68,6 +68,16 @@ describe('htmlToMarkdown', () => {
     expect(result).toBe('```\nconst x = 1;\n```');
   });
 
+  it('uses a longer fence when code contains triple backticks (#34)', () => {
+    const result = htmlToMarkdown('<pre><code>```js\ncode\n```</code></pre>');
+    expect(result).toBe('````\n```js\ncode\n```\n````');
+  });
+
+  it('lengthens inline code delimiters around embedded backticks (#34)', () => {
+    const result = htmlToMarkdown('<p><code>a`b</code></p>');
+    expect(result).toBe('`` a`b ``');
+  });
+
   it('converts blockquotes', () => {
     const result = htmlToMarkdown('<blockquote>quote text</blockquote>');
     expect(result).toContain('> quote text');

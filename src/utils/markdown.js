@@ -36,7 +36,11 @@ function _block(node) {
   if (tag === 'pre') {
     const code = node.querySelector('code');
     const lang = code?.className?.match(/language-(\w+)/)?.[1] ?? '';
-    return '```' + lang + '\n' + (code?.textContent ?? node.textContent) + '\n```';
+    const content = code?.textContent ?? node.textContent ?? '';
+    // The fence must be longer than any backtick run inside the code, or content
+    // like ``` (common when documenting Markdown) would terminate it early.
+    const fence = '`'.repeat(Math.max(3, _longestBacktickRun(content) + 1));
+    return fence + lang + '\n' + content + '\n' + fence;
   }
 
   if (tag === 'blockquote') {
@@ -95,6 +99,13 @@ function _block(node) {
 
 // ── Inline ────────────────────────────────────────────────────
 
+// Longest consecutive run of backtick characters in a string (0 if none).
+function _longestBacktickRun(s) {
+  let max = 0;
+  for (const run of String(s).match(/`+/g) || []) max = Math.max(max, run.length);
+  return max;
+}
+
 // Escape Markdown-significant brackets so link/image text can't break the
 // surrounding [text](url) / ![alt](src) syntax.
 function _escapeLinkText(s) {
@@ -122,7 +133,14 @@ function _inline(node) {
     if (t === 'strong' || t === 'b')   { out += `**${_inline(child)}**`; continue; }
     if (t === 'em'     || t === 'i')   { out += `*${_inline(child)}*`;   continue; }
     if (t === 's')                     { out += `~~${_inline(child)}~~`; continue; }
-    if (t === 'code')                  { out += `\`${child.textContent}\``; continue; }
+    if (t === 'code') {
+      // Inline code: a backtick inside needs a longer delimiter plus padding
+      // spaces (CommonMark), else the span is malformed.
+      const txt = child.textContent;
+      const run = _longestBacktickRun(txt);
+      out += run === 0 ? `\`${txt}\`` : `${'`'.repeat(run + 1)} ${txt} ${'`'.repeat(run + 1)}`;
+      continue;
+    }
     if (t === 'a')                     { out += `[${_escapeLinkText(_inline(child))}](${_mdUrl(child.getAttribute('href') || '')})`; continue; }
     if (t === 'u')                     { out += `<u>${_inline(child)}</u>`; continue; }
     if (t === 'sup')                   { out += `<sup>${_inline(child)}</sup>`; continue; }

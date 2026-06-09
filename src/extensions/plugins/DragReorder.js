@@ -10,6 +10,8 @@ export const DragReorder = {
     let _active      = false; // true once drag threshold crossed
     let _startY      = 0;
     let _hideTimer   = null;
+    let _moveRaf     = null;   // throttle move processing to one per frame
+    let _lastMove    = null;
 
     // ── Floating elements ───────────────────────────────────────
 
@@ -70,7 +72,15 @@ export const DragReorder = {
       document.body.style.cursor     = 'grabbing';
     });
 
+    // Throttle move handling to one frame: pointermove can fire >60Hz and each
+    // pass does a getBoundingClientRect over every block (O(blocks) layout reads).
     function _onMove(e) {
+      _lastMove = { clientY: e.clientY };
+      if (_moveRaf) return;
+      _moveRaf = requestAnimationFrame(() => { _moveRaf = null; _processMove(_lastMove); });
+    }
+
+    function _processMove(e) {
       if (!_dragging) return;
 
       // Activate after crossing 4px threshold
@@ -101,6 +111,8 @@ export const DragReorder = {
     }
 
     function _onUp() {
+      cancelAnimationFrame(_moveRaf);
+      _moveRaf = null;
       document.removeEventListener('mousemove', _onMove);
       document.removeEventListener('mouseup',   _onUp);
       document.body.style.userSelect = '';

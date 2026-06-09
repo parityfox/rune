@@ -7,6 +7,7 @@ import { normalizeHtml, sanitize, sanitizeContent, _isDangerousUrl } from '../ut
 import { runInputRules, runPasteRules } from './InputRules.js';
 import { Decorations } from './Decorations.js';
 import { htmlToMarkdown } from '../utils/markdown.js';
+import { markdownToHtml } from '../utils/markdownToHtml.js';
 import { el, getBlockElement } from '../utils/dom.js';
 import { uid } from '../utils/id.js';
 
@@ -21,6 +22,18 @@ function getModKey() {
     ? navigator.userAgentData.platform === 'macOS'
     : /Mac|iPod|iPhone|iPad/.test(navigator.platform);
   return (_modKey = isMac ? 'Meta' : 'Control');
+}
+
+// Heuristic: does this plain-text clipboard payload read as Markdown? (Used to
+// decide whether to convert on paste; plain prose returns false.)
+function _looksLikeMarkdown(t) {
+  return /(^|\n)\s{0,3}#{1,6}\s/.test(t) ||
+         /(^|\n)\s{0,3}([-*+]|\d+[.)])\s+/.test(t) ||
+         /(^|\n)\s{0,3}>\s/.test(t) ||
+         /(^|\n)```/.test(t) ||
+         /\*\*[^*\n]+\*\*/.test(t) ||
+         /\[[^\]\n]+\]\([^)\n]+\)/.test(t) ||
+         /(^|\n)\s*\|.+\|/.test(t);
 }
 
 // Nearest ancestor element with the given tag, bounded by the content root.
@@ -73,6 +86,7 @@ export class Editor {
       slashMenu: true,
       placeholder: 'Write something…',
       ariaLabel: 'Rich text editor',   // accessible name for the editable region
+      pasteMarkdown: true,             // convert Markdown-looking pasted text
       onChange: null,
       attribution: true,        // small "Made with Rune" credit; set false to remove
     }, options);
@@ -548,9 +562,16 @@ export class Editor {
 
   _onPaste(e) {
     e.preventDefault();
-    const text = (e.clipboardData?.getData('text/html') ||
-                  e.clipboardData?.getData('text/plain') || '');
-    let clean = sanitize(text);
+    const html  = e.clipboardData?.getData('text/html') || '';
+    const plain = e.clipboardData?.getData('text/plain') || '';
+
+    let clean;
+    if (!html && plain && this.options.pasteMarkdown !== false && _looksLikeMarkdown(plain)) {
+      // No rich HTML on the clipboard, but the text reads as Markdown → convert.
+      clean = sanitize(markdownToHtml(plain));
+    } else {
+      clean = sanitize(html || plain);
+    }
     clean = runPasteRules(clean, this.schema.getPasteRules());   // e.g. linkify bare URLs
     document.execCommand('insertHTML', false, clean);
     this._notifyChange();
@@ -720,6 +741,19 @@ export class Editor {
   /** Convert editor content to Markdown. */
   getMarkdown() {
     return htmlToMarkdown(this.getHtml());
+  }
+
+  /** Replace the editor content from a Markdown string. */
+  setMarkdown(md) {
+    this.setHtml(markdownToHtml(md));
+  }
+
+  /** Insert Markdown at the caret. */
+  insertMarkdown(md) {
+    const clean = sanitize(markdownToHtml(md));
+    this.content.focus();
+    document.execCommand('insertHTML', false, clean);
+    this._notifyChange();
   }
 
   /** Open browser print dialog with clean editor styles. */

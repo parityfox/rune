@@ -21,6 +21,8 @@ export interface EditorOptions {
   placeholder?: string;
   /** Accessible name for the editable region. */
   ariaLabel?: string;
+  /** Convert Markdown-looking pasted text to formatted content (default true). */
+  pasteMarkdown?: boolean;
   /** "Made with Rune" credit; set `false` to remove. */
   attribution?: boolean;
   /** Fires on user edits, undo/redo, and programmatic setHtml (not on initial content). */
@@ -190,6 +192,8 @@ export class Editor {
   setHtml(html: string): void;
   getText(): string;
   getMarkdown(): string;
+  setMarkdown(md: string): void;
+  insertMarkdown(md: string): void;
   print(): void;
   isEmpty(): boolean;
 
@@ -278,6 +282,7 @@ export function removeAllChildren(el: Element): void;
 export function getCaretRect(): DOMRect | null;
 export function getSelectionRect(): DOMRect | null;
 export function htmlToMarkdown(html: string): string;
+export function markdownToHtml(md: string): string;
 export function uid(): string;
 export function sanitize(html: string): string;
 export function sanitizeContent(html: string): string;

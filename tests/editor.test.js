@@ -437,6 +437,45 @@ describe('Editor', () => {
     });
   });
 
+  describe('markdown import (#85 / #93)', () => {
+    it('setMarkdown replaces content with parsed HTML', () => {
+      create({ content: '<p>old</p>' });
+      editor.setMarkdown('# Title\n\n- a\n- b');
+      expect(editor.content.querySelector('h1')?.textContent).toBe('Title');
+      expect(editor.content.querySelectorAll('ul li').length).toBe(2);
+    });
+
+    function paste(plain, html = '') {
+      let inserted = null;
+      const orig = document.execCommand;
+      document.execCommand = (cmd, ui, val) => { if (cmd === 'insertHTML') inserted = val; return true; };
+      const e = new Event('paste', { bubbles: true, cancelable: true });
+      e.clipboardData = { getData: (t) => (t === 'text/plain' ? plain : html) };
+      editor.content.dispatchEvent(e);
+      document.execCommand = orig;
+      return inserted;
+    }
+
+    it('converts Markdown-looking pasted text (#93)', () => {
+      create({ content: '<p></p>' });
+      const out = paste('## Hi\n\n- a\n- b');
+      expect(out).toContain('<h2>Hi</h2>');
+      expect(out).toContain('<ul><li>a</li><li>b</li></ul>');
+    });
+
+    it('does not convert plain prose on paste', () => {
+      create({ content: '<p></p>' });
+      const out = paste('just some plain text, nothing special');
+      expect(out).toBe('just some plain text, nothing special');
+    });
+
+    it('respects pasteMarkdown:false', () => {
+      create({ content: '<p></p>', pasteMarkdown: false });
+      const out = paste('## Hi');
+      expect(out).toBe('## Hi');   // left as text
+    });
+  });
+
   describe('decorations (#82)', () => {
     it('adds/clears decorations without polluting getHtml', () => {
       create({ content: '<p>hello world</p>' });

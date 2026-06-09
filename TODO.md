@@ -83,7 +83,7 @@
 - [ ] **Vue adapter** — `useRune` composable + `RuneEditor` component (mirrors React adapter)
 - [ ] **Svelte adapter** — `useRune` action + `RuneEditor` component
 - [ ] **Export: DOCX** — `editor.getDocx()` converts HTML → .docx via docx.js (client-side)
-- [ ] **Import: Markdown** — `editor.setMarkdown(md)` parses Markdown → editor HTML
+- [x] **Import: Markdown** — `editor.setMarkdown(md)` / `editor.insertMarkdown(md)` / `markdownToHtml(md)`; Markdown-looking text is also converted on paste (`pasteMarkdown` option)
 - [ ] **Import: DOCX** — drag & drop or file picker to import a .docx file
 - [ ] **SSR / server-side rendering** — safe initialisation when `document` is not available (Next.js, Nuxt)
 
@@ -153,7 +153,7 @@
 - [ ] Table: missing keyboard support for adding rows with Enter in last cell on some browsers
 - [ ] Slash menu: no fuzzy search — requires exact prefix match
 - [ ] Image upload: no progress indicator during upload (only a pulse animation)
-- [ ] `getMarkdown()`: nested lists not yet converted (only top-level `<li>`)
+- [x] `getMarkdown()`: nested lists now converted with indentation; round-trips with `markdownToHtml()`
 - [ ] `print()`: uses `document.write()` — consider blob URL approach for stricter CSP compatibility
 - [ ] Mobile: bubble menu positioning breaks when virtual keyboard is open
 

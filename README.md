@@ -158,11 +158,16 @@ export default function App() {
 ### 📤 Export
 
 ```js
-editor.getHtml()       // → sanitized HTML string
-editor.getText()       // → plain text
-editor.getMarkdown()   // → Markdown string
-editor.print()         // → opens clean print dialog
+editor.getHtml()        // → sanitized HTML string
+editor.getText()        // → plain text
+editor.getMarkdown()    // → Markdown string
+editor.setMarkdown(md)  // ← replace content from Markdown
+editor.insertMarkdown(md)// ← insert Markdown at the caret
+editor.print()          // → opens clean print dialog
 ```
+
+Markdown-looking text is also converted automatically on paste (disable with
+`pasteMarkdown: false`). `markdownToHtml(md)` is exported for DOM-free use.
 
 ---
 

@@ -54,6 +54,7 @@ export class BubbleMenu {
       title: item.title,
       'aria-label': item.title,
     });
+    if (item.isActive) btn.setAttribute('aria-pressed', 'false');
     btn.innerHTML = item.icon;
 
     btn.addEventListener('mousedown', (e) => {
@@ -214,7 +215,9 @@ export class BubbleMenu {
     const { editor } = this;
     for (const item of this._items) {
       if (!item._bubbleEl || !item.isActive) continue;
-      item._bubbleEl.classList.toggle('is-active', !!item.isActive(editor));
+      const active = !!item.isActive(editor);
+      item._bubbleEl.classList.toggle('is-active', active);
+      if (item.type !== 'panel') item._bubbleEl.setAttribute('aria-pressed', String(active));
     }
   }
 

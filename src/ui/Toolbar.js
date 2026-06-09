@@ -64,6 +64,9 @@ export class Toolbar {
   // Plain button
   _renderButton(item) {
     const btn = el('button', { class: 'rune-toolbar-btn', type: 'button', 'aria-label': item.title });
+    // Toggle buttons (those reporting active state) expose aria-pressed so AT
+    // announces on/off; dropdowns/panels use aria-expanded instead.
+    if (item.isActive) btn.setAttribute('aria-pressed', 'false');
     btn.innerHTML = item.icon;
     btn.addEventListener('mousedown', (e) => { e.preventDefault(); if (item.action) this.editor.cmd(item.action, ...(item.args || [])); });
     attachTooltip(btn, item.title);
@@ -194,6 +197,9 @@ export class Toolbar {
       if (!item._el || !item.isActive) continue;
       const active = !!item.isActive(this.editor);
       item._el.classList.toggle('is-active', active);
+      if (item.type !== 'panel' && !item.dropdown) {
+        item._el.setAttribute('aria-pressed', String(active));
+      }
     }
   }
 

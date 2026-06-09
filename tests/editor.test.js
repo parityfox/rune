@@ -474,6 +474,19 @@ describe('Editor', () => {
       const out = paste('## Hi');
       expect(out).toBe('## Hi');   // left as text
     });
+
+    it('converts a Markdown document even when the clipboard also has HTML (#93)', () => {
+      create({ content: '<p></p>' });
+      const out = paste('# Title\n\n- a\n- b', '<pre>rendered display</pre>');
+      expect(out).toContain('<h1>Title</h1>');
+      expect(out).toContain('<ul><li>a</li><li>b</li></ul>');
+    });
+
+    it('keeps rich HTML when plain text only has incidental markdown chars', () => {
+      create({ content: '<p></p>' });
+      const out = paste('See **important**', '<p>See <strong>important</strong></p>');
+      expect(out).toContain('<strong>important</strong>');   // not overridden
+    });
   });
 
   describe('decorations (#82)', () => {

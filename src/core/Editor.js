@@ -36,6 +36,16 @@ function _looksLikeMarkdown(t) {
          /(^|\n)\s*\|.+\|/.test(t);
 }
 
+// Stronger signal that the text is a Markdown *document* (used to decide whether
+// to convert even when the clipboard also carries rich HTML).
+function _looksLikeMarkdownDoc(t) {
+  return /(^|\n)#{1,6}\s/.test(t) ||                                   // headings
+         /(^|\n)```/.test(t) ||                                        // fenced code
+         /(^|\n)\s*\|.+\|.*\n\s*\|?[-:\s|]*-[-:\s|]*$/m.test(t) ||      // table
+         /(^|\n)\s*>\s/.test(t) ||                                     // blockquote
+         (t.match(/(^|\n)\s{0,3}([-*+]|\d+[.)])\s+/g) || []).length >= 2; // ≥2 list items
+}
+
 // Nearest ancestor element with the given tag, bounded by the content root.
 function _closestTag(node, tag, content) {
   let n = node?.nodeType === 1 ? node : node?.parentNode;
@@ -565,13 +575,15 @@ export class Editor {
     const html  = e.clipboardData?.getData('text/html') || '';
     const plain = e.clipboardData?.getData('text/plain') || '';
 
-    let clean;
-    if (!html && plain && this.options.pasteMarkdown !== false && _looksLikeMarkdown(plain)) {
-      // No rich HTML on the clipboard, but the text reads as Markdown → convert.
-      clean = sanitize(markdownToHtml(plain));
-    } else {
-      clean = sanitize(html || plain);
-    }
+    // Convert when the plain text reads as Markdown. If the clipboard ALSO has
+    // rich HTML (e.g. copied from a rendered page), require strong block-level
+    // Markdown signals (headings, fenced code, tables, several list items, or
+    // blockquotes) before overriding it — so genuinely rich paste isn't mangled
+    // by incidental * or # characters.
+    const useMd = this.options.pasteMarkdown !== false && plain && _looksLikeMarkdown(plain) &&
+                  (!html || _looksLikeMarkdownDoc(plain));
+
+    let clean = useMd ? sanitize(markdownToHtml(plain)) : sanitize(html || plain);
     clean = runPasteRules(clean, this.schema.getPasteRules());   // e.g. linkify bare URLs
     document.execCommand('insertHTML', false, clean);
     this._notifyChange();

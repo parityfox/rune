@@ -81,6 +81,30 @@ describe('Toolbar aria-pressed (#56)', () => {
     tb.destroy();
   });
 
+  it('moves focus into a dropdown popup and Escape closes it + restores focus (#61)', () => {
+    const item = {
+      name: 'heading', title: 'Heading', icon: 'H',
+      dropdown: [{ label: 'H1', action: 'setBlock', args: ['heading'] }],
+    };
+    const editor = mockEditor(item);
+    const tb = new Toolbar(editor);
+    document.body.appendChild(tb.el);
+    const btn = tb.el.querySelector('.rune-toolbar-btn');
+
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const popup = document.querySelector('.rune-toolbar-popup');
+    expect(popup).toBeTruthy();
+    // focus moved into the popup
+    expect(popup.contains(document.activeElement)).toBe(true);
+
+    // Escape closes and returns focus to the trigger
+    popup.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(document.activeElement).toBe(btn);
+
+    tb.destroy();
+    tb.el.remove();
+  });
+
   it('does not put aria-pressed on dropdown buttons', () => {
     const item = {
       name: 'heading', title: 'Heading', icon: 'H',

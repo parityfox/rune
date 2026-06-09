@@ -180,6 +180,25 @@ export class Toolbar {
     btn.setAttribute('aria-expanded', 'true');
     // Animate in
     requestAnimationFrame(() => popup.classList.add('is-open'));
+
+    // Focus management (#61): move focus into the popup, trap Tab, and close on
+    // Escape returning focus to the trigger.
+    popup.tabIndex = -1;
+    const focusables = () => [...popup.querySelectorAll('button, input, select, textarea, a[href], [tabindex="0"]')].filter(el => !el.disabled);
+    (focusables()[0] || popup).focus?.();
+    popup.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this._closePopup();
+        btn.focus();
+      } else if (e.key === 'Tab') {
+        const list = focusables();
+        if (!list.length) return;
+        const first = list[0], last = list[list.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
   }
 
   _closePopup() {

@@ -8,7 +8,7 @@ export const Indent = {
   commands(editor) {
     return {
       indentBlock() {
-        const block = editor.selection.getBlock();
+        const block = editor.selection.getFormattingTarget();
         if (!block) return;
         const cur = parseInt(block.style.paddingLeft || '0', 10);
         if (cur >= MAX_INDENT) return;

@@ -7,7 +7,7 @@ export const Outdent = {
   commands(editor) {
     return {
       outdentBlock() {
-        const block = editor.selection.getBlock();
+        const block = editor.selection.getFormattingTarget();
         if (!block) return;
         const cur = parseInt(block.style.paddingLeft || '0', 10);
         if (cur <= 0) return;

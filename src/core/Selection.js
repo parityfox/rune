@@ -55,6 +55,22 @@ export class Selection {
     return sel ? sel.focusNode : null;
   }
 
+  /**
+   * The element block-level formatting (indent / outdent / text-align) should
+   * target: the nearest list item or table cell at the caret, falling back to
+   * the top-level block. Without this, indenting a bullet or centering a cell
+   * would mutate the whole <ul>/<table> instead of the item being edited.
+   */
+  getFormattingTarget() {
+    const { content } = this.editor;
+    let node = this.getFocusNode();
+    while (node && node !== content) {
+      if (node.nodeType === 1 && /^(LI|TD|TH)$/.test(node.tagName)) return node;
+      node = node.parentNode;
+    }
+    return this.getBlock();
+  }
+
   /** Get the block-level element (direct child of content) at the caret. */
   getBlock() {
     const { content } = this.editor;

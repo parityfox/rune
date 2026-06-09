@@ -50,7 +50,7 @@ export const TextAlign = {
   commands(editor) {
     return {
       setTextAlign(align) {
-        const block = editor.selection.getBlock();
+        const block = editor.selection.getFormattingTarget();
         if (!block) return;
         editor.history.saveNow();
         block.style.textAlign = (align === 'left') ? '' : align;
@@ -76,7 +76,7 @@ export const TextAlign = {
       const label = el('div', { class: 'rune-panel-section-label' }, 'ALIGNMENT');
       wrap.appendChild(label);
 
-      const block = editor.selection.getBlock();
+      const block = editor.selection.getFormattingTarget();
       const cur = block?.style.textAlign || 'left';
 
       const row = el('div', { class: 'rune-panel-align-row' });
@@ -98,7 +98,7 @@ export const TextAlign = {
     },
 
     isActive(editor) {
-      const block = editor.selection.getBlock();
+      const block = editor.selection.getFormattingTarget();
       const align = block?.style.textAlign;
       return !!(align && align !== '' && align !== 'left');
     },

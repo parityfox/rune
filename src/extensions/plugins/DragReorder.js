@@ -12,6 +12,7 @@ export const DragReorder = {
     let _hideTimer   = null;
     let _moveRaf     = null;   // throttle move processing to one per frame
     let _lastMove    = null;
+    let _pointerId   = null;
 
     // ── Floating elements ───────────────────────────────────────
 
@@ -46,6 +47,14 @@ export const DragReorder = {
       _scheduleHide();
     });
 
+    // Touch has no hover: reveal the handle when a block is tapped so touch
+    // users can grab it.
+    editor.content.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch' || _active) return;
+      const block = _getDirectChild(e.target);
+      if (block) { _targetBlock = block; _positionHandle(block); }
+    });
+
     _handle.addEventListener('mouseenter', () => {
       clearTimeout(_hideTimer);
       _handle.style.opacity       = '1';
@@ -58,16 +67,21 @@ export const DragReorder = {
 
     // ── Drag via mousedown / mousemove / mouseup ────────────────
 
-    _handle.addEventListener('mousedown', (e) => {
-      if (e.button !== 0 || !_targetBlock) return;
-      e.preventDefault(); // prevent text selection
+    _handle.style.touchAction = 'none';   // let us own touch gestures on the handle
+    _handle.addEventListener('pointerdown', (e) => {
+      if ((e.pointerType === 'mouse' && e.button !== 0) || !_targetBlock) return;
+      e.preventDefault(); // prevent text selection / scrolling
 
-      _dragging = _targetBlock;
-      _startY   = e.clientY;
-      _active   = false;
+      _dragging  = _targetBlock;
+      _startY    = e.clientY;
+      _active    = false;
+      _pointerId = e.pointerId;
+      // Capture so move/up come to the handle even if the finger/cursor leaves it.
+      try { _handle.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
 
-      document.addEventListener('mousemove', _onMove);
-      document.addEventListener('mouseup',   _onUp);
+      _handle.addEventListener('pointermove',   _onMove);
+      _handle.addEventListener('pointerup',     _onUp);
+      _handle.addEventListener('pointercancel', _onUp);
       document.body.style.userSelect = 'none';
       document.body.style.cursor     = 'grabbing';
     });
@@ -113,8 +127,10 @@ export const DragReorder = {
     function _onUp() {
       cancelAnimationFrame(_moveRaf);
       _moveRaf = null;
-      document.removeEventListener('mousemove', _onMove);
-      document.removeEventListener('mouseup',   _onUp);
+      _handle.removeEventListener('pointermove',   _onMove);
+      _handle.removeEventListener('pointerup',     _onUp);
+      _handle.removeEventListener('pointercancel', _onUp);
+      try { _handle.releasePointerCapture(_pointerId); } catch { /* already released */ }
       document.body.style.userSelect = '';
       document.body.style.cursor     = '';
 

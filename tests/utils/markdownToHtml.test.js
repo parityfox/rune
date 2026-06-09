@@ -24,6 +24,11 @@ describe('markdownToHtml (#85)', () => {
     expect(markdownToHtml('- a\n  - a1\n- b')).toBe('<ul><li>a<ul><li>a1</li></ul></li><li>b</li></ul>');
   });
 
+  it('nested blockquotes', () => {
+    expect(markdownToHtml('> outer\n>\n>> inner'))
+      .toBe('<blockquote><p>outer</p><blockquote>inner</blockquote></blockquote>');
+  });
+
   it('blockquote, fenced code, hr', () => {
     expect(markdownToHtml('> q')).toBe('<blockquote>q</blockquote>');
     expect(markdownToHtml('```js\nconst x=1\n```')).toBe('<pre><code class="language-js">const x=1</code></pre>');

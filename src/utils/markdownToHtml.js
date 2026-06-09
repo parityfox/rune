@@ -43,11 +43,15 @@ export function markdownToHtml(md) {
       if (html) { out.push(html); i = next; continue; }
     }
 
-    // Blockquote
+    // Blockquote (recursive: `>>` nests, inner Markdown is parsed)
     if (/^\s*>\s?/.test(line)) {
-      const quote = [];
-      while (i < lines.length && /^\s*>\s?/.test(lines[i])) { quote.push(lines[i].replace(/^\s*>\s?/, '')); i++; }
-      out.push(`<blockquote>${inline(quote.join('\n')).replace(/\n/g, '<br>')}</blockquote>`);
+      const inner = [];
+      while (i < lines.length && /^\s*>\s?/.test(lines[i])) { inner.push(lines[i].replace(/^\s*>\s?/, '')); i++; }
+      let body = markdownToHtml(inner.join('\n'));
+      // Keep simple one-paragraph quotes as <blockquote>text</blockquote>.
+      const m = body.match(/^<p>([\s\S]*)<\/p>$/);
+      if (m && !m[1].includes('<p>') && !m[1].includes('<blockquote>')) body = m[1];
+      out.push(`<blockquote>${body}</blockquote>`);
       continue;
     }
 

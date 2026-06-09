@@ -27,6 +27,7 @@ export { CommentStore } from './comments.js';
 export { bindCommentsUI } from './comments-ui.js';
 export { SuggestionStore } from './suggestions.js';
 export { bindSuggestionMode } from './suggestion-mode.js';
+export { PresenceBar } from '../src/ui/PresenceBar.js';
 
 import { bindParagraph } from './paragraph-binding.js';
 import { bindPresence } from './presence.js';

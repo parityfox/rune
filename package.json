@@ -16,7 +16,7 @@
     "./react": { "types": "./types/react.d.ts", "default": "./adapters/react/index.js" },
     "./web-component": { "types": "./types/web-component.d.ts", "default": "./adapters/web-component/rune-editor.js" },
     "./styles": "./styles/rune.css",
-    "./collab": "./collab/index.js",
+    "./collab": { "types": "./types/collab.d.ts", "default": "./collab/index.js" },
     "./collab/*": "./collab/*",
     "./server/*": "./server/*"
   },

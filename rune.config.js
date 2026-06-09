@@ -41,6 +41,8 @@ const config = {
     textColor:      true,   // text color palette
     textBackground: true,   // highlight / background color
     highlight:      true,   // marker-pen highlight (<mark>)
+    mention:        false,  // @-mention autocomplete (needs editor.fetchMentions)
+    hashtag:        false,  // #tag autocomplete
   },
 
   // ── Formatting ─────────────────────────────────────────
@@ -60,6 +62,7 @@ const config = {
     formatPainter:     true,  // copy format from selection, paint onto another
     smartTypography:   true,  // -- → —, (c) → ©, "quotes" → curly, linkify on paste
     inlineMarkdown:    true,  // **bold**, *italic*, `code`, ~~strike~~ as you type
+    emoji:             true,  // :shortcode: emoji autocomplete
   },
 
   // ── Toolbar ───────────────────────────────────────────────

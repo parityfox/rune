@@ -12,6 +12,8 @@ import { FontFamily }     from './marks/FontFamily.js';
 import { TextColor }      from './marks/TextColor.js';
 import { TextBackground } from './marks/TextBackground.js';
 import { Highlight }      from './marks/Highlight.js';
+import { Mention }        from './marks/Mention.js';
+import { Hashtag }        from './marks/Hashtag.js';
 
 // Blocks
 import { Paragraph }        from './blocks/Paragraph.js';
@@ -40,19 +42,22 @@ import { DragReorder }       from './plugins/DragReorder.js';
 import { FormatPainter }     from './plugins/FormatPainter.js';
 import { SmartTypography }   from './plugins/SmartTypography.js';
 import { InlineMarkdown }    from './plugins/InlineMarkdown.js';
+import { Emoji }             from './plugins/Emoji.js';
 
 // Named exports
 export {
   Bold, Italic, Underline, Strike, Code, Link, Superscript, Subscript,
   FontSize, FontFamily, TextColor, TextBackground, Highlight,
+  Mention, Hashtag,
   Paragraph, Heading, BulletList, OrderedList, Blockquote, CodeBlock,
   HorizontalRule, Callout, TaskList, VideoEmbed, Image, Table,
   TextAlign, LineHeight, Indent, Outdent,
   MarkdownShortcuts, FindReplace, DragReorder, FormatPainter,
-  SmartTypography, InlineMarkdown,
+  SmartTypography, InlineMarkdown, Emoji,
 };
 
-// StarterKit — everything bundled
+// StarterKit — everything bundled. Mention/Hashtag are opt-in (they need a data
+// source / are opinionated), so they're exported but not bundled here.
 export const StarterKit = [
   Paragraph, Heading, BulletList, OrderedList, Blockquote, CodeBlock,
   HorizontalRule, Callout, TaskList, VideoEmbed, Image, Table,
@@ -60,5 +65,5 @@ export const StarterKit = [
   FontSize, FontFamily, TextColor, TextBackground, Highlight,
   TextAlign, LineHeight, Indent, Outdent,
   MarkdownShortcuts, FindReplace, DragReorder, FormatPainter,
-  SmartTypography, InlineMarkdown,
+  SmartTypography, InlineMarkdown, Emoji,
 ];

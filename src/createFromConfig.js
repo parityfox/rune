@@ -12,6 +12,8 @@ import { FontFamily }      from './extensions/marks/FontFamily.js';
 import { TextColor }       from './extensions/marks/TextColor.js';
 import { TextBackground }  from './extensions/marks/TextBackground.js';
 import { Highlight }       from './extensions/marks/Highlight.js';
+import { Mention }         from './extensions/marks/Mention.js';
+import { Hashtag }         from './extensions/marks/Hashtag.js';
 import { Paragraph }       from './extensions/blocks/Paragraph.js';
 import { Heading }         from './extensions/blocks/Heading.js';
 import { BulletList }      from './extensions/blocks/BulletList.js';
@@ -35,6 +37,7 @@ import { DragReorder }       from './extensions/plugins/DragReorder.js';
 import { FormatPainter }     from './extensions/plugins/FormatPainter.js';
 import { SmartTypography }   from './extensions/plugins/SmartTypography.js';
 import { InlineMarkdown }    from './extensions/plugins/InlineMarkdown.js';
+import { Emoji }             from './extensions/plugins/Emoji.js';
 
 // Map config keys → extension objects
 const BLOCK_MAP = {
@@ -66,6 +69,8 @@ const MARK_MAP = {
   textColor:      TextColor,
   textBackground: TextBackground,
   highlight:      Highlight,
+  mention:        Mention,
+  hashtag:        Hashtag,
 };
 
 const FORMATTING_MAP = {
@@ -118,6 +123,7 @@ export function createFromConfig(target, config, overrides = {}) {
   if (plugins.formatPainter !== false) extensions.push(FormatPainter);
   if (plugins.smartTypography !== false) extensions.push(SmartTypography);
   if (plugins.inlineMarkdown  !== false) extensions.push(InlineMarkdown);
+  if (plugins.emoji           !== false) extensions.push(Emoji);
 
   // ── Resolve toolbar items (skip disabled features) ─────────
   const enabledNames = new Set([

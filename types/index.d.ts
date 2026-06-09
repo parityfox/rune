@@ -31,7 +31,22 @@ export interface EditorOptions {
   history?: EditorHistory | ((editor: Editor) => EditorHistory);
   /** Async image upload hook returning the hosted URL. */
   uploadImage?: (file: File) => Promise<string>;
+  /** Data source for the @mention extension. */
+  fetchMentions?: (query: string) => Promise<Array<{ id?: string | number; label?: string; name?: string }>>;
+  /** Data source for the #hashtag extension (defaults to create-as-typed). */
+  fetchHashtags?: (query: string) => Promise<Array<{ label?: string; value?: string }>>;
+  onMention?: (item: any, editor: Editor) => void;
+  onHashtag?: (value: string, editor: Editor) => void;
   [key: string]: unknown;
+}
+
+export interface SuggestionConfig {
+  char: string;
+  allowSpaces?: boolean;
+  startOfLine?: boolean;
+  items: (ctx: { query: string; editor: Editor }) => any[] | Promise<any[]>;
+  render: (item: any) => HTMLElement;
+  command: (ctx: { editor: Editor; item: any; range: Range }) => void;
 }
 
 export type ExtensionType = 'mark' | 'block' | 'formatting' | 'plugin';
@@ -84,6 +99,7 @@ export interface Extension {
   keymap?: Record<string, (editor: Editor) => void>;
   inputRules?: InputRule[];
   pasteRules?: PasteRule[];
+  suggestion?: SuggestionConfig;
   init?: (editor: Editor) => void;
   toolbarItem?: ToolbarItem;
   slashItem?: SlashItem;
@@ -250,6 +266,9 @@ export const FontFamily: Extension;
 export const TextColor: Extension;
 export const TextBackground: Extension;
 export const Highlight: Extension;
+export const Mention: Extension;
+export const Hashtag: Extension;
+export const Emoji: Extension;
 export const Paragraph: Extension;
 export const Heading: Extension;
 export const BulletList: Extension;

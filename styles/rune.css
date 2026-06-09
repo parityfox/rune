@@ -1254,3 +1254,39 @@ thead .rune-table-cell {
 .rune-content mark.rune-hl-blue   { background: rgba(59, 130, 246, 0.40); }
 .rune-content mark.rune-hl-pink   { background: rgba(236, 72, 153, 0.38); }
 .rune-content mark.rune-hl-orange { background: rgba(249, 115, 22, 0.40); }
+
+/* ── Suggestion menu (@mention / #hashtag / :emoji) ──────────── */
+.rune-suggestion-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 180px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--rune-color-bg);
+  border: 1px solid var(--rune-color-border);
+  border-radius: var(--rune-radius);
+  box-shadow: var(--rune-shadow-md);
+  padding: 4px;
+}
+.rune-suggestion-item {
+  padding: 6px 10px;
+  border-radius: var(--rune-radius-sm);
+  font-size: 14px;
+  color: var(--rune-color-fg);
+  cursor: pointer;
+}
+.rune-suggestion-item.is-active { background: var(--rune-color-hover); }
+.rune-suggestion-row { white-space: nowrap; }
+
+.rune-content .rune-mention {
+  color: var(--rune-color-accent);
+  background: var(--rune-color-active-bg);
+  border-radius: 4px;
+  padding: 0 3px;
+  font-weight: 500;
+}
+.rune-content .rune-hashtag {
+  color: var(--rune-color-accent);
+  text-decoration: none;
+  cursor: pointer;
+}

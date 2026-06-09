@@ -102,6 +102,16 @@ export class Schema {
     return this._toolbarItemsCache;
   }
 
+  /** Collect trigger-character suggestion configs from every extension. */
+  getSuggestions() {
+    const list = [];
+    for (const ext of [...this._blocks.values(), ...this._marks.values(), ...this._formatting.values(), ...this._plugins.values()]) {
+      if (ext.suggestion) list.push({ ...ext.suggestion, extension: ext });
+      if (Array.isArray(ext.suggestions)) list.push(...ext.suggestions);
+    }
+    return list;
+  }
+
   /** Collect input rules from every extension (cached). */
   getInputRules() {
     if (!this._inputRulesCache) {

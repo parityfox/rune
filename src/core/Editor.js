@@ -483,6 +483,12 @@ export class Editor {
         this.slashMenu = new SlashMenu(this);
       });
     }
+    if (this.schema.getSuggestions().length) {
+      import('../ui/Suggestion.js').then(({ Suggestion }) => {
+        if (this._destroyed) return;
+        this.suggestion = new Suggestion(this, this.schema.getSuggestions());
+      });
+    }
   }
 
   // ─── Event Binding ───────────────────────────────────────────────────────
@@ -852,6 +858,7 @@ export class Editor {
     this.toolbar?.destroy?.();
     this.bubbleMenu?.destroy?.();
     this.slashMenu?.destroy?.();
+    this.suggestion?.destroy?.();
 
     this.wrapper.remove();
     this.target.classList.remove('rune-editor', 'rune-focused', 'rune-disabled');

@@ -11,6 +11,15 @@ function mockEditor(item) {
   };
 }
 
+function mockEditorMulti(items) {
+  return {
+    options: { toolbar: { items: items.map(i => i.name) } },
+    schema: { getToolbarItems: () => items },
+    events: new EventBus(),
+    cmd: vi.fn(),
+  };
+}
+
 describe('Toolbar aria-pressed (#56)', () => {
   it('reflects toggle state via aria-pressed on plain toggle buttons', async () => {
     let active = false;
@@ -47,6 +56,28 @@ describe('Toolbar aria-pressed (#56)', () => {
     // A keyboard activation dispatches 'click' with no preceding 'mousedown'.
     btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(editor.cmd).toHaveBeenCalledWith('toggleBold');
+    tb.destroy();
+  });
+
+  it('uses roving tabindex and moves focus with arrow keys (#55)', () => {
+    const items = [
+      { name: 'bold', title: 'Bold', icon: 'B', action: 'toggleBold', type: 'mark' },
+      { name: 'italic', title: 'Italic', icon: 'I', action: 'toggleItalic', type: 'mark' },
+    ];
+    const editor = mockEditorMulti(items);
+    const tb = new Toolbar(editor);
+    document.body.appendChild(tb.el);   // focus() only updates activeElement when attached
+    const btns = [...tb.el.querySelectorAll('button')];
+
+    expect(btns[0].getAttribute('tabindex')).toBe('0');
+    expect(btns[1].getAttribute('tabindex')).toBe('-1');
+
+    btns[0].focus();
+    tb.el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(btns[1].getAttribute('tabindex')).toBe('0');
+    expect(btns[0].getAttribute('tabindex')).toBe('-1');
+    expect(document.activeElement).toBe(btns[1]);
+
     tb.destroy();
   });
 

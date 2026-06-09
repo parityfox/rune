@@ -12,7 +12,28 @@ export class Toolbar {
     this._tipTimer = null;
     this._updateRaf = null;  // rAF handle coalescing active-state recomputes
     this._render();
+    this._setupRovingTabindex();
     this._bindEditorEvents();
+  }
+
+  // WAI-ARIA toolbar pattern: one tab stop, arrow keys move between controls.
+  _setupRovingTabindex() {
+    const btns = () => [...this.el.querySelectorAll('button')];
+    btns().forEach((b, i) => b.setAttribute('tabindex', i === 0 ? '0' : '-1'));
+    this.el.addEventListener('keydown', (e) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+      const list = btns();
+      const cur = list.indexOf(document.activeElement);
+      if (cur === -1) return;
+      e.preventDefault();
+      let next = cur;
+      if (e.key === 'ArrowRight') next = (cur + 1) % list.length;
+      else if (e.key === 'ArrowLeft') next = (cur - 1 + list.length) % list.length;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = list.length - 1;
+      list.forEach((b, i) => b.setAttribute('tabindex', i === next ? '0' : '-1'));
+      list[next].focus();
+    });
   }
 
   // ── Tooltip (per-instance so destroying one editor can't remove another's) ──

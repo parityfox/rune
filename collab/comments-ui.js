@@ -55,8 +55,17 @@ export function bindCommentsUI(editor, doc, store, { onChange } = {}) {
     return store.add({ blockId, from: Math.min(a, z), to: Math.max(a, z), text, author });
   }
 
-  store.observe(render);
-  const onResize = () => render();
+  // Coalesce renders (full getClientRects pass) to one per frame; store changes
+  // and resizes can burst.
+  const _win = cdoc.defaultView || globalThis;
+  let _renderRaf = null;
+  const scheduleRender = () => {
+    if (_renderRaf) return;
+    _renderRaf = _win.requestAnimationFrame(() => { _renderRaf = null; render(); });
+  };
+
+  store.observe(scheduleRender);
+  const onResize = () => scheduleRender();
   cdoc.defaultView.addEventListener('resize', onResize);
   render();
 
@@ -67,7 +76,8 @@ export function bindCommentsUI(editor, doc, store, { onChange } = {}) {
     destroy() {
       if (_destroyed) return;
       _destroyed = true;
-      store.unobserve(render);
+      _win.cancelAnimationFrame?.(_renderRaf);
+      store.unobserve(scheduleRender);
       cdoc.defaultView.removeEventListener('resize', onResize);
       layer.remove();
     },

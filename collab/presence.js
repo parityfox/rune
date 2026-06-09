@@ -126,11 +126,23 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
   };
   const onSel = () => { clearTimeout(selThrottle); selThrottle = setTimeout(writeCursor, 50); };
 
+  // Coalesce renders: render() does a full getClientRects layout pass and runs
+  // on every awareness change AND every deep block change (i.e. every local
+  // keystroke). Batch bursts into one paint per frame. We must still render on
+  // local edits — remote carets are RelativePositions that need re-resolving as
+  // text shifts — so this throttles rather than skips.
+  const _win = cdoc.defaultView || globalThis;
+  let _renderRaf = null;
+  const scheduleRender = () => {
+    if (_renderRaf) return;
+    _renderRaf = _win.requestAnimationFrame(() => { _renderRaf = null; render(); });
+  };
+
   content.addEventListener('input', onInput);
   cdoc.addEventListener('selectionchange', onSel);
-  awareness.on('change', render);
-  blocks.observeDeep(render);                  // reposition carets when content shifts
-  const onResize = () => render();
+  awareness.on('change', scheduleRender);
+  blocks.observeDeep(scheduleRender);          // reposition carets when content shifts
+  const onResize = () => scheduleRender();
   cdoc.defaultView?.addEventListener('resize', onResize);
 
   writeCursor();
@@ -143,10 +155,11 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
       _destroyed = true;
       clearTimeout(typingTimer);
       clearTimeout(selThrottle);
+      _win.cancelAnimationFrame?.(_renderRaf);
       content.removeEventListener('input', onInput);
       cdoc.removeEventListener('selectionchange', onSel);
-      awareness.off('change', render);
-      blocks.unobserveDeep(render);
+      awareness.off('change', scheduleRender);
+      blocks.unobserveDeep(scheduleRender);
       cdoc.defaultView?.removeEventListener('resize', onResize);
       awareness.setLocalState(null);           // remove our presence
       layer.remove();

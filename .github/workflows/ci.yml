@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      # Importing the package must not touch DOM globals at module load. On the
+      # Node 20 matrix entry `navigator` is undefined, so this also guards the
+      # SSR-safe import path (Next.js / Nuxt).
+      - name: SSR-safe import smoke test
+        run: >
+          node --input-type=module -e
+          "import('./src/index.js').then(() => console.log('import ok')).catch((e) => { console.error(e); process.exit(1); })"

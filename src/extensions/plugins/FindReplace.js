@@ -128,15 +128,19 @@ export const FindReplace = {
 
       replBtn.addEventListener('mousedown', (e) => {
         e.preventDefault();
+        // Splice the replaced match out and advance to the NEXT one, rather than
+        // re-scanning (which reset navigation to match #1 and could re-match the
+        // freshly-inserted replacement text). #31, #32
         _replaceCurrent(replInput.value);
-        _batchHighlight(_query);
+        if (_matches.length) _activateMatch(_current);
         _updateCount();
       });
 
       replAllBtn.addEventListener('mousedown', (e) => {
         e.preventDefault();
+        // No re-scan: all matches are gone and the replacement text must not be
+        // re-highlighted as new matches. #32
         _replaceAll(replInput.value);
-        _batchHighlight(_query);
         _updateCount();
       });
 
@@ -247,10 +251,14 @@ export const FindReplace = {
       if (_current < 0 || _current >= _matches.length) return;
       editor.history.saveNow();
       const mark = _matches[_current];
-      mark.parentNode.replaceChild(document.createTextNode(replacement), mark);
-      _matches.splice(_current, 1);
+      const parent = mark.parentNode;
+      parent.replaceChild(document.createTextNode(replacement), mark);
+      parent.normalize();                          // merge the new text with neighbours
+      _matches.splice(_current, 1);                // remove it; _current now points at the next
       if (_current >= _matches.length) _current = _matches.length - 1;
+      _replacing = true;
       editor._notifyChange();
+      _replacing = false;
     }
 
     function _replaceAll(replacement) {
@@ -261,7 +269,9 @@ export const FindReplace = {
       }
       _matches = [];
       _current = -1;
+      _replacing = true;
       editor._notifyChange();
+      _replacing = false;
     }
   },
 };

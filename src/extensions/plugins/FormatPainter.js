@@ -132,12 +132,24 @@ function _applyFormat(editor, format) {
   if (format.underline     !== document.queryCommandState('underline'))     document.execCommand('underline');
   if (format.strikeThrough !== document.queryCommandState('strikeThrough')) document.execCommand('strikeThrough');
 
-  // 2. Apply inline styles via extract → modify → re-insert
+  // 2. Apply inline styles. Skip entirely when no styles were captured — the
+  // boolean marks above already ran, and extract/re-insert here would only
+  // normalise/merge nodes and drop the selection for nothing.
+  const hasStyle = format.fontSize || format.fontFamily || format.color || format.background;
+  if (!hasStyle) { editor._notifyChange(); return; }
+
   const sel2 = window.getSelection();
   if (!sel2 || !sel2.rangeCount) { editor._notifyChange(); return; }
   const range = sel2.getRangeAt(0);
-  const frag  = range.extractContents();
 
+  // Extracting across block boundaries collapses separate paragraphs into one
+  // inline span — bail rather than merge blocks.
+  if (_blockOf(editor, range.startContainer) !== _blockOf(editor, range.endContainer)) {
+    editor._notifyChange();
+    return;
+  }
+
+  const frag = range.extractContents();
   // Strip existing font/color styles so the new ones are unambiguous
   frag.querySelectorAll('span').forEach(s => {
     s.style.fontSize = '';
@@ -148,19 +160,26 @@ function _applyFormat(editor, format) {
     if (!s.getAttribute('style')?.trim()) s.replaceWith(...s.childNodes);
   });
 
-  // Wrap with the captured styles if any were set
-  const hasStyle = format.fontSize || format.fontFamily || format.color || format.background;
-  if (hasStyle) {
-    const span = document.createElement('span');
-    if (format.fontSize)   span.style.fontSize   = format.fontSize;
-    if (format.fontFamily) span.style.fontFamily = format.fontFamily;
-    if (format.color)      span.style.color      = format.color;
-    if (format.background) span.style.background = format.background;
-    span.appendChild(frag);
-    range.insertNode(span);
-  } else {
-    range.insertNode(frag);
-  }
+  const span = document.createElement('span');
+  if (format.fontSize)   span.style.fontSize   = format.fontSize;
+  if (format.fontFamily) span.style.fontFamily = format.fontFamily;
+  if (format.color)      span.style.color      = format.color;
+  if (format.background) span.style.background = format.background;
+  span.appendChild(frag);
+  range.insertNode(span);
+
+  // Restore the selection over the painted span instead of leaving it collapsed.
+  const r = document.createRange();
+  r.selectNodeContents(span);
+  sel2.removeAllRanges();
+  sel2.addRange(r);
 
   editor._notifyChange();
+}
+
+// The top-level block (direct child of content) containing a node.
+function _blockOf(editor, node) {
+  let n = node;
+  while (n && n.parentNode !== editor.content) n = n.parentNode;
+  return n;
 }

@@ -1248,3 +1248,11 @@ mark.rune-search-match.is-active {
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Highlight mark ─────────────────────────────────────────── */
+.rune-content mark { background: transparent; color: inherit; border-radius: 2px; padding: 0 1px; }
+.rune-content mark.rune-hl-yellow { background: rgba(250, 204, 21, 0.45); }
+.rune-content mark.rune-hl-green  { background: rgba(34, 197, 94, 0.40); }
+.rune-content mark.rune-hl-blue   { background: rgba(59, 130, 246, 0.40); }
+.rune-content mark.rune-hl-pink   { background: rgba(236, 72, 153, 0.38); }
+.rune-content mark.rune-hl-orange { background: rgba(249, 115, 22, 0.40); }

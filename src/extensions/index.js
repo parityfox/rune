@@ -11,6 +11,7 @@ import { FontSize }       from './marks/FontSize.js';
 import { FontFamily }     from './marks/FontFamily.js';
 import { TextColor }      from './marks/TextColor.js';
 import { TextBackground } from './marks/TextBackground.js';
+import { Highlight }      from './marks/Highlight.js';
 
 // Blocks
 import { Paragraph }        from './blocks/Paragraph.js';
@@ -41,7 +42,7 @@ import { FormatPainter }     from './plugins/FormatPainter.js';
 // Named exports
 export {
   Bold, Italic, Underline, Strike, Code, Link, Superscript, Subscript,
-  FontSize, FontFamily, TextColor, TextBackground,
+  FontSize, FontFamily, TextColor, TextBackground, Highlight,
   Paragraph, Heading, BulletList, OrderedList, Blockquote, CodeBlock,
   HorizontalRule, Callout, TaskList, VideoEmbed, Image, Table,
   TextAlign, LineHeight, Indent, Outdent,
@@ -53,7 +54,7 @@ export const StarterKit = [
   Paragraph, Heading, BulletList, OrderedList, Blockquote, CodeBlock,
   HorizontalRule, Callout, TaskList, VideoEmbed, Image, Table,
   Bold, Italic, Underline, Strike, Code, Link, Superscript, Subscript,
-  FontSize, FontFamily, TextColor, TextBackground,
+  FontSize, FontFamily, TextColor, TextBackground, Highlight,
   TextAlign, LineHeight, Indent, Outdent,
   MarkdownShortcuts, FindReplace, DragReorder, FormatPainter,
 ];

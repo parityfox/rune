@@ -17,6 +17,7 @@ export const TextBackground = {
   name: 'textBackground',
   type: 'mark',
   tag: 'span',
+  hasMark: (el) => el.tagName === 'SPAN' && !!(el.style.background || el.style.backgroundColor),
 
   commands(editor) {
     return {
@@ -102,6 +103,6 @@ export const TextBackground = {
       return wrap;
     },
 
-    isActive: () => false,
+    isActive: (editor) => editor.isActive('textBackground'),
   },
 };

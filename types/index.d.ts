@@ -193,10 +193,6 @@ export function createFromConfig(
 
 // ── Extensions ────────────────────────────────────────────────
 export const StarterKit: Extension[];
-export const Blocks: Extension[];
-export const Marks: Extension[];
-export const Formatting: Extension[];
-export const Plugins: Extension[];
 
 export const Bold: Extension;
 export const Italic: Extension;
@@ -210,6 +206,7 @@ export const FontSize: Extension;
 export const FontFamily: Extension;
 export const TextColor: Extension;
 export const TextBackground: Extension;
+export const Highlight: Extension;
 export const Paragraph: Extension;
 export const Heading: Extension;
 export const BulletList: Extension;
@@ -226,7 +223,6 @@ export const TextAlign: Extension;
 export const LineHeight: Extension;
 export const Indent: Extension;
 export const Outdent: Extension;
-export const ClearFormat: Extension;
 export const MarkdownShortcuts: Extension;
 export const FindReplace: Extension;
 export const DragReorder: Extension;

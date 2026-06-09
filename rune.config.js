@@ -40,6 +40,7 @@ const config = {
     fontFamily:     true,   // font family picker
     textColor:      true,   // text color palette
     textBackground: true,   // highlight / background color
+    highlight:      true,   // marker-pen highlight (<mark>)
   },
 
   // ── Formatting ─────────────────────────────────────────
@@ -66,7 +67,7 @@ const config = {
       'bold', 'italic', 'underline', 'strike', 'superscript', 'subscript', '|',
       'heading', 'bulletList', 'orderedList', 'taskList', 'blockquote', 'codeBlock', 'horizontalRule', '|',
       'callout', 'videoEmbed', 'image', 'table', '|',
-      'fontFamily', 'fontSize', 'textColor', 'textBackground', '|',
+      'fontFamily', 'fontSize', 'textColor', 'textBackground', 'highlight', '|',
       'textAlign', 'lineHeight', '|',
       'outdent', 'indent', '|',
       'link', 'code', '|',
@@ -77,7 +78,7 @@ const config = {
   // ── Bubble Menu ───────────────────────────────────────────
   bubbleMenu: {
     enabled: true,
-    items: ['bold', 'italic', 'underline', 'strike', 'superscript', 'subscript', '|', 'textColor', 'textBackground', '|', 'link'],
+    items: ['bold', 'italic', 'underline', 'strike', 'superscript', 'subscript', '|', 'textColor', 'textBackground', 'highlight', '|', 'link'],
   },
 
   // ── Slash Menu ────────────────────────────────────────────

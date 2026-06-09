@@ -13,6 +13,7 @@ export const FontSize = {
   name: 'fontSize',
   type: 'mark',
   tag: 'span',
+  hasMark: (el) => el.tagName === 'SPAN' && !!el.style.fontSize,
 
   commands(editor) {
     return {
@@ -131,6 +132,6 @@ export const FontSize = {
       return wrap;
     },
 
-    isActive: () => false,
+    isActive: (editor) => editor.isActive('fontSize'),
   },
 };

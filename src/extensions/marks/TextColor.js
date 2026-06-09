@@ -17,6 +17,7 @@ export const TextColor = {
   name: 'textColor',
   type: 'mark',
   tag: 'span',
+  hasMark: (el) => el.tagName === 'SPAN' && !!el.style.color,
 
   commands(editor) {
     return {
@@ -88,7 +89,7 @@ export const TextColor = {
       return wrap;
     },
 
-    isActive: () => false,
+    isActive: (editor) => editor.isActive('textColor'),
   },
 };
 

@@ -11,6 +11,7 @@ import { FontSize }        from './extensions/marks/FontSize.js';
 import { FontFamily }      from './extensions/marks/FontFamily.js';
 import { TextColor }       from './extensions/marks/TextColor.js';
 import { TextBackground }  from './extensions/marks/TextBackground.js';
+import { Highlight }       from './extensions/marks/Highlight.js';
 import { Paragraph }       from './extensions/blocks/Paragraph.js';
 import { Heading }         from './extensions/blocks/Heading.js';
 import { BulletList }      from './extensions/blocks/BulletList.js';
@@ -62,6 +63,7 @@ const MARK_MAP = {
   fontFamily:     FontFamily,
   textColor:      TextColor,
   textBackground: TextBackground,
+  highlight:      Highlight,
 };
 
 const FORMATTING_MAP = {

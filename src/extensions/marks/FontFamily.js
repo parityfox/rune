@@ -16,6 +16,7 @@ export const FontFamily = {
   name: 'fontFamily',
   type: 'mark',
   tag: 'span',
+  hasMark: (el) => el.tagName === 'SPAN' && !!el.style.fontFamily,
 
   commands(editor) {
     return {
@@ -93,6 +94,6 @@ export const FontFamily = {
       return wrap;
     },
 
-    isActive: () => false,
+    isActive: (editor) => editor.isActive('fontFamily'),
   },
 };

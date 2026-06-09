@@ -38,6 +38,9 @@
   ],
   "author": "ParityFox (https://parityfox.com)",
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/parityfox/rune.git"

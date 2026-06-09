@@ -1,6 +1,6 @@
 import { uid } from '../src/utils/id.js';
 import { sanitize } from '../src/utils/html.js';
-import { blockHostAt, textIndexInHost, flattenHosts, domPointInHost, _internals } from './paragraph-binding.js';
+import { blockHostAt, textIndexInHost, flattenHosts, domPointInHost, _internals, LOCAL } from './paragraph-binding.js';
 
 /**
  * Suggestion mode (#15) — intercept typing so edits become tracked changes.
@@ -43,6 +43,15 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
     return idx < 0 ? null : { block, id: block.get('id'), index: idx };
   }
 
+  // Re-render a single block's text from the model. Suggestion-mode tags its
+  // mutations LOCAL so the paragraph binding skips its (full-document) remote
+  // re-render path; we repaint just the affected block here instead.
+  function renderBlock(block) {
+    const id = block.get('id');
+    const h = flattenHosts(content).find((x) => x.el.getAttribute('data-id') === id);
+    if (h) _internals.renderInline(h.host, block.get('text').toDelta());
+  }
+
   function setCaret(id, index) {
     const host = flattenHosts(content).find((h) => h.el.getAttribute('data-id') === id)?.host;
     if (!host) return;
@@ -82,7 +91,8 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
       doc.transact(() => {
         yt.format(rng.from, rng.to - rng.from, { suggestion: { id: uid(), type: 'delete', author, ...(color ? { color } : {}) } });
         if (adding) yt.insert(rng.to, e.data, { suggestion: { id: uid(), type: 'insert', author, ...(color ? { color } : {}) } });
-      });
+      }, LOCAL);
+      renderBlock(rng.block);
       setCaret(rng.id, adding ? rng.to + e.data.length : rng.from);   // replace: caret after new text; delete: caret at start
       return;
     }
@@ -94,7 +104,8 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
       const yt = pos.block.get('text');
       const prev = pos.index > 0 ? sugAt(yt, pos.index - 1) : null;
       const sug = (prev && prev.type === 'insert' && prev.author === author) ? prev : { id: uid(), type: 'insert', author, ...(color ? { color } : {}) };
-      yt.insert(pos.index, e.data, { suggestion: sug });   // binding re-renders this block
+      doc.transact(() => yt.insert(pos.index, e.data, { suggestion: sug }), LOCAL);
+      renderBlock(pos.block);
       setCaret(pos.id, pos.index + e.data.length);          // place caret after the typed text
     } else if (e.inputType === 'deleteContentBackward') {
       const pos = caretPos();
@@ -102,13 +113,16 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
       e.preventDefault();
       const yt = pos.block.get('text');
       const left = sugAt(yt, pos.index - 1);
-      if (left && left.type === 'insert' && left.author === author) {
-        yt.delete(pos.index - 1, 1);                        // un-type your own pending insertion
-      } else {
-        const right = sugAt(yt, pos.index);                 // merge with an adjacent delete run
-        const sug = (right && right.type === 'delete' && right.author === author) ? right : { id: uid(), type: 'delete', author, ...(color ? { color } : {}) };
-        yt.format(pos.index - 1, 1, { suggestion: sug });   // mark, don't remove
-      }
+      doc.transact(() => {
+        if (left && left.type === 'insert' && left.author === author) {
+          yt.delete(pos.index - 1, 1);                      // un-type your own pending insertion
+        } else {
+          const right = sugAt(yt, pos.index);               // merge with an adjacent delete run
+          const sug = (right && right.type === 'delete' && right.author === author) ? right : { id: uid(), type: 'delete', author, ...(color ? { color } : {}) };
+          yt.format(pos.index - 1, 1, { suggestion: sug }); // mark, don't remove
+        }
+      }, LOCAL);
+      renderBlock(pos.block);
       setCaret(pos.id, pos.index - 1);
     }
   };
@@ -135,11 +149,12 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
       const delta = _internals.serializeInline(tmp);
       doc.transact(() => {
         for (const op of delta) { yt.insert(at, op.insert, { ...(op.attributes || {}), suggestion: sug }); at += op.insert.length; }
-      });
+      }, LOCAL);
     } else {
       const text = dt.getData('text/plain');
-      if (text) { yt.insert(at, text, { suggestion: sug }); at += text.length; }
+      if (text) { doc.transact(() => yt.insert(at, text, { suggestion: sug }), LOCAL); at += text.length; }
     }
+    renderBlock(pos.block);
     setCaret(pos.id, at);
   };
 

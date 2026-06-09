@@ -17,7 +17,7 @@ import { MARKS, markForTag, sameAttrs, blockTypeForEl, isPlain, kindOf, BLOCKS }
  * moves — unchanged blocks (and their live selection/IME) are never touched.
  */
 
-const LOCAL = 'local';
+export const LOCAL = 'local';
 
 const textOf = (delta) => delta.map((o) => o.insert).join('');
 const charAttrs = (delta) => {

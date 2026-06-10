@@ -489,8 +489,16 @@ export class Editor {
   }
 
   _initPlugins() {
-    for (const plugin of this.schema.plugins) {
-      if (typeof plugin.init === 'function') plugin.init(this);
+    // Any extension (block, mark, formatting, or plugin) may expose init(editor)
+    // to wire up DOM listeners — same contract as the runtime use() path.
+    const all = [
+      ...this.schema.blocks,
+      ...this.schema.marks,
+      ...this.schema.formatting,
+      ...this.schema.plugins,
+    ];
+    for (const ext of all) {
+      if (typeof ext.init === 'function') ext.init(this);
     }
   }
 

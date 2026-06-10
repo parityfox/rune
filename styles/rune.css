@@ -869,12 +869,12 @@
 
 .rune-content figure.rune-video-block {
   margin: 8px 0;
+  max-width: 100%;
   background: none !important;
 }
 .rune-video-wrap {
   position: relative;
-  padding-bottom: 56.25%; /* 16:9 */
-  height: 0;
+  aspect-ratio: 16 / 9;   /* default ratio; an explicit inline height overrides it */
   overflow: hidden;
   border-radius: var(--rune-radius);
   background: var(--rune-color-surface);
@@ -886,6 +886,54 @@
   height: 100%;
   border: none;
 }
+
+/* Drag-to-resize handles — east (width), south (height), corner (both). */
+.rune-video-handle {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .12s ease;
+  touch-action: none;
+}
+.rune-video-handle::before {
+  content: '';
+  border-radius: 4px;
+  background: var(--rune-color-accent);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .35);
+}
+/* East — right edge */
+.rune-video-handle--e {
+  top: 0; right: 0;
+  width: 14px; height: 100%;
+  cursor: ew-resize;
+}
+.rune-video-handle--e::before { width: 5px; height: 44px; max-height: 60%; }
+/* South — bottom edge */
+.rune-video-handle--s {
+  left: 0; bottom: 0;
+  width: 100%; height: 14px;
+  cursor: ns-resize;
+}
+.rune-video-handle--s::before { height: 5px; width: 44px; max-width: 60%; }
+/* South-east — corner (sits above the edge handles) */
+.rune-video-handle--se {
+  right: 0; bottom: 0;
+  width: 20px; height: 20px;
+  z-index: 3;
+  cursor: nwse-resize;
+}
+.rune-video-handle--se::before { width: 10px; height: 10px; border-radius: 2px; }
+.rune-content figure.rune-video-block:hover .rune-video-handle,
+.rune-content figure.rune-video-block.rune-video-resizing .rune-video-handle {
+  opacity: 1;
+}
+/* While dragging, freeze text selection and let the handle own every pointer
+   event — otherwise the cross-origin iframe swallows pointermove. */
+.rune-video-block.rune-video-resizing { user-select: none; }
+.rune-video-block.rune-video-resizing iframe { pointer-events: none; }
 
 /* Video panel */
 .rune-panel-video { width: 300px; }

@@ -628,6 +628,34 @@ describe('Editor', () => {
       expect(sanitizeContent('<iframe src="javascript:alert(1)"></iframe>')).not.toContain('<iframe');
     });
 
+    it('insertVideo adds east/south/corner resize handles to the video block', () => {
+      create({ extensions: [Paragraph, Heading, VideoEmbed] });
+      editor.cmd('insertVideo', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      const wrap = editor.content.querySelector('.rune-video-block .rune-video-wrap');
+      for (const dir of ['e', 's', 'se']) {
+        expect(wrap.querySelectorAll(`.rune-video-handle--${dir}`).length).toBe(1);
+      }
+    });
+
+    it('setHtml retrofits resize handles onto a handle-less video block', () => {
+      create({ extensions: [Paragraph, Heading, VideoEmbed] });
+      editor.setHtml('<figure class="rune-video-block"><div class="rune-video-wrap"><iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe></div></figure>');
+      expect(editor.content.querySelectorAll('.rune-video-handle').length).toBe(3);
+    });
+
+    it('does not duplicate handles on a video that already has them', () => {
+      create({ extensions: [Paragraph, Heading, VideoEmbed] });
+      editor.cmd('insertVideo', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      editor._notifyChange(); // re-runs the ensureHandles pass
+      expect(editor.content.querySelectorAll('.rune-video-handle').length).toBe(3);
+    });
+
+    it('preserves an inline width and height on a resized video across a round-trip', () => {
+      const out = sanitizeContent('<figure class="rune-video-block" style="width:60%"><div class="rune-video-wrap" style="height:240px"><iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe></div></figure>');
+      expect(out).toContain('width:60%');
+      expect(out).toContain('height:240px');
+    });
+
     it('setHtml preserves contenteditable on editor blocks', () => {
       create();
       editor.setHtml('<div class="rune-callout"><span contenteditable="false">x</span><div class="rune-callout-body">body</div></div>');

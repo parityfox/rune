@@ -1,6 +1,6 @@
 {
   "name": "@parityfox/rune-editor",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "publishConfig": {
     "access": "public"
   },
@@ -12,13 +12,31 @@
   "main": "src/index.js",
   "types": "./types/index.d.ts",
   "exports": {
-    ".": { "types": "./types/index.d.ts", "default": "./src/index.js" },
-    "./react": { "types": "./types/react.d.ts", "default": "./adapters/react/index.js" },
-    "./vue": { "types": "./types/vue.d.ts", "default": "./adapters/vue/index.js" },
-    "./svelte": { "types": "./types/svelte.d.ts", "default": "./adapters/svelte/index.js" },
-    "./web-component": { "types": "./types/web-component.d.ts", "default": "./adapters/web-component/rune-editor.js" },
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./react": {
+      "types": "./types/react.d.ts",
+      "default": "./adapters/react/index.js"
+    },
+    "./vue": {
+      "types": "./types/vue.d.ts",
+      "default": "./adapters/vue/index.js"
+    },
+    "./svelte": {
+      "types": "./types/svelte.d.ts",
+      "default": "./adapters/svelte/index.js"
+    },
+    "./web-component": {
+      "types": "./types/web-component.d.ts",
+      "default": "./adapters/web-component/rune-editor.js"
+    },
     "./styles": "./styles/rune.css",
-    "./collab": { "types": "./types/collab.d.ts", "default": "./collab/index.js" },
+    "./collab": {
+      "types": "./types/collab.d.ts",
+      "default": "./collab/index.js"
+    },
     "./collab/*": "./collab/*",
     "./server/*": "./server/*"
   },
@@ -86,14 +104,32 @@
     "yjs": "^13.6.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "react-dom": { "optional": true },
-    "vue": { "optional": true },
-    "svelte": { "optional": true },
-    "ws": { "optional": true },
-    "y-indexeddb": { "optional": true },
-    "y-protocols": { "optional": true },
-    "y-websocket": { "optional": true },
-    "yjs": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    },
+    "ws": {
+      "optional": true
+    },
+    "y-indexeddb": {
+      "optional": true
+    },
+    "y-protocols": {
+      "optional": true
+    },
+    "y-websocket": {
+      "optional": true
+    },
+    "yjs": {
+      "optional": true
+    }
   }
 }

@@ -10,6 +10,7 @@ import { BulletList } from '../src/extensions/blocks/BulletList.js';
 import { sanitize, sanitizeContent } from '../src/utils/html.js';
 import { Image } from '../src/extensions/blocks/Image.js';
 import { Link } from '../src/extensions/marks/Link.js';
+import { Table } from '../src/extensions/blocks/Table.js';
 import { VideoEmbed } from '../src/extensions/blocks/VideoEmbed.js';
 import { FormatPainter } from '../src/extensions/plugins/FormatPainter.js';
 
@@ -629,6 +630,59 @@ describe('Editor', () => {
       editor.destroy();
       editor = null;
       expect(document.querySelector('.rune-link-popover')).toBeNull();
+    });
+  });
+
+  describe('table', () => {
+    function placeCaret(node) {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      range.collapse(true);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    it('insertTable honors the requested column and row counts', () => {
+      create({ extensions: [Paragraph, Table], content: '<p>x</p>' });
+      editor.cmd('insertTable', 2, 5);
+      expect(editor.content.querySelectorAll('table.rune-table thead th').length).toBe(5);
+      expect(editor.content.querySelectorAll('table.rune-table tr').length).toBe(2);
+    });
+
+    it('the size picker inserts a table of the picked dimensions', () => {
+      create({ extensions: [Paragraph, Table], content: '<p>x</p>' });
+      expect(Table.toolbarItem.type).toBe('panel');
+      const panel = Table.toolbarItem.renderPanel(editor, () => {});
+      document.body.appendChild(panel);
+      // data-r=1, data-c=4 → 5 columns × 2 rows
+      panel.querySelector('.rune-table-grid-cell[data-r="1"][data-c="4"]')
+        .dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      expect(editor.content.querySelectorAll('table.rune-table thead th').length).toBe(5);
+      expect(editor.content.querySelectorAll('table.rune-table tr').length).toBe(2);
+      panel.remove();
+    });
+
+    it('creates floating add controls and removes them on destroy', () => {
+      create({ extensions: [Paragraph, Table], content: '<p>x</p>' });
+      expect(document.querySelectorAll('.rune-table-add-btn').length).toBe(2);
+      expect(document.querySelector('.rune-table-bar')).toBeTruthy();
+      editor.destroy();
+      editor = null;
+      expect(document.querySelectorAll('.rune-table-add-btn').length).toBe(0);
+      expect(document.querySelector('.rune-table-bar')).toBeNull();
+    });
+
+    it('the floating toolbar Col + button adds a column at the caret', () => {
+      create({ extensions: [Paragraph, Table], content: '<p>x</p>' });
+      editor.cmd('insertTable', 2, 3);
+      placeCaret(editor.content.querySelector('table.rune-table th'));
+      editor.events.emit('selectionchange', { editor });
+
+      const bar = document.querySelector('.rune-table-bar');
+      const colPlus = [...bar.querySelectorAll('.rune-table-bar-btn')].find(b => b.textContent === 'Col +');
+      colPlus.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      expect(editor.content.querySelectorAll('table.rune-table thead th').length).toBe(4);
     });
   });
 

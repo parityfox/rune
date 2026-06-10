@@ -1122,6 +1122,89 @@ thead .rune-table-cell {
   margin: 3px 0;
 }
 
+/* Edge "+" buttons (add column / add row) */
+.rune-table-add-btn {
+  position: fixed;
+  z-index: 690;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--rune-color-border);
+  border-radius: 50%;
+  background: var(--rune-color-bg);
+  color: var(--rune-color-muted);
+  cursor: pointer;
+  box-shadow: var(--rune-shadow-lg);
+  transition: background 80ms, color 80ms;
+}
+.rune-table-add-btn:hover {
+  background: var(--rune-color-accent);
+  border-color: var(--rune-color-accent);
+  color: #fff;
+}
+
+/* Floating table toolbar (shown when the caret is in a table) */
+.rune-table-bar {
+  position: fixed;
+  z-index: 695;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--rune-color-bg);
+  border: 1px solid var(--rune-color-border);
+  border-radius: var(--rune-radius);
+  box-shadow: var(--rune-shadow-lg);
+}
+.rune-table-bar-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--rune-radius-sm);
+  font-size: 12px;
+  color: var(--rune-color-fg);
+  white-space: nowrap;
+  transition: background 80ms;
+}
+.rune-table-bar-btn:hover            { background: var(--rune-color-hover); }
+.rune-table-bar-btn.is-danger        { color: #e03e3e; }
+.rune-table-bar-btn.is-danger:hover  { background: #fde8e3; }
+.rune-table-bar-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--rune-color-border);
+  margin: 0 2px;
+}
+
+/* Insert-table size picker */
+.rune-table-picker { padding: 4px 2px; }
+.rune-table-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 16px);
+  grid-auto-rows: 16px;
+  gap: 3px;
+}
+.rune-table-grid-cell {
+  border: 1px solid var(--rune-color-border);
+  border-radius: 2px;
+  background: var(--rune-color-bg);
+  cursor: pointer;
+}
+.rune-table-grid-cell.is-on {
+  background: var(--rune-color-accent);
+  border-color: var(--rune-color-accent);
+}
+.rune-table-picker-label {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--rune-color-muted);
+}
+
 /* ── Find & Replace panel ─────────────────────────────────── */
 
 .rune-fr-panel {

@@ -11,6 +11,7 @@ import { sanitize, sanitizeContent } from '../src/utils/html.js';
 import { Image } from '../src/extensions/blocks/Image.js';
 import { Link } from '../src/extensions/marks/Link.js';
 import { Table } from '../src/extensions/blocks/Table.js';
+import { Callout } from '../src/extensions/blocks/Callout.js';
 import { VideoEmbed } from '../src/extensions/blocks/VideoEmbed.js';
 import { FormatPainter } from '../src/extensions/plugins/FormatPainter.js';
 
@@ -683,6 +684,63 @@ describe('Editor', () => {
       const colPlus = [...bar.querySelectorAll('.rune-table-bar-btn')].find(b => b.textContent === 'Col +');
       colPlus.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
       expect(editor.content.querySelectorAll('table.rune-table thead th').length).toBe(4);
+    });
+  });
+
+  describe('callout enter handling', () => {
+    const CALLOUT = (bodyHtml) =>
+      `<div class="rune-callout rune-callout--yellow" data-type="callout">` +
+      `<span class="rune-callout-icon" contenteditable="false">💡</span>` +
+      `<div class="rune-callout-body">${bodyHtml}</div></div><p>after</p>`;
+
+    function pressEnter(node, container, offset) {
+      const range = document.createRange();
+      if (container) range.setStart(container, offset);
+      else { range.selectNodeContents(node); range.collapse(true); }
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      node.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    }
+
+    it('Enter on an empty callout body exits into a paragraph below', () => {
+      create({ extensions: [Paragraph, Callout], content: CALLOUT('<br>') });
+      const body = editor.content.querySelector('.rune-callout-body');
+      pressEnter(body);
+
+      const callout = editor.content.querySelector('.rune-callout');
+      const next = callout.nextElementSibling;
+      expect(next.tagName).toBe('P');
+      expect(next.textContent).toBe('');
+    });
+
+    it('Enter inside text keeps the break in the body (no block split, no exit)', () => {
+      const exec = vi.fn(() => true);
+      const prevExec = document.execCommand;
+      document.execCommand = exec;
+      try {
+        create({ extensions: [Paragraph, Callout], content: CALLOUT('hello') });
+        const body = editor.content.querySelector('.rune-callout-body');
+        pressEnter(body, body.firstChild, 5); // caret at end of "hello"
+
+        expect(exec).toHaveBeenCalledWith('insertLineBreak');
+        // The only paragraph after the callout is still the original "after".
+        const callout = editor.content.querySelector('.rune-callout');
+        expect(callout.nextElementSibling.textContent).toBe('after');
+      } finally {
+        document.execCommand = prevExec;
+      }
+    });
+
+    it('Enter on an empty trailing line exits and trims the dangling break', () => {
+      create({ extensions: [Paragraph, Callout], content: CALLOUT('hello<br><br>') });
+      const body = editor.content.querySelector('.rune-callout-body');
+      pressEnter(body, body, 2); // caret after the first <br>, on the empty line
+
+      expect(body.textContent).toBe('hello');
+      expect(body.querySelectorAll('br').length).toBe(0);
+      const callout = editor.content.querySelector('.rune-callout');
+      expect(callout.nextElementSibling.tagName).toBe('P');
     });
   });
 

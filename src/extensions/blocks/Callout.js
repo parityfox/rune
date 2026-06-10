@@ -34,6 +34,28 @@ export const Callout = {
       _openEmojiPicker(editor, icon);
     });
 
+    // Enter inside a callout body: keep the line break inside the body (the
+    // native split would spawn a sibling <div> that breaks the flex layout),
+    // and exit into a paragraph below when pressed on an empty trailing line.
+    editor.content.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount || !sel.isCollapsed) return;
+      const range = sel.getRangeAt(0);
+      const start = range.startContainer;
+      const startEl = start.nodeType === Node.TEXT_NODE ? start.parentElement : start;
+      const body = startEl?.closest?.('.rune-callout-body');
+      if (!body || !editor.content.contains(body)) return;
+
+      e.preventDefault();
+      if (_atEmptyExitPoint(body, range)) {
+        _exitCallout(editor, body);
+      } else {
+        document.execCommand('insertLineBreak');
+        editor._notifyChange();
+      }
+    });
+
     return {
       insertCallout(emoji = '💡', color = 'yellow') {
         editor.history.saveNow();
@@ -153,6 +175,40 @@ export const Callout = {
     action: (editor) => editor.cmd('insertCallout'),
   },
 };
+
+// ── Enter handling inside a callout body ────────────────────
+
+/** The node immediately before a collapsed caret, or null if text precedes it. */
+function _nodeBeforeCaret(range) {
+  const { startContainer: c, startOffset: o } = range;
+  if (c.nodeType === Node.TEXT_NODE) return o === 0 ? c.previousSibling : null;
+  return o > 0 ? c.childNodes[o - 1] : null;
+}
+
+/** True when the caret sits on an empty last line of the body (so Enter exits). */
+function _atEmptyExitPoint(body, range) {
+  // Anything but whitespace between the caret and the end of the body → stay.
+  const tail = document.createRange();
+  tail.setStart(range.endContainer, range.endOffset);
+  tail.setEnd(body, body.childNodes.length);
+  if (tail.cloneContents().textContent.trim() !== '') return false;
+  // Empty body, or the caret is right after a <br> (an empty current line).
+  if (body.textContent.trim() === '') return true;
+  return _nodeBeforeCaret(range)?.nodeName === 'BR';
+}
+
+/** Leave the callout: drop the trailing empty line and add a paragraph after it. */
+function _exitCallout(editor, body) {
+  while (body.lastChild && body.lastChild.nodeName === 'BR' && body.childNodes.length > 1) {
+    body.removeChild(body.lastChild);
+  }
+  const callout = body.closest('.rune-callout');
+  const p = document.createElement('p');
+  p.innerHTML = '<br>';
+  callout.parentNode.insertBefore(p, callout.nextSibling);
+  editor.selection.setAtStart(p);
+  editor._notifyChange();
+}
 
 // ── Inline emoji picker (click icon in callout) ─────────────
 

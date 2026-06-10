@@ -9,6 +9,7 @@ import { CodeBlock } from '../src/extensions/blocks/CodeBlock.js';
 import { BulletList } from '../src/extensions/blocks/BulletList.js';
 import { sanitize, sanitizeContent } from '../src/utils/html.js';
 import { Image } from '../src/extensions/blocks/Image.js';
+import { Link } from '../src/extensions/marks/Link.js';
 import { VideoEmbed } from '../src/extensions/blocks/VideoEmbed.js';
 import { FormatPainter } from '../src/extensions/plugins/FormatPainter.js';
 
@@ -573,6 +574,61 @@ describe('Editor', () => {
       expect(editor.isActive('bold')).toBe(false);   // headings are weight 600, not bold marks
       caretIn('strong');
       expect(editor.isActive('bold')).toBe(true);
+    });
+  });
+
+  describe('link UI', () => {
+    function selectContents(node) {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    it('openLinkEditor shows an inline input popover instead of a native prompt', () => {
+      create({ extensions: [Paragraph, Link], content: '<p>hello</p>' });
+      selectContents(editor.content.querySelector('p'));
+
+      editor.cmd('openLinkEditor');
+      const pop = document.querySelector('.rune-link-popover');
+      expect(pop).toBeTruthy();
+      expect(pop.style.display).not.toBe('none');
+      expect(pop.querySelector('input.rune-link-input')).toBeTruthy();
+    });
+
+    it('clicking an existing link shows an Open/Edit/Remove popover', () => {
+      create({ extensions: [Paragraph, Link], content: '<p><a href="https://example.com">site</a></p>' });
+      const a = editor.content.querySelector('a');
+      a.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+      const pop = document.querySelector('.rune-link-popover');
+      expect(pop.style.display).toBe('flex');
+      const open = pop.querySelector('a.rune-link-open');
+      expect(open?.getAttribute('href')).toBe('https://example.com');
+      expect(open.getAttribute('target')).toBe('_blank');
+      expect([...pop.querySelectorAll('.rune-link-action')].map(b => b.textContent)).toEqual(['Edit', 'Remove']);
+    });
+
+    it('Edit in the preview popover switches to an input prefilled with the href', () => {
+      create({ extensions: [Paragraph, Link], content: '<p><a href="https://example.com">site</a></p>' });
+      const a = editor.content.querySelector('a');
+      a.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+      const editBtn = [...document.querySelectorAll('.rune-link-action')].find(b => b.textContent === 'Edit');
+      editBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+      const input = document.querySelector('.rune-link-input');
+      expect(input).toBeTruthy();
+      expect(input.value).toBe('https://example.com');
+    });
+
+    it('removes the popover element when the editor is destroyed', () => {
+      create({ extensions: [Paragraph, Link], content: '<p>hello</p>' });
+      expect(document.querySelector('.rune-link-popover')).toBeTruthy();
+      editor.destroy();
+      editor = null;
+      expect(document.querySelector('.rune-link-popover')).toBeNull();
     });
   });
 

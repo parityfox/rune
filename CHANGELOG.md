@@ -6,6 +6,17 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 
 ---
 
+## [1.1.1] — 2026-06-10
+
+### 📝 Docs
+
+- Fixed the no-bundler / CDN install instructions: use the full scoped, version-pinned package name (`@parityfox/rune-editor@1.1.1`) instead of the unscoped `rune-editor`, which is a different (unregistered) package and an unsafe thing to load from a CDN
+- Documented the dedicated **Vue** (`/vue`) and **Svelte** (`/svelte`) adapters, replacing the stale "no dedicated adapter" hand-wiring
+- Completed the subpath exports table (`vue`, `svelte`, `collab`, `server`)
+- Corrected the Node requirement to **≥ 18** and the adapter snippets to use the exported `StarterKit`
+
+---
+
 ## [1.1.0] — 2026-06-10
 
 > A big feature release: real-time collaboration, two-way Markdown, a portable

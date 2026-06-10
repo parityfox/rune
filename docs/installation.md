@@ -22,7 +22,7 @@ for enabling [collaborative editing](./collaboration.md).
 
 - **A modern browser** with `contenteditable` (all evergreen browsers).
 - **ES Modules.** Rune is ESM-only (`"type": "module"`). Use it with a bundler,
-  native browser modules, or Node ≥ 16 ESM.
+  native browser modules, or Node ≥ 18 ESM.
 - **No runtime dependencies** for the core editor — it's dependency-free.
 - A **bundler is recommended** but not required (see [no-bundler](#plain-html--no-bundler)).
 
@@ -55,10 +55,14 @@ Knowing this prevents most setup issues:
 
   | Import | Resolves to |
   |---|---|
-  | `rune-editor` | core (`Editor`, `createFromConfig`, extensions, utils) |
-  | `rune-editor/react` | `useRune`, `RuneEditor` |
-  | `rune-editor/web-component` | the `<rune-editor>` custom element |
-  | `rune-editor/styles` | the stylesheet |
+  | `@parityfox/rune-editor` | core (`Editor`, `createFromConfig`, extensions, utils) |
+  | `@parityfox/rune-editor/react` | `useRune`, `RuneEditor` |
+  | `@parityfox/rune-editor/vue` | `useRune` composable, `RuneEditor` |
+  | `@parityfox/rune-editor/svelte` | the `use:rune` action |
+  | `@parityfox/rune-editor/web-component` | the `<rune-editor>` custom element |
+  | `@parityfox/rune-editor/styles` | the stylesheet |
+  | `@parityfox/rune-editor/collab`, `@parityfox/rune-editor/collab/*` | collaboration layer (Yjs) |
+  | `@parityfox/rune-editor/server/*` | reference sync server |
 
 - **Dependency-free core.** The React adapter needs **React** in your app (it's a
   peer — install it yourself). The collaboration layer pulls in Yjs deps only
@@ -110,12 +114,12 @@ Use an **import map** to resolve the bare specifier, served from a CDN that
 exposes ESM (e.g. [esm.sh](https://esm.sh)):
 
 ```html
-<link rel="stylesheet" href="https://esm.sh/rune-editor/styles/rune.css">
+<link rel="stylesheet" href="https://esm.sh/@parityfox/rune-editor@1.1.0/styles/rune.css">
 
 <div id="app"></div>
 
 <script type="importmap">
-{ "imports": { "rune-editor": "https://esm.sh/rune-editor" } }
+{ "imports": { "@parityfox/rune-editor": "https://esm.sh/@parityfox/rune-editor@1.1.0" } }
 </script>
 
 <script type="module">
@@ -127,6 +131,14 @@ exposes ESM (e.g. [esm.sh](https://esm.sh)):
 </script>
 ```
 
+> **Use the full scoped name and pin the version.** The package is
+> `@parityfox/rune-editor` — always reference it in full (both the import-map key
+> and the URL) and include a version (`@1.1.0`). A bare/unscoped name like
+> `rune-editor` is a *different* (here, unregistered) package; loading it from a
+> CDN would run someone else's code in your users' browsers if they ever claim
+> that name. Pinning a version also stops a future publish from silently changing
+> what loads.
+
 Self-hosting instead of a CDN? Point the import map at your copied
 `node_modules/@parityfox/rune-editor/src/index.js` and serve the folder.
 
@@ -136,13 +148,13 @@ Install React in your app, then use the adapter:
 
 ```jsx
 import { RuneEditor } from '@parityfox/rune-editor/react';
-import config from './rune.config.js';
+import { StarterKit } from '@parityfox/rune-editor';
 import '@parityfox/rune-editor/styles';
 
 export default function App() {
   return (
     <RuneEditor
-      extensions={config.extensions}
+      extensions={StarterKit}
       content="<p>Hello</p>"
       onChange={(html) => console.log(html)}
       toolbar bubbleMenu slashMenu
@@ -157,8 +169,9 @@ use the hook directly:
 
 ```jsx
 import { useRune } from '@parityfox/rune-editor/react';
+import { StarterKit } from '@parityfox/rune-editor';
 function Editorish() {
-  const { ref, editor } = useRune({ extensions: config.extensions, content: '<p>Hi</p>' });
+  const { ref, editor } = useRune({ extensions: StarterKit, content: '<p>Hi</p>' });
   return <div ref={ref} />;
 }
 ```
@@ -178,19 +191,30 @@ const RuneEditor = dynamic(
 
 ### Vue 3
 
-No dedicated adapter — mount the `Editor` on a ref:
+Use the dedicated `./vue` adapter — the `RuneEditor` component:
 
 ```vue
 <script setup>
-import { onMounted, onBeforeUnmount, ref } from 'vue';
-import { createFromConfig } from '@parityfox/rune-editor';
-import config from './rune.config.js';
+import { RuneEditor } from '@parityfox/rune-editor/vue';
+import { StarterKit } from '@parityfox/rune-editor';
 import '@parityfox/rune-editor/styles';
+</script>
 
-const el = ref(null);
-let editor;
-onMounted(() => { editor = createFromConfig(el.value, config, { content: '<p>Hi</p>', onChange: (html) => {} }); });
-onBeforeUnmount(() => editor?.destroy?.());
+<template>
+  <RuneEditor :extensions="StarterKit" content="<p>Hello</p>" @change="(html) => console.log(html)" />
+</template>
+```
+
+Props: `extensions`, `content`, `placeholder`, `toolbar`, `bubbleMenu`,
+`slashMenu`, `readOnly`, `attribution`; emits `change`. The component cleans up
+on unmount. For an editor handle, use the `useRune` composable directly — it
+returns `{ el, editor, getHtml, setHtml, cmd, focus }`:
+
+```vue
+<script setup>
+import { useRune } from '@parityfox/rune-editor/vue';
+import { StarterKit } from '@parityfox/rune-editor';
+const { el, editor } = useRune({ extensions: StarterKit, content: '<p>Hi</p>' });
 </script>
 
 <template><div ref="el" /></template>
@@ -198,20 +222,20 @@ onBeforeUnmount(() => editor?.destroy?.());
 
 ### Svelte
 
+Use the dedicated `./svelte` adapter — the `rune` action:
+
 ```svelte
 <script>
-  import { onMount, onDestroy } from 'svelte';
-  import { createFromConfig } from '@parityfox/rune-editor';
-  import config from './rune.config.js';
+  import { rune } from '@parityfox/rune-editor/svelte';
+  import { StarterKit } from '@parityfox/rune-editor';
   import '@parityfox/rune-editor/styles';
-
-  let el, editor;
-  onMount(() => { editor = createFromConfig(el, config, { content: '<p>Hi</p>' }); });
-  onDestroy(() => editor?.destroy?.());
+  let html = '<p>Hi</p>';
 </script>
 
-<div bind:this={el}></div>
+<div use:rune={{ extensions: StarterKit, content: html, onChange: (h) => (html = h) }} />
 ```
+
+The action tears the editor down automatically when the node is destroyed.
 
 ### Angular
 
@@ -237,7 +261,8 @@ Framework-agnostic — works in plain HTML, Angular, Vue, Svelte, etc.:
 ```
 
 Attributes: `content`, `placeholder`, `readonly`. With a CDN, point the
-`<script src>` at `https://esm.sh/rune-editor/web-component`.
+`<script src>` at the full scoped, version-pinned URL
+`https://esm.sh/@parityfox/rune-editor@1.1.0/web-component`.
 
 ---
 
@@ -316,7 +341,7 @@ console.log(ed.getHtml());
 | **No styling / unstyled toolbar** | You didn't `import '@parityfox/rune-editor/styles'` (or link `styles/rune.css`) once at your entry. |
 | **`Cannot use import statement` / CJS error** | Rune is ESM-only. Use a bundler, `<script type="module">`, or Node ESM — not `require()`. |
 | **Crashes during SSR / "document is not defined"** | Render client-side only (Next.js: `dynamic(..., { ssr: false })`; others: mount in `onMounted`/`onMount`). |
-| **Bare specifier `rune-editor` not found in the browser** | Add an [import map](#plain-html--no-bundler) or use a bundler/CDN. |
+| **Bare specifier `@parityfox/rune-editor` not found in the browser** | Add an [import map](#plain-html--no-bundler) (use the full scoped, version-pinned name) or use a bundler/CDN. |
 | **React adapter `.jsx` won't transform** | Let your bundler transform `node_modules/@parityfox/rune-editor/adapters`. |
 | **`Cannot find package 'yjs'`** | Install the [collaboration deps](#enabling-collaboration); for no-bundler, bundle them (`npm run build:demo`) or use a CDN. |
 | **Editor not destroyed on unmount (leaks)** | Call `editor.destroy()` in your framework's teardown hook. |

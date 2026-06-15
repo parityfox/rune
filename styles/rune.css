@@ -871,6 +871,14 @@
 .rune-panel-callout-color:hover   { transform: scale(1.15); }
 .rune-panel-callout-color.is-active { border-color: var(--rune-color-accent); }
 
+/* Toolbar emoji picker (inline insert) */
+.rune-panel-emoji-picker {
+  width: 228px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.rune-panel-emoji-picker .rune-panel-section-label:first-child { margin-top: 0; }
+
 /* Inline emoji picker */
 .rune-callout-emoji-picker { padding: 8px; }
 

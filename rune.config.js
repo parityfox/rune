@@ -73,7 +73,7 @@ const config = {
     items: [
       'bold', 'italic', 'underline', 'strike', 'superscript', 'subscript', '|',
       'heading', 'bulletList', 'orderedList', 'taskList', 'blockquote', 'codeBlock', 'horizontalRule', '|',
-      'callout', 'videoEmbed', 'image', 'table', '|',
+      'callout', 'videoEmbed', 'image', 'table', 'emoji', '|',
       'fontFamily', 'fontSize', 'textColor', 'textBackground', 'highlight', '|',
       'textAlign', 'lineHeight', '|',
       'outdent', 'indent', '|',

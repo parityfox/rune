@@ -13,7 +13,7 @@
 [![Zero dependencies](https://img.shields.io/badge/dependencies-zero-blue?style=flat-square)](package.json)
 [![Vanilla JS](https://img.shields.io/badge/built%20with-Vanilla%20JS-f7df1e?style=flat-square&logo=javascript&logoColor=black)](src/)
 
-[**Getting Started**](#-installation) · [**Live Playground**](https://parityfox.github.io/rune/examples/playground.html) · [**API Docs**](#-api) · [**Contribute**](CONTRIBUTING.md)
+[**Getting Started**](#-installation) · [**Live Playground**](https://runeditor.com) · [**API Docs**](#-api) · [**Contribute**](CONTRIBUTING.md)
 
 </div>
 
@@ -59,7 +59,7 @@ import '@parityfox/rune-editor/styles';
 
 ## ⚡ Quick Start
 
-> 🛝 **[Try the live Playground](https://parityfox.github.io/rune/examples/playground.html)** — toggle `rune.config.js` flags and watch the toolbar, slash menu, and behaviour rebuild instantly, with live HTML / Markdown / JSON output. Run it locally with `npm run example`, then open `http://localhost:4000/examples/playground.html`.
+> 🛝 **[Try the live Playground](https://runeditor.com)** — toggle `rune.config.js` flags and watch the toolbar, slash menu, and behaviour rebuild instantly, with live HTML / Markdown / JSON output. Run it locally with `npm run example`, then open `http://localhost:4000/examples/playground.html`.
 
 ### Vanilla JS (recommended)
 
@@ -184,6 +184,22 @@ import '@parityfox/rune-editor/styles';
 | Find & Replace | `⌘F` | Floating panel with regex support |
 | Drag to Reorder | Drag handle `⠿` | Reorder any block by dragging |
 | Format Painter | Toolbar `🖌` | Copy & paste formatting between selections |
+| Emoji & Icons | Toolbar `🙂` · `:shortcode:` | Insert emojis inline at the caret — see below |
+
+### 🙂 Emoji & Icons
+
+Three ways to drop an emoji or icon into your document:
+
+| How | Where it lands |
+|---|---|
+| **Toolbar emoji button** (`🙂`) | Opens a categorized picker and inserts the chosen emoji **inline at the caret** — works in headings, paragraphs, lists, and callout bodies |
+| **`:shortcode:` autocomplete** | Type `:` then a name (`:fire:` → 🔥, `:rocket:` → 🚀, `:bulb:` → 💡, `:check:` → ✅) and pick from the popup |
+| **Callout icon** | Click the icon on a `/callout` block to swap its leading emoji |
+
+> The toolbar button and `:shortcode:` add an **inline** emoji to your text. A
+> **callout** is a separate block-level box — its emoji is the callout's icon,
+> not an inline insert. Toggle the feature with `plugins.emoji` in `rune.config.js`
+> and show/hide the button via the `emoji` toolbar item.
 
 ### 📤 Export
 
@@ -256,6 +272,7 @@ const config = {
     findReplace:       true,
     dragReorder:       true,
     formatPainter:     true,
+    emoji:             true,   // :shortcode: + toolbar emoji picker
   },
 
   toolbar: {
@@ -263,7 +280,7 @@ const config = {
     items: [
       'bold', 'italic', 'underline', 'strike', '|',
       'heading', 'bulletList', 'orderedList', '|',
-      'link', 'image', 'table', '|',
+      'link', 'image', 'table', 'emoji', '|',
       'clearFormat', 'formatPainter',
     ],
   },

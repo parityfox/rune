@@ -124,10 +124,15 @@ export class Suggestion {
   // ── Keyboard ────────────────────────────────────────────────
   _onKey(e) {
     if (!this._ctx || !this._items.length) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); this._index = (this._index + 1) % this._items.length; this._render(); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); this._index = (this._index - 1 + this._items.length) % this._items.length; this._render(); }
-    else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); this._select(this._items[this._index]); }
-    else if (e.key === 'Escape') { e.preventDefault(); this._close(); }
+    // Keys we act on must be swallowed entirely: preventDefault stops the
+    // browser's own handling, stopPropagation stops downstream editor handlers
+    // (e.g. the callout's Enter → insertLineBreak) from also firing and, say,
+    // appending a stray newline after the emoji we just inserted.
+    const consume = () => { e.preventDefault(); e.stopPropagation(); };
+    if (e.key === 'ArrowDown') { consume(); this._index = (this._index + 1) % this._items.length; this._render(); }
+    else if (e.key === 'ArrowUp') { consume(); this._index = (this._index - 1 + this._items.length) % this._items.length; this._render(); }
+    else if (e.key === 'Enter' || e.key === 'Tab') { consume(); this._select(this._items[this._index]); }
+    else if (e.key === 'Escape') { consume(); this._close(); }
   }
 
   _select(item) {

@@ -73,24 +73,30 @@ export class SlashMenu {
     this._onKeydown = (e) => {
       if (!this._open) return;
 
+      // Keys the menu fully owns must be swallowed: stopPropagation keeps the
+      // keystroke from reaching downstream editor handlers. Without it the Enter
+      // that picks an item also bubbles into e.g. the callout's Enter handler,
+      // which then exits the freshly-inserted (still-empty) callout and drops
+      // the caret into a paragraph below it.
       if (e.key === 'ArrowDown') {
-        e.preventDefault();
+        e.preventDefault(); e.stopPropagation();
         this._activeIndex = (this._activeIndex + 1) % (this._filtered.length || 1);
         this._renderList();
         return;
       }
       if (e.key === 'ArrowUp') {
-        e.preventDefault();
+        e.preventDefault(); e.stopPropagation();
         this._activeIndex = (this._activeIndex - 1 + (this._filtered.length || 1)) % (this._filtered.length || 1);
         this._renderList();
         return;
       }
       if (e.key === 'Enter') {
-        e.preventDefault();
+        e.preventDefault(); e.stopPropagation();
         this._select(this._filtered[this._activeIndex]);
         return;
       }
       if (e.key === 'Escape') {
+        e.preventDefault(); e.stopPropagation();
         this._close();
         return;
       }

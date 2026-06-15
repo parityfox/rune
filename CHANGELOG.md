@@ -6,6 +6,28 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 
 ---
 
+## [1.2.0] — 2026-06-15
+
+### ✨ Added
+
+- **Inline emoji picker** — a toolbar `🙂` button opens a categorized picker and inserts the chosen emoji **inline at the caret** (headings, paragraphs, lists, callout bodies). Complements the existing `:shortcode:` autocomplete. Enable via `plugins.emoji` and place with the `emoji` toolbar item.
+
+### 🐛 Fixed
+
+- Inserting a callout from the `/` menu no longer drops the caret into a paragraph below the (empty) callout — the Enter that picked the item was leaking into the callout's own Enter handler and exiting it
+- Selecting a `:shortcode:` emoji inside a callout body no longer appends a stray blank line
+
+### 🔒 Security
+
+- Bumped `esbuild` to `0.28.1`, clearing GHSA-gv7w-rqvm-qjhr (high) and GHSA-g7r4-m6w7-qqqr (low). `esbuild` is a devDependency used only by `build:demo` and is not shipped, so published-package consumers were never affected
+
+### 📝 Docs
+
+- Documented the **Emoji & Icons** feature and added `emoji` to the example config
+- Pointed the **Live Playground** links at `https://runeditor.com`
+
+---
+
 ## [1.1.1] — 2026-06-10
 
 ### 📝 Docs

@@ -1,6 +1,6 @@
 {
   "name": "@parityfox/rune-editor",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "publishConfig": {
     "access": "public"
   },
@@ -82,7 +82,7 @@
     "collab-server": "node server/collab-server.mjs"
   },
   "devDependencies": {
-    "esbuild": "^0.28.0",
+    "esbuild": "^0.28.1",
     "happy-dom": "^20.8.3",
     "playwright-core": "^1.60.0",
     "vitest": "^4.0.18",

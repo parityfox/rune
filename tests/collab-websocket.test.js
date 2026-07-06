@@ -75,6 +75,32 @@ describe('WebSocket transport (reference server + provider)', () => {
     expect(await until(() => b.synced)).toBe(true);   // accepted
   }, 10000);
 
+  it('rejects disallowed Origins on the handshake (CSWSH, #101)', async () => {
+    srv = startServer(0, { allowedOrigins: ['https://app.example'] });
+    const url = `ws://localhost:${await port(srv)}`;
+
+    // A browser handshake from an untrusted page carries a foreign Origin -> 403.
+    const evil = new WebSocket(`${url}/r`, { origin: 'https://evil.example' });
+    const rejected = await new Promise((res) => {
+      evil.on('close', () => res(true));
+      evil.on('error', () => res(true));
+      evil.on('open',  () => res(false));
+      setTimeout(() => res(false), 1500);
+    });
+    expect(rejected).toBe(true);
+
+    // The allowlisted origin connects and syncs.
+    const okWs = new WebSocket(`${url}/r`, { origin: 'https://app.example' });
+    const accepted = await new Promise((res) => {
+      okWs.on('open',  () => res(true));
+      okWs.on('close', () => res(false));
+      okWs.on('error', () => res(false));
+      setTimeout(() => res(false), 1500);
+    });
+    expect(accepted).toBe(true);
+    try { okWs.close(); } catch { /* ignore */ }
+  }, 10000);
+
   it('survives a malformed frame without crashing the server (#43)', async () => {
     srv = startServer(0);
     const url = `ws://localhost:${await port(srv)}`;

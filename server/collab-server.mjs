@@ -140,14 +140,28 @@ export function setupWSConnection(conn, req) {
  * Start the reference server. Returns { server, wss, close() }.
  *
  * @param {number} port
- * @param {{ authorize?: (req, room) => boolean | Promise<boolean> }} [opts]
+ * @param {{ authorize?: (req, room) => boolean | Promise<boolean>,
+ *           allowedOrigins?: string[] | ((origin: string|undefined) => boolean) }} [opts]
  *   authorize is called per connection BEFORE the WebSocket upgrade; return false
  *   (or throw) to reject with 401. The raw `req` carries the token — read it from
  *   the query (`?token=…` in `req.url`) or `req.headers`. Default (no hook) is
  *   open, so the demo stays zero-config. Plug real auth in here, e.g.:
  *     authorize: async (req) => verifyJwt(new URL(req.url, 'ws://x').searchParams.get('token'))
+ *
+ *   allowedOrigins gates the browser Origin on the handshake (defends against
+ *   cross-site WebSocket hijacking). Pass an allowlist of exact origins, or a
+ *   predicate. Non-matching origins are rejected with 403. Browsers always send
+ *   Origin on a WS handshake, so a request with none (curl, native, S2S) is let
+ *   through — a hostile page can't suppress it. Omit to stay open (reference
+ *   default); ALWAYS set it (or cookie-independent token auth) in production.
  */
-export function startServer(port = process.env.PORT || 1234, { authorize, maxRooms = 10000 } = {}) {
+export function startServer(port = process.env.PORT || 1234, { authorize, allowedOrigins, maxRooms = 10000 } = {}) {
+  const _originAllowed = (origin) => {
+    if (!allowedOrigins) return true;                          // not configured -> open
+    if (typeof allowedOrigins === 'function') return !!allowedOrigins(origin);
+    if (!origin) return true;                                  // non-browser client
+    return (Array.isArray(allowedOrigins) ? allowedOrigins : [allowedOrigins]).includes(origin);
+  };
   const server = http.createServer((_, res) => { res.writeHead(200); res.end('Rune collab server'); });
   // Cap inbound frames (ws default is 100MB) so one client can't buffer a huge
   // payload into the shared doc and fan it out to every peer.
@@ -158,6 +172,7 @@ export function startServer(port = process.env.PORT || 1234, { authorize, maxRoo
     const room = (req.url || '/').slice(1).split('?')[0] || 'default';
     // Reject malformed room names and refuse to open new rooms past the cap.
     if (!ROOM_RE.test(room)) { socket.write('HTTP/1.1 400 Bad Request\r\n\r\n'); socket.destroy(); return; }
+    if (!_originAllowed(req.headers.origin)) { socket.write('HTTP/1.1 403 Forbidden\r\n\r\n'); socket.destroy(); return; }
     if (!docs.has(room) && docs.size >= maxRooms) { socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n'); socket.destroy(); return; }
     let ok = true;
     if (authorize) { try { ok = await authorize(req, room); } catch { ok = false; } }

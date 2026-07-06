@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import * as Y from 'yjs';
 import WebSocket from 'ws';
 import { Awareness } from 'y-protocols/awareness';
-import { startServer } from '../server/collab-server.mjs';
+import { startServer, setupWSConnection } from '../server/collab-server.mjs';
 import { WebSocketProvider } from '../collab/provider.js';
 
 // #10/#11/#12: real network transport — reference server + WebSocket clients.
@@ -228,6 +228,34 @@ describe('WebSocket transport (reference server + provider)', () => {
     b = new WebSocketProvider(url, 'good-room', docB, { WebSocketPolyfill: WebSocket });
     expect(await until(() => a.synced && b.synced)).toBe(true);
   }, 10000);
+
+  it("rejects room names containing '..' on upgrade (#109)", async () => {
+    srv = startServer(0);
+    const url = `ws://localhost:${await port(srv)}`;
+
+    const bad = new WebSocket(`${url}/a..b`);
+    const rejected = await new Promise((res) => {
+      bad.on('close', () => res(true));
+      bad.on('error', () => res(true));
+      bad.on('open',  () => res(false));
+      setTimeout(() => res(false), 1500);
+    });
+    expect(rejected).toBe(true);
+
+    // A normal room still connects and syncs.
+    const docA = new Y.Doc(), docB = new Y.Doc();
+    a = new WebSocketProvider(url, 'ok-room', docA, { WebSocketPolyfill: WebSocket });
+    b = new WebSocketProvider(url, 'ok-room', docB, { WebSocketPolyfill: WebSocket });
+    expect(await until(() => a.synced && b.synced)).toBe(true);
+  }, 10000);
+
+  it('re-validates the room inside setupWSConnection for direct wiring (#109)', () => {
+    // Simulate wss.on('connection', setupWSConnection) with no upgrade gate.
+    let closeCode = null;
+    const conn = { binaryType: '', close: (code) => { closeCode = code; }, on: () => {} };
+    setupWSConnection(conn, { url: '/../etc/passwd' });
+    expect(closeCode).toBe(1008);   // rejected, not wired into a room
+  });
 
   it('reconnects and re-syncs after the server bounces, surfacing status', async () => {
     srv = startServer(0);

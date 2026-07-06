@@ -31,8 +31,11 @@ const MSG_RATE     = 400;               // max inbound messages/sec per connecti
 const docs = new Map();   // room name -> WSSharedDoc
 
 // Room names come straight off the URL path; constrain them so a client can't
-// spin up unbounded Y.Docs under arbitrary or oversized names.
+// spin up unbounded Y.Docs under arbitrary or oversized names. Reject `..` so a
+// name can never become a path-traversal segment if a host adds file/DB
+// persistence keyed by room.
 const ROOM_RE = /^[A-Za-z0-9_.:-]{1,128}$/;
+function _validRoom(room) { return ROOM_RE.test(room) && !room.includes('..'); }
 
 class WSSharedDoc extends Y.Doc {
   constructor(name) {
@@ -117,6 +120,10 @@ function onMessage(conn, doc, message, readOnly) {
 export function setupWSConnection(conn, req) {
   conn.binaryType = 'arraybuffer';
   const room = (req?.url || '/').slice(1).split('?')[0] || 'default';
+  // Re-validate here too: the upgrade gate only runs when startServer drives the
+  // handshake. Anyone wiring wss.on('connection', setupWSConnection) directly (a
+  // common raw-ws pattern) would otherwise skip room validation entirely.
+  if (!_validRoom(room)) { try { conn.close(1008, 'invalid room'); } catch { /* already closed */ } return; }
   const doc = getDoc(room);
   doc.conns.set(conn, new Set());
   // authorize() may grant read-only access; such a connection receives updates
@@ -225,7 +232,7 @@ export function startServer(port = process.env.PORT || 1234, {
   server.on('upgrade', async (req, socket, head) => {
     const room = (req.url || '/').slice(1).split('?')[0] || 'default';
     // Reject malformed room names and refuse to open new rooms past the cap.
-    if (!ROOM_RE.test(room)) { socket.write('HTTP/1.1 400 Bad Request\r\n\r\n'); socket.destroy(); return; }
+    if (!_validRoom(room)) { socket.write('HTTP/1.1 400 Bad Request\r\n\r\n'); socket.destroy(); return; }
     if (!_originAllowed(req.headers.origin)) { socket.write('HTTP/1.1 403 Forbidden\r\n\r\n'); socket.destroy(); return; }
     if (!docs.has(room) && docs.size >= maxRooms) { socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n'); socket.destroy(); return; }
     // Cap concurrent sockets globally and per source IP so one host (or a botnet

@@ -50,4 +50,25 @@ describe('markdownToHtml (#85)', () => {
     const rt = htmlToMarkdown(markdownToHtml(md));
     expect(rt).toBe(md);
   });
+
+  describe('output is XSS-safe standalone (#100)', () => {
+    it('drops javascript: (and other dangerous schemes) from links and images', () => {
+      expect(markdownToHtml('[x](javascript:alert(1))')).toContain('<a href="">');
+      expect(markdownToHtml('![a](javascript:alert(1))')).toContain('<img src="" alt="a">');
+      expect(markdownToHtml('[x](vbscript:msgbox)')).toContain('<a href="">');
+      expect(markdownToHtml('![a](data:image/svg+xml;base64,PHN2Zz4=)')).toContain('<img src="" alt="a">');
+    });
+
+    it('keeps safe URLs, including data:image/png', () => {
+      expect(markdownToHtml('[x](https://y.com)')).toContain('<a href="https://y.com">');
+      expect(markdownToHtml('![a](data:image/png;base64,iVBOR)')).toContain('<img src="data:image/png;base64,iVBOR" alt="a">');
+    });
+
+    it('escapes quotes so a URL cannot break out of the attribute', () => {
+      // Quote in the URL must be entity-escaped, never a raw " that opens a new attr.
+      const out = markdownToHtml('[x](https://y.com"onmouseover="alert(1))');
+      expect(out).not.toContain('"onmouseover="');
+      expect(out).toContain('&quot;');
+    });
+  });
 });

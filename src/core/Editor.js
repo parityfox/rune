@@ -634,7 +634,10 @@ export class Editor {
                   (!html || _looksLikeMarkdownDoc(plain));
 
     let clean = useMd ? sanitize(markdownToHtml(plain)) : sanitize(html || plain);
-    clean = runPasteRules(clean, this.schema.getPasteRules());   // e.g. linkify bare URLs
+    // Paste rules inject HTML (e.g. linkify bare URLs), so sanitize AGAIN after
+    // them — a consumer-registered rule could otherwise emit unsanitized markup
+    // that lands straight in the document.
+    clean = sanitize(runPasteRules(clean, this.schema.getPasteRules()));
     document.execCommand('insertHTML', false, clean);
     this._notifyChange();
     this.events.emit('paste', { editor: this });

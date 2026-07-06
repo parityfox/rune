@@ -119,6 +119,10 @@ export function setupWSConnection(conn, req) {
     catch { closeConn(doc, conn); }
   });
   conn.on('close', () => closeConn(doc, conn));
+  // A socket that emits 'error' (ECONNRESET, protocol error) with no listener
+  // throws in ws, surfacing as an uncaughtException that takes down every room.
+  // Drop the offending connection instead — same intent as the message guard.
+  conn.on('error', () => closeConn(doc, conn));
 
   // Heartbeat liveness: the reaper (startServer) pings periodically and drops any
   // socket that never ponged, so a connection that died without a FIN doesn't sit
@@ -173,6 +177,10 @@ export function startServer(port = process.env.PORT || 1234, { authorize, allowe
   // payload into the shared doc and fan it out to every peer.
   const wss = new WebSocketServer({ noServer: true, maxPayload: 5 * 1024 * 1024 });   // we drive the upgrade so we can gate it
   wss.on('connection', setupWSConnection);
+  // Swallow server-level socket errors so a failed handshake / reset can't bubble
+  // up as an uncaughtException and crash the whole process.
+  wss.on('error', () => { /* per-connection errors are handled on the conn */ });
+  server.on('error', (err) => { console.error('[rune collab] server error:', err?.message || err); });
 
   // Reap half-open connections: ping every client each tick and terminate any
   // that didn't pong since the last one. terminate() fires 'close', so closeConn

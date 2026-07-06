@@ -101,6 +101,27 @@ describe('WebSocket transport (reference server + provider)', () => {
     try { okWs.close(); } catch { /* ignore */ }
   }, 10000);
 
+  it('survives an abrupt socket reset without crashing the server (#105)', async () => {
+    srv = startServer(0);
+    const url = `ws://localhost:${await port(srv)}`;
+
+    const ws = new WebSocket(`${url}/resetroom`);
+    await new Promise((r) => ws.on('open', r));
+    ws.on('error', () => { /* client-side reset noise */ });
+    // Force an abrupt reset so the server-side socket emits 'error' (ECONNRESET)
+    // rather than a clean close. Without a conn 'error' listener this became an
+    // uncaughtException; the server must stay up.
+    ws._socket.destroy(new Error('reset'));
+    await new Promise((r) => setTimeout(r, 200));
+
+    const docA = new Y.Doc(), docB = new Y.Doc();
+    a = new WebSocketProvider(url, 'alive', docA, { WebSocketPolyfill: WebSocket });
+    b = new WebSocketProvider(url, 'alive', docB, { WebSocketPolyfill: WebSocket });
+    expect(await until(() => a.synced && b.synced)).toBe(true);
+    docA.getText('t').insert(0, 'ok');
+    expect(await until(() => docB.getText('t').toString() === 'ok')).toBe(true);
+  }, 10000);
+
   it('reaps a half-open connection so its room does not leak (#103)', async () => {
     srv = startServer(0, { heartbeatMs: 80 });
     const url = `ws://localhost:${await port(srv)}`;

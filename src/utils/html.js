@@ -125,6 +125,22 @@ export function _isDangerousUrl(url) {
 }
 
 /**
+ * Positive scheme allowlist for link hrefs. _isDangerousUrl is a denylist tuned
+ * for <img src> (it permits data:image/* etc.), which is wrong for a hyperlink.
+ * Here anything with an explicit scheme must be http/https/mailto/tel; schemeless
+ * values (relative paths, root-relative, #anchors, ?query) are allowed. Control
+ * chars are stripped first so "java\tscript:" can't masquerade as schemeless.
+ */
+export function _isAllowedHref(url) {
+  const stripped = String(url == null ? '' : url).replace(/[\s\u0000-\u001F]/g, '');
+  if (!stripped) return false;
+  if (/^[#/?]/.test(stripped) || /^\.{1,2}\//.test(stripped)) return true;   // fragment / path
+  const m = stripped.match(/^([a-z][a-z0-9+.-]*):/i);
+  if (!m) return true;                                                        // schemeless -> relative
+  return ['http', 'https', 'mailto', 'tel'].includes(m[1].toLowerCase());
+}
+
+/**
  * Normalise raw HTML before setting it as editor content.
  * Wraps bare text nodes and inline-only content in <p> tags.
  */

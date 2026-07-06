@@ -3,7 +3,7 @@ import { History } from './History.js';
 import { Schema } from './Schema.js';
 import { Selection } from './Selection.js';
 import { CommandRegistry, CommandChain } from './Commands.js';
-import { normalizeHtml, sanitize, sanitizeContent, _isDangerousUrl } from '../utils/html.js';
+import { normalizeHtml, sanitize, sanitizeContent, _isAllowedHref } from '../utils/html.js';
 import { runInputRules, runPasteRules } from './InputRules.js';
 import { Decorations } from './Decorations.js';
 import { resolveExtensions, unwrapLazy } from './ExtensionRegistry.js';
@@ -354,9 +354,10 @@ export class Editor {
 
       // Links
       setLink(href, text) {
-        // Reject dangerous protocols before touching the DOM (single source of
-        // truth - same check the sanitizer uses; covers data:image/svg etc.)
-        if (!href || _isDangerousUrl(href)) return;
+        // Hrefs get a positive scheme allowlist (http/https/mailto/tel + relative),
+        // stricter than the sanitizer's img-oriented denylist — a hyperlink has no
+        // reason to carry data:/blob: etc.
+        if (!href || !_isAllowedHref(href)) return;
         self.history.saveNow();
         const sel = self.selection.native;
         if (sel && !sel.isCollapsed) {

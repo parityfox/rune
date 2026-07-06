@@ -52,6 +52,12 @@ function _cleanNode(node, opts) {
       if (opts.embeds && tag === 'iframe' &&
           SAFE_EMBED_RE.test((child.getAttribute('src') || '').trim())) {
         _stripAttrs(child, opts);
+        // Force the sandbox (overwriting any attacker-supplied one). allow-scripts
+        // + allow-same-origin is the usual "can drop its own sandbox" footgun ONLY
+        // when the frame is same-origin to this page; SAFE_EMBED_RE pins src to
+        // cross-origin YouTube/Vimeo, so their script can't reach frameElement.
+        // allow-same-origin stays because those players need their own origin's
+        // storage to load — dropping it breaks playback for no security gain.
         child.setAttribute('sandbox', 'allow-scripts allow-same-origin');
         _cleanNode(child, opts);
         continue;

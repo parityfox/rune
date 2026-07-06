@@ -20,6 +20,11 @@ import * as awarenessProtocol from 'y-protocols/awareness';
 const MESSAGE_SYNC = 0;
 const MESSAGE_AWARENESS = 1;
 
+// y-protocols/sync sub-message types (first varUint of a MESSAGE_SYNC body).
+const SYNC_STEP1 = 0;    // read request  -> we reply with our state (step 2)
+const SYNC_STEP2 = 1;    // apply remote state  -> writes the shared doc
+const SYNC_UPDATE = 2;   // apply an update     -> writes the shared doc
+
 const MAX_BUFFERED = 8 * 1024 * 1024;   // backpressure: drop a consumer buffering > 8MB
 const MSG_RATE     = 400;               // max inbound messages/sec per connection
 
@@ -86,15 +91,24 @@ function closeConn(doc, conn) {
   try { conn.close(); } catch { /* already closed */ }
 }
 
-function onMessage(conn, doc, message) {
+function onMessage(conn, doc, message, readOnly) {
   const dec = decoding.createDecoder(message);
   const type = decoding.readVarUint(dec);
   if (type === MESSAGE_SYNC) {
     const enc = encoding.createEncoder();
     encoding.writeVarUint(enc, MESSAGE_SYNC);
-    syncProtocol.readSyncMessage(dec, enc, doc, conn);
+    const syncType = decoding.readVarUint(dec);
+    if (syncType === SYNC_STEP1) {
+      syncProtocol.readSyncStep1(dec, enc, doc);            // read request — always allowed
+    } else if (!readOnly) {                                 // step2 / update mutate the doc
+      if (syncType === SYNC_STEP2) syncProtocol.readSyncStep2(dec, doc, conn);
+      else if (syncType === SYNC_UPDATE) syncProtocol.readUpdate(dec, doc, conn);
+    }
+    // read-only clients that send a write get it silently dropped here.
     if (encoding.length(enc) > 1) send(doc, conn, encoding.toUint8Array(enc));
   } else if (type === MESSAGE_AWARENESS) {
+    // Ephemeral presence, not a document write — allowed even for read-only
+    // viewers so their cursor still shows to everyone else.
     awarenessProtocol.applyAwarenessUpdate(doc.awareness, decoding.readVarUint8Array(dec), conn);
   }
 }
@@ -105,6 +119,9 @@ export function setupWSConnection(conn, req) {
   const room = (req?.url || '/').slice(1).split('?')[0] || 'default';
   const doc = getDoc(room);
   doc.conns.set(conn, new Set());
+  // authorize() may grant read-only access; such a connection receives updates
+  // and presence but its writes to the shared doc are dropped (see onMessage).
+  const readOnly = conn._runeCap === 'read';
 
   // Never let a malformed frame escape the handler: a single truncated/garbage
   // message makes lib0/y-protocols throw, which would otherwise become an
@@ -115,7 +132,7 @@ export function setupWSConnection(conn, req) {
     const now = Date.now();
     if (now - windowStart >= 1000) { windowStart = now; msgs = 0; }
     if (++msgs > MSG_RATE) { closeConn(doc, conn); return; }   // too chatty -> drop the connection
-    try { onMessage(conn, doc, new Uint8Array(data)); }
+    try { onMessage(conn, doc, new Uint8Array(data), readOnly); }
     catch { closeConn(doc, conn); }
   });
   conn.on('close', () => closeConn(doc, conn));
@@ -150,13 +167,19 @@ export function setupWSConnection(conn, req) {
  * Start the reference server. Returns { server, wss, close() }.
  *
  * @param {number} port
- * @param {{ authorize?: (req, room) => boolean | Promise<boolean>,
+ * @param {{ authorize?: (req, room) => (boolean|'read'|'write') | Promise<boolean|'read'|'write'>,
  *           allowedOrigins?: string[] | ((origin: string|undefined) => boolean) }} [opts]
  *   authorize is called per connection BEFORE the WebSocket upgrade; return false
  *   (or throw) to reject with 401. The raw `req` carries the token — read it from
  *   the query (`?token=…` in `req.url`) or `req.headers`. Default (no hook) is
  *   open, so the demo stays zero-config. Plug real auth in here, e.g.:
  *     authorize: async (req) => verifyJwt(new URL(req.url, 'ws://x').searchParams.get('token'))
+ *
+ *   Return 'read' to grant read-only access: the connection receives document
+ *   updates and presence but its writes to the shared doc are dropped server-
+ *   side. `true` / 'write' grant full read+write (the default when authorize is
+ *   absent). WITHOUT an authorize hook the server is fully open — set one (and
+ *   allowedOrigins, or token auth) before exposing it.
  *
  *   allowedOrigins gates the browser Origin on the handshake (defends against
  *   cross-site WebSocket hijacking). Pass an allowlist of exact origins, or a
@@ -211,10 +234,14 @@ export function startServer(port = process.env.PORT || 1234, {
     const ip = req.socket.remoteAddress || 'unknown';
     if (wss.clients.size >= maxConnections) { socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n'); socket.destroy(); return; }
     if ((ipCounts.get(ip) || 0) >= maxConnectionsPerIp) { socket.write('HTTP/1.1 429 Too Many Requests\r\n\r\n'); socket.destroy(); return; }
-    let ok = true;
-    if (authorize) { try { ok = await authorize(req, room); } catch { ok = false; } }
-    if (!ok) { socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy(); return; }
+    let cap = 'write';
+    if (authorize) {
+      try { const r = await authorize(req, room); cap = r === false ? false : (r === 'read' ? 'read' : 'write'); }
+      catch { cap = false; }
+    }
+    if (!cap) { socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy(); return; }
     wss.handleUpgrade(req, socket, head, (ws) => {
+      ws._runeCap = cap;
       ipCounts.set(ip, (ipCounts.get(ip) || 0) + 1);
       ws.on('close', () => {
         const n = (ipCounts.get(ip) || 1) - 1;

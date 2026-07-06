@@ -101,6 +101,30 @@ describe('WebSocket transport (reference server + provider)', () => {
     try { okWs.close(); } catch { /* ignore */ }
   }, 10000);
 
+  it('read-only connections receive updates but cannot write the doc (#102)', async () => {
+    srv = startServer(0, {
+      authorize: (req) => new URL(req.url, 'ws://x').searchParams.get('mode') === 'ro' ? 'read' : 'write',
+    });
+    const url = `ws://localhost:${await port(srv)}`;
+    const docW = new Y.Doc(), docR = new Y.Doc();
+    // disableBc: in one process y-websocket's cross-tab BroadcastChannel would
+    // sync the two clients peer-to-peer and bypass the server. Real cross-origin
+    // users never share that channel, so force all traffic through the server —
+    // which is where the read/write capability is enforced.
+    a = new WebSocketProvider(url, 'r', docW, { WebSocketPolyfill: WebSocket, params: { mode: 'rw' }, disableBc: true });
+    b = new WebSocketProvider(url, 'r', docR, { WebSocketPolyfill: WebSocket, params: { mode: 'ro' }, disableBc: true });
+    expect(await until(() => a.synced && b.synced)).toBe(true);
+
+    // The writer's edit reaches the read-only viewer.
+    docW.getText('t').insert(0, 'from-writer');
+    expect(await until(() => docR.getText('t').toString() === 'from-writer')).toBe(true);
+
+    // The read-only viewer's edit must NOT propagate back to the writer.
+    docR.getText('t').insert(docR.getText('t').length, '-blocked');
+    await new Promise((r) => setTimeout(r, 400));
+    expect(docW.getText('t').toString()).toBe('from-writer');
+  }, 10000);
+
   it('caps concurrent connections per IP (#104)', async () => {
     srv = startServer(0, { maxConnectionsPerIp: 2 });
     const url = `ws://localhost:${await port(srv)}`;

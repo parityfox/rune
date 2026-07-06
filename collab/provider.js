@@ -33,14 +33,16 @@ import { WebsocketProvider } from 'y-websocket';
  * @param {string} url   base server URL, e.g. 'ws://localhost:1234'
  * @param {string} room  document/room name
  * @param {Y.Doc}  doc
- * @param {{ awareness?, WebSocketPolyfill?, connect?: boolean, maxBackoffTime?: number, resyncInterval?: number, params?: Record<string,string> }} [opts]
+ * @param {{ awareness?, WebSocketPolyfill?, connect?: boolean, maxBackoffTime?: number, resyncInterval?: number, params?: Record<string,string>, disableBc?: boolean }} [opts]
  *        WebSocketPolyfill is required in Node (pass the `ws` WebSocket).
  *        params are appended as query string (e.g. an auth token the server's authorize() reads).
+ *        disableBc turns off same-origin cross-tab BroadcastChannel sync so all
+ *        traffic goes through the server (e.g. to honour server-side read-only gating).
  */
 export class WebSocketProvider {
   constructor(url, room, doc, opts = {}) {
-    const { awareness, WebSocketPolyfill, connect = true, maxBackoffTime = 2500, resyncInterval = -1, params } = opts;
-    this._p = new WebsocketProvider(url, room, doc, { awareness, WebSocketPolyfill, connect, maxBackoffTime, resyncInterval, params });
+    const { awareness, WebSocketPolyfill, connect = true, maxBackoffTime = 2500, resyncInterval = -1, params, disableBc = false } = opts;
+    this._p = new WebsocketProvider(url, room, doc, { awareness, WebSocketPolyfill, connect, maxBackoffTime, resyncInterval, params, disableBc });
     this._everConnected = false;
     this._lastSynced = null;
     this._statusCbs = new Set();

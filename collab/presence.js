@@ -16,6 +16,18 @@ const TYPING_MS = 1200;
 const IDLE_MS   = 30_000;
 const AWAY_MS   = 120_000;
 
+// A remote peer controls `user.color`, and it lands in an element's style.cssText
+// (a full declaration list). Restrict it to a strict <color> allowlist — hex,
+// a bare keyword, or an rgb/hsl(a) function whose contents can't hold a ';', '('
+// or letters — so a payload like "red;position:fixed;inset:0;width:100vw" or a
+// "url(…)" beacon can't ride the color field into every peer's DOM. Deliberately
+// not CSS.supports(): some engines (and happy-dom) accept the injection verbatim.
+export function _safeColor(input) {
+  const col = typeof input === 'string' ? input.trim() : '';
+  if (!col) return '#888';
+  return /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$|^(?:rgb|hsl)a?\([\d\s.,%/]+\)$/.test(col) ? col : '#888';
+}
+
 function getSelection(content) {
   const d = content.ownerDocument;
   return d.defaultView?.getSelection?.() || d.getSelection?.() || null;
@@ -116,7 +128,7 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
       const isSelf = clientId === awareness.clientID;
       const user = state.user || {};
       if (isSelf || !state.cursor || !state.cursor.head) return;       // guard malformed/absent cursor
-      const col = user.color || '#888';
+      const col = _safeColor(user.color);
       const away = state.activity === 'away';
 
       const headPt = resolve(state.cursor.head);

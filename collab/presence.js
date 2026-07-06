@@ -28,6 +28,13 @@ export function _safeColor(input) {
   return /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$|^(?:rgb|hsl)a?\([\d\s.,%/]+\)$/.test(col) ? col : '#888';
 }
 
+// Bound the display fields we broadcast over awareness so a client can't push a
+// multi-MB name/avatar that fans out to every peer. Hygiene, not a hard boundary.
+const _clipField = (s, n = 256) => (typeof s === 'string' && s.length > n ? s.slice(0, n) : s);
+function _safeUser({ name, color, avatar } = {}) {
+  return { name: _clipField(name), color: _clipField(color, 64), avatar: _clipField(avatar, 64) };
+}
+
 function getSelection(content) {
   const d = content.ownerDocument;
   return d.defaultView?.getSelection?.() || d.getSelection?.() || null;
@@ -46,7 +53,7 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
   layer.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5;';
   wrapper.appendChild(layer);
 
-  awareness.setLocalStateField('user', { name, color, avatar });
+  awareness.setLocalStateField('user', _safeUser({ name, color, avatar }));
   awareness.setLocalStateField('activity', 'active');
 
   let typing = false, typingTimer = null, selThrottle = null;
@@ -208,7 +215,7 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
     follow(id) { _following = id; scheduleRender(); },
     unfollow() { _following = null; },
     /** Update the local user's name/color/avatar. */
-    setUser(patch) { awareness.setLocalStateField('user', { name, color, avatar, ...patch }); },
+    setUser(patch) { awareness.setLocalStateField('user', _safeUser({ name, color, avatar, ...patch })); },
     destroy() {
       if (_destroyed) return;
       _destroyed = true;

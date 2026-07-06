@@ -165,7 +165,11 @@ export function setupWSConnection(conn, req) {
  *   through — a hostile page can't suppress it. Omit to stay open (reference
  *   default); ALWAYS set it (or cookie-independent token auth) in production.
  */
-export function startServer(port = process.env.PORT || 1234, { authorize, allowedOrigins, maxRooms = 10000, heartbeatMs = 30_000 } = {}) {
+export function startServer(port = process.env.PORT || 1234, {
+  authorize, allowedOrigins, maxRooms = 10000, heartbeatMs = 30_000,
+  maxConnections = 10000, maxConnectionsPerIp = 50,
+} = {}) {
+  const ipCounts = new Map();   // remote IP -> live connection count
   const _originAllowed = (origin) => {
     if (!allowedOrigins) return true;                          // not configured -> open
     if (typeof allowedOrigins === 'function') return !!allowedOrigins(origin);
@@ -201,10 +205,23 @@ export function startServer(port = process.env.PORT || 1234, { authorize, allowe
     if (!ROOM_RE.test(room)) { socket.write('HTTP/1.1 400 Bad Request\r\n\r\n'); socket.destroy(); return; }
     if (!_originAllowed(req.headers.origin)) { socket.write('HTTP/1.1 403 Forbidden\r\n\r\n'); socket.destroy(); return; }
     if (!docs.has(room) && docs.size >= maxRooms) { socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n'); socket.destroy(); return; }
+    // Cap concurrent sockets globally and per source IP so one host (or a botnet
+    // hitting one valid room, each under the message-rate limit) can't exhaust
+    // file descriptors and memory.
+    const ip = req.socket.remoteAddress || 'unknown';
+    if (wss.clients.size >= maxConnections) { socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n'); socket.destroy(); return; }
+    if ((ipCounts.get(ip) || 0) >= maxConnectionsPerIp) { socket.write('HTTP/1.1 429 Too Many Requests\r\n\r\n'); socket.destroy(); return; }
     let ok = true;
     if (authorize) { try { ok = await authorize(req, room); } catch { ok = false; } }
     if (!ok) { socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy(); return; }
-    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      ipCounts.set(ip, (ipCounts.get(ip) || 0) + 1);
+      ws.on('close', () => {
+        const n = (ipCounts.get(ip) || 1) - 1;
+        if (n <= 0) ipCounts.delete(ip); else ipCounts.set(ip, n);
+      });
+      wss.emit('connection', ws, req);
+    });
   });
 
   server.listen(port);

@@ -1,6 +1,13 @@
 import * as Y from 'yjs';
 import { uid } from '../src/utils/id.js';
 
+// Bound stored strings so a client can't push a multi-MB author/comment into the
+// shared doc that then fans out to every peer. Hygiene, not a hard boundary — a
+// hostile peer can still craft raw Yjs updates over the wire.
+const MAX_AUTHOR = 256;
+const MAX_TEXT = 10_000;
+const _clip = (s, n) => (typeof s === 'string' && s.length > n ? s.slice(0, n) : s);
+
 /**
  * Comments (#14) — threaded comments anchored to a text range within a block.
  *
@@ -23,6 +30,8 @@ export class CommentStore {
   add({ blockId, from, to, text, author, id = uid(), ts = Date.now() }) {
     const block = this._blockById(blockId);
     if (!block || to <= from) return null;
+    author = _clip(author, MAX_AUTHOR);
+    text = _clip(text, MAX_TEXT);
     const yt = block.get('text');
     const m = new Y.Map();
     m.set('id', id);
@@ -41,7 +50,7 @@ export class CommentStore {
 
   reply(threadId, { author, text, ts = Date.now() }) {
     const m = this._threadById(threadId);
-    if (m && text) m.get('replies').push([{ id: uid(), author, text, ts }]);
+    if (m && text) m.get('replies').push([{ id: uid(), author: _clip(author, MAX_AUTHOR), text: _clip(text, MAX_TEXT), ts }]);
   }
 
   resolve(threadId, resolved = true) {

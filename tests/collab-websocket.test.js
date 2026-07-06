@@ -101,6 +101,30 @@ describe('WebSocket transport (reference server + provider)', () => {
     try { okWs.close(); } catch { /* ignore */ }
   }, 10000);
 
+  it('caps concurrent connections per IP (#104)', async () => {
+    srv = startServer(0, { maxConnectionsPerIp: 2 });
+    const url = `ws://localhost:${await port(srv)}`;
+    const open = (n) => new Promise((res) => {
+      const w = new WebSocket(`${url}/caproom`);
+      w.on('open', () => res({ ok: true, w }));
+      w.on('error', () => res({ ok: false, w }));
+      w.on('close', () => res({ ok: false, w }));
+      setTimeout(() => res({ ok: false, w }), 1500);
+    });
+
+    const r1 = await open(); const r2 = await open();
+    expect(r1.ok && r2.ok).toBe(true);          // two allowed
+    const r3 = await open();
+    expect(r3.ok).toBe(false);                  // third from same IP rejected
+
+    // Freeing a slot lets a new one in.
+    r1.w.close();
+    expect(await until(() => srv.wss.clients.size < 2, 2000)).toBe(true);
+    const r4 = await open();
+    expect(r4.ok).toBe(true);
+    for (const r of [r2, r4]) { try { r.w.close(); } catch { /* ignore */ } }
+  }, 10000);
+
   it('survives an abrupt socket reset without crashing the server (#105)', async () => {
     srv = startServer(0);
     const url = `ws://localhost:${await port(srv)}`;

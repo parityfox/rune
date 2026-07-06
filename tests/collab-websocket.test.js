@@ -101,6 +101,22 @@ describe('WebSocket transport (reference server + provider)', () => {
     try { okWs.close(); } catch { /* ignore */ }
   }, 10000);
 
+  it('reaps a half-open connection so its room does not leak (#103)', async () => {
+    srv = startServer(0, { heartbeatMs: 80 });
+    const url = `ws://localhost:${await port(srv)}`;
+
+    const ws = new WebSocket(`${url}/reaproom`);
+    await new Promise((r) => ws.on('open', r));
+    expect(srv.wss.clients.size).toBe(1);
+
+    // Pause the underlying socket: the client can no longer read the server's
+    // ping frame, so it never auto-pongs — exactly a connection that died
+    // without a FIN. The reaper must notice and terminate it.
+    ws._socket.pause();
+    expect(await until(() => srv.wss.clients.size === 0, 2000)).toBe(true);
+    try { ws.terminate(); } catch { /* already gone */ }
+  }, 10000);
+
   it('survives a malformed frame without crashing the server (#43)', async () => {
     srv = startServer(0);
     const url = `ws://localhost:${await port(srv)}`;

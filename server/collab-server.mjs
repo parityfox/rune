@@ -120,6 +120,12 @@ export function setupWSConnection(conn, req) {
   });
   conn.on('close', () => closeConn(doc, conn));
 
+  // Heartbeat liveness: the reaper (startServer) pings periodically and drops any
+  // socket that never ponged, so a connection that died without a FIN doesn't sit
+  // in doc.conns forever — leaking its awareness state and pinning the room open.
+  conn.isAlive = true;
+  conn.on('pong', () => { conn.isAlive = true; });
+
   // 1. sync step 1 (offer our state vector)
   const sync = encoding.createEncoder();
   encoding.writeVarUint(sync, MESSAGE_SYNC);
@@ -155,7 +161,7 @@ export function setupWSConnection(conn, req) {
  *   through — a hostile page can't suppress it. Omit to stay open (reference
  *   default); ALWAYS set it (or cookie-independent token auth) in production.
  */
-export function startServer(port = process.env.PORT || 1234, { authorize, allowedOrigins, maxRooms = 10000 } = {}) {
+export function startServer(port = process.env.PORT || 1234, { authorize, allowedOrigins, maxRooms = 10000, heartbeatMs = 30_000 } = {}) {
   const _originAllowed = (origin) => {
     if (!allowedOrigins) return true;                          // not configured -> open
     if (typeof allowedOrigins === 'function') return !!allowedOrigins(origin);
@@ -167,6 +173,19 @@ export function startServer(port = process.env.PORT || 1234, { authorize, allowe
   // payload into the shared doc and fan it out to every peer.
   const wss = new WebSocketServer({ noServer: true, maxPayload: 5 * 1024 * 1024 });   // we drive the upgrade so we can gate it
   wss.on('connection', setupWSConnection);
+
+  // Reap half-open connections: ping every client each tick and terminate any
+  // that didn't pong since the last one. terminate() fires 'close', so closeConn
+  // runs and the now-empty room is destroyed. unref so the loop never keeps the
+  // process alive on its own.
+  const heartbeat = setInterval(() => {
+    for (const ws of wss.clients) {
+      if (ws.isAlive === false) { ws.terminate(); continue; }
+      ws.isAlive = false;
+      try { ws.ping(); } catch { /* socket already going away */ }
+    }
+  }, heartbeatMs);
+  heartbeat.unref?.();
 
   server.on('upgrade', async (req, socket, head) => {
     const room = (req.url || '/').slice(1).split('?')[0] || 'default';
@@ -184,6 +203,7 @@ export function startServer(port = process.env.PORT || 1234, { authorize, allowe
   return {
     server, wss, port,
     close: () => new Promise((r) => {
+      clearInterval(heartbeat);
       for (const c of wss.clients) c.terminate();        // force-drop live sockets (a real bounce)
       wss.close(() => server.close(r));
     }),

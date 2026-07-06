@@ -52,6 +52,12 @@ function _cleanNode(node, opts) {
       if (opts.embeds && tag === 'iframe' &&
           SAFE_EMBED_RE.test((child.getAttribute('src') || '').trim())) {
         _stripAttrs(child, opts);
+        // Force the sandbox (overwriting any attacker-supplied one). allow-scripts
+        // + allow-same-origin is the usual "can drop its own sandbox" footgun ONLY
+        // when the frame is same-origin to this page; SAFE_EMBED_RE pins src to
+        // cross-origin YouTube/Vimeo, so their script can't reach frameElement.
+        // allow-same-origin stays because those players need their own origin's
+        // storage to load — dropping it breaks playback for no security gain.
         child.setAttribute('sandbox', 'allow-scripts allow-same-origin');
         _cleanNode(child, opts);
         continue;
@@ -122,6 +128,22 @@ export function _isDangerousUrl(url) {
     stripped.startsWith('vbscript:') ||
     (stripped.startsWith('data:') && !stripped.startsWith('data:image/')) ||
     stripped.startsWith('data:image/svg');
+}
+
+/**
+ * Positive scheme allowlist for link hrefs. _isDangerousUrl is a denylist tuned
+ * for <img src> (it permits data:image/* etc.), which is wrong for a hyperlink.
+ * Here anything with an explicit scheme must be http/https/mailto/tel; schemeless
+ * values (relative paths, root-relative, #anchors, ?query) are allowed. Control
+ * chars are stripped first so "java\tscript:" can't masquerade as schemeless.
+ */
+export function _isAllowedHref(url) {
+  const stripped = String(url == null ? '' : url).replace(/[\s\u0000-\u001F]/g, '');
+  if (!stripped) return false;
+  if (/^[#/?]/.test(stripped) || /^\.{1,2}\//.test(stripped)) return true;   // fragment / path
+  const m = stripped.match(/^([a-z][a-z0-9+.-]*):/i);
+  if (!m) return true;                                                        // schemeless -> relative
+  return ['http', 'https', 'mailto', 'tel'].includes(m[1].toLowerCase());
 }
 
 /**

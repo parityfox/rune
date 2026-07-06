@@ -5,10 +5,17 @@
  *   Inline:        { type:'text', text, marks?: [{ type, attrs? }] } | { type:'hardBreak' }
  *
  * `htmlToJson(html)` parses HTML (needs a DOM); `jsonToHtml(doc)` renders a doc
- * to an HTML string with NO DOM, so it runs server-side. Blocks the model
- * doesn't structure (callout, table, image, toggle, columns…) round-trip
- * losslessly via a passthrough { type:'html', html } node.
+ * to an HTML string with NO DOM, so it runs server-side. Text and attribute
+ * values are HTML-escaped (quotes included) and link hrefs with dangerous
+ * schemes are dropped, so structured nodes are safe to render directly.
+ *
+ * NOTE: the { type:'html', html } passthrough (used so callout/table/image/
+ * toggle/columns round-trip losslessly) is emitted verbatim. In the normal
+ * getJSON()->setJSON() round-trip that HTML originated from the editor's own
+ * sanitized content; if you build docs by hand, treat passthrough html as
+ * trusted input — jsonToHtml cannot sanitize it without a DOM.
  */
+import { _isDangerousUrl } from './html.js';
 
 const INLINE_MARK = {
   STRONG: 'bold', B: 'bold', EM: 'italic', I: 'italic', U: 'underline',
@@ -75,7 +82,9 @@ function _inlineToJson(el) {
 
 // ── JSON → HTML (no DOM) ──────────────────────────────────────
 function _esc(s) {
-  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 export function jsonToHtml(doc) {
@@ -104,7 +113,7 @@ function _inlineToHtml(content) {
     let html = _esc(n.text);
     // Apply marks inner→outer so the first mark in the array stays outermost.
     for (const mark of [...(n.marks || [])].reverse()) {
-      if (mark.type === 'link') html = `<a href="${_esc(mark.attrs?.href)}">${html}</a>`;
+      if (mark.type === 'link') { const href = mark.attrs?.href; html = `<a href="${_isDangerousUrl(String(href ?? '')) ? '' : _esc(href)}">${html}</a>`; }
       else if (MARK_WRAP[mark.type]) html = MARK_WRAP[mark.type][0] + html + MARK_WRAP[mark.type][1];
     }
     return html;

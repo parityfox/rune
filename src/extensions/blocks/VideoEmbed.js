@@ -121,9 +121,12 @@ export const VideoEmbed = {
         wrap.className = 'rune-video-wrap';
 
         const iframe = document.createElement('iframe');
-        iframe.src = embedUrl;
+        iframe.src = embedUrl;   // parseVideoUrl reconstructs a canonical YouTube/Vimeo URL
         iframe.setAttribute('frameborder', '0');
         iframe.setAttribute('allowfullscreen', '');
+        // allow-scripts + allow-same-origin is safe here: embedUrl is always a
+        // cross-origin YouTube/Vimeo URL, so the frame can't reach frameElement to
+        // drop its own sandbox. allow-same-origin is required for playback.
         iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
         iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
 

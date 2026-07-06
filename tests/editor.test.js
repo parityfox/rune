@@ -490,6 +490,18 @@ describe('Editor', () => {
       const out = paste('See **important**', '<p>See <strong>important</strong></p>');
       expect(out).toContain('<strong>important</strong>');   // not overridden
     });
+
+    it('re-sanitizes paste-rule output so a rule cannot inject unsanitized HTML (#106)', () => {
+      // A consumer-registered paste rule that emits raw markup. It runs AFTER the
+      // sanitizer, so without a second sanitize pass this event handler would land
+      // straight in the document.
+      const Evil = { name: 'evil', type: 'plugin',
+        pasteRules: [{ find: /TRIGGER/g, replace: () => '<img src=x onerror="alert(1)">' }] };
+      create({ content: '<p></p>', extensions: [Paragraph, Evil] });
+      const out = paste('TRIGGER');
+      expect(out).toContain('<img');          // the safe tag survives
+      expect(out).not.toContain('onerror');   // the injected handler is stripped
+    });
   });
 
   describe('JSON document (#83)', () => {

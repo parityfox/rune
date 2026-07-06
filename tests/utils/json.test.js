@@ -47,4 +47,32 @@ describe('JSON document model (#83)', () => {
     expect(jsonToHtml({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a <b> & c' }] }] }))
       .toBe('<p>a &lt;b&gt; &amp; c</p>');
   });
+
+  describe('jsonToHtml output is XSS-safe standalone (#100)', () => {
+    const doc = (marks) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x', marks }] }] });
+
+    it('drops a javascript: href on a link mark', () => {
+      expect(jsonToHtml(doc([{ type: 'link', attrs: { href: 'javascript:alert(1)' } }])))
+        .toBe('<p><a href="">x</a></p>');
+    });
+
+    it('keeps a safe href', () => {
+      expect(jsonToHtml(doc([{ type: 'link', attrs: { href: 'https://y.com' } }])))
+        .toBe('<p><a href="https://y.com">x</a></p>');
+    });
+
+    it('escapes quotes in an href so it cannot break out of the attribute', () => {
+      const out = jsonToHtml(doc([{ type: 'link', attrs: { href: 'https://y.com" onmouseover="alert(1)' } }]));
+      expect(out).not.toContain('" onmouseover="');
+      expect(out).toContain('&quot;');
+    });
+
+    it('escapes quotes in a code-block language attribute', () => {
+      const out = jsonToHtml({ type: 'doc', content: [
+        { type: 'codeBlock', attrs: { language: 'js"><script>' }, content: [{ type: 'text', text: 'x' }] },
+      ] });
+      expect(out).not.toContain('"><script>');
+      expect(out).toContain('&quot;');
+    });
+  });
 });

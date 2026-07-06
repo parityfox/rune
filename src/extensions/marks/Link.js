@@ -1,4 +1,4 @@
-import { _isDangerousUrl } from '../../utils/html.js';
+import { _isAllowedHref } from '../../utils/html.js';
 import { el, getSelectionRect } from '../../utils/dom.js';
 
 /** Normalize loose user input into a usable href (bare domains get https://). */
@@ -99,7 +99,7 @@ function createLinkUI(editor) {
     const commit = () => {
       const url = _normalizeUrl(input.value);
       if (!url) { hide(); return; }
-      if (_isDangerousUrl(url)) { input.classList.add('is-error'); input.focus(); return; }
+      if (!_isAllowedHref(url)) { input.classList.add('is-error'); input.focus(); return; }
       restoreSelection();
       editor.cmd('setLink', url);
       hide();

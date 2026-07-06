@@ -1,6 +1,10 @@
 import * as Y from 'yjs';
 import { uid } from '../src/utils/id.js';
 
+// Bound the proposed text so a client can't push a multi-MB insert into the
+// shared doc that then fans out to every peer. Hygiene, not a hard boundary.
+const MAX_TEXT = 10_000;
+
 /**
  * Suggestions / tracked changes (#15) — model + accept/reject.
  *
@@ -26,6 +30,7 @@ export class SuggestionStore {
   suggestInsert(blockId, pos, text, author, color = null) {
     const block = this._block(blockId);
     if (!block || !text) return null;
+    if (text.length > MAX_TEXT) text = text.slice(0, MAX_TEXT);
     const id = uid();
     block.get('text').insert(pos, text, { suggestion: { id, type: 'insert', author, ...(color ? { color } : {}) } });
     return id;

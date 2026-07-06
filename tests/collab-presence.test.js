@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as Y from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
 import { MemoryHub } from '../collab/memory-hub.js';
-import { bindPresence } from '../collab/presence.js';
+import { bindPresence, _safeColor } from '../collab/presence.js';
 import { bindParagraph } from '../collab/paragraph-binding.js';
 import { PresenceBar } from '../src/ui/PresenceBar.js';
 import { Editor } from '../src/core/Editor.js';
@@ -58,5 +58,28 @@ describe('presence roster API + bar (#91)', () => {
     avatars[0].click();
     expect(container.querySelector('.rune-presence-avatar.is-following')).toBeTruthy();
     bar.destroy();
+  });
+});
+
+describe('_safeColor rejects CSS injection via a peer\'s user.color', () => {
+  it('passes through valid colors unchanged', () => {
+    expect(_safeColor('#f00')).toBe('#f00');
+    expect(_safeColor('#ff000080')).toBe('#ff000080');
+    expect(_safeColor('rebeccapurple')).toBe('rebeccapurple');
+    expect(_safeColor('rgb(10, 20, 30)')).toBe('rgb(10, 20, 30)');
+    expect(_safeColor('hsla(200 50% 50% / 0.5)')).toBe('hsla(200 50% 50% / 0.5)');
+  });
+
+  it('drops declaration-breakout and url() beacon payloads to the default', () => {
+    // Full-viewport overlay for clickjacking.
+    expect(_safeColor('red;position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483647'))
+      .toBe('#888');
+    // CSS beacon / exfil.
+    expect(_safeColor('url(https://evil.example/beacon)')).toBe('#888');
+    expect(_safeColor('#888;background:url(https://evil.example/x)')).toBe('#888');
+    // Non-strings and empties fall back safely.
+    expect(_safeColor(undefined)).toBe('#888');
+    expect(_safeColor('')).toBe('#888');
+    expect(_safeColor({})).toBe('#888');
   });
 });

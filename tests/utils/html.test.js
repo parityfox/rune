@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitize, _isDangerousUrl, normalizeHtml } from '../../src/utils/html.js';
+import { sanitize, _isDangerousUrl, _isAllowedHref, normalizeHtml } from '../../src/utils/html.js';
 
 describe('_isDangerousUrl', () => {
   it('blocks javascript: URIs', () => {
@@ -40,6 +40,37 @@ describe('_isDangerousUrl', () => {
 
   it('blocks URLs with null-byte injection', () => {
     expect(_isDangerousUrl('java\x00script:alert(1)')).toBe(true);
+  });
+});
+
+describe('_isAllowedHref (link scheme allowlist, #108)', () => {
+  it('allows http/https/mailto/tel', () => {
+    expect(_isAllowedHref('https://example.com')).toBe(true);
+    expect(_isAllowedHref('http://example.com')).toBe(true);
+    expect(_isAllowedHref('mailto:a@b.com')).toBe(true);
+    expect(_isAllowedHref('tel:+15551234')).toBe(true);
+  });
+
+  it('allows relative, root-relative, anchor and query hrefs', () => {
+    expect(_isAllowedHref('/path/page')).toBe(true);
+    expect(_isAllowedHref('page.html')).toBe(true);
+    expect(_isAllowedHref('../up')).toBe(true);
+    expect(_isAllowedHref('#section')).toBe(true);
+    expect(_isAllowedHref('?q=1')).toBe(true);
+  });
+
+  it('blocks javascript/vbscript and control-char obfuscation', () => {
+    expect(_isAllowedHref('javascript:alert(1)')).toBe(false);
+    expect(_isAllowedHref('vbscript:msgbox')).toBe(false);
+    expect(_isAllowedHref('java\tscript:alert(1)')).toBe(false);
+    expect(_isAllowedHref('java\x00script:alert(1)')).toBe(false);
+  });
+
+  it('blocks data:/blob: on hrefs even for images (unlike _isDangerousUrl)', () => {
+    expect(_isAllowedHref('data:image/png;base64,abc')).toBe(false);
+    expect(_isAllowedHref('blob:https://x/1234')).toBe(false);
+    expect(_isAllowedHref('')).toBe(false);
+    expect(_isAllowedHref(null)).toBe(false);
   });
 });
 

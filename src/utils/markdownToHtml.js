@@ -4,9 +4,19 @@
  * Supports: ATX headings, paragraphs, blockquotes, fenced code, thematic breaks,
  * ordered/unordered lists (with indentation-based nesting), GFM tables, images,
  * links, and inline **bold** *italic* `code` ~~strike~~. It is pure string work
- * (no DOM), so it also runs server-side. The output is meant to be passed through
- * the editor's sanitizer (setHtml / paste), which enforces URL/attribute safety.
+ * (no DOM), so it also runs server-side. Output is safe to render directly:
+ * text and attribute values are HTML-escaped (quotes included) and link/image
+ * URLs with dangerous schemes (javascript:, non-image data:, …) are dropped.
+ * The editor still re-sanitizes on the way in as a second layer.
  */
+import { _isDangerousUrl } from './html.js';
+
+// Drop URLs with an executable/dangerous scheme; keep everything else. Runs on
+// the already-HTML-escaped capture, so it also feeds the sanitizer a clean value.
+function _safeSrc(url) {
+  return _isDangerousUrl(url) ? '' : url;
+}
+
 export function markdownToHtml(md) {
   const lines = String(md == null ? '' : md).replace(/\r\n?/g, '\n').split('\n');
   const out = [];
@@ -124,14 +134,16 @@ function parseTable(lines, start) {
 }
 
 function escapeHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function inline(text) {
   let s = escapeHtml(text);
   s = s.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
-  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, alt, src) => `<img src="${src}" alt="${alt}">`);
-  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, t, url) => `<a href="${url}">${t}</a>`);
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, alt, src) => `<img src="${_safeSrc(src)}" alt="${alt}">`);
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, t, url) => `<a href="${_safeSrc(url)}">${t}</a>`);
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
   s = s.replace(/(^|[^*])\*([^*\s][^*]*?)\*/g, '$1<em>$2</em>');

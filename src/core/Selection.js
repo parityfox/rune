@@ -46,9 +46,17 @@ export class Selection {
   /** Restore a saved range. */
   restore(saved) {
     if (!saved) return;
+    // The DOM can mutate between save and restore (undo innerHTML swap, text
+    // node trim/merge), leaving the saved offsets out of bounds — clamp and
+    // guard rather than let setStart throw IndexSizeError at the caller.
+    const max = (n) => (n.nodeType === 3 ? n.textContent.length : n.childNodes.length);
     const range = document.createRange();
-    range.setStart(saved.startContainer, saved.startOffset);
-    range.setEnd(saved.endContainer, saved.endOffset);
+    try {
+      range.setStart(saved.startContainer, Math.min(saved.startOffset, max(saved.startContainer)));
+      range.setEnd(saved.endContainer, Math.min(saved.endOffset, max(saved.endContainer)));
+    } catch {
+      return; // saved nodes no longer form a usable range
+    }
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);

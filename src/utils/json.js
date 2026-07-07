@@ -16,7 +16,7 @@
  * node you built BY HAND — so if you hand-author { type:'html' } nodes and render
  * them server-side, sanitize that HTML yourself first.
  */
-import { _isDangerousUrl, sanitizeContent } from './html.js';
+import { _isAllowedHref, sanitizeContent } from './html.js';
 
 // The { type:'html' } passthrough carries raw markup. Sanitize it wherever a DOM
 // is available so it can never smuggle script into jsonToHtml output. htmlToJson
@@ -123,7 +123,7 @@ function _inlineToHtml(content) {
     let html = _esc(n.text);
     // Apply marks inner→outer so the first mark in the array stays outermost.
     for (const mark of [...(n.marks || [])].reverse()) {
-      if (mark.type === 'link') { const href = mark.attrs?.href; html = `<a href="${_isDangerousUrl(String(href ?? '')) ? '' : _esc(href)}">${html}</a>`; }
+      if (mark.type === 'link') { const href = mark.attrs?.href; html = `<a href="${_isAllowedHref(String(href ?? '')) ? _esc(href) : ''}">${html}</a>`; }
       else if (MARK_WRAP[mark.type]) html = MARK_WRAP[mark.type][0] + html + MARK_WRAP[mark.type][1];
     }
     return html;

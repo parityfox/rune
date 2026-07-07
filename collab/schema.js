@@ -1,4 +1,4 @@
-import { _isDangerousUrl, _safeColor } from '../src/utils/html.js';
+import { _isDangerousUrl, _isAllowedHref, _safeColor } from '../src/utils/html.js';
 
 /**
  * Central collab schema (#10) — the declarative DOM <-> Yjs mapping the binding
@@ -38,9 +38,9 @@ export const MARKS = [
   },
   {
     key: 'link', value: true, tags: ['a'],
-    read: (el) => { const h = el.getAttribute('href'); return h && !_isDangerousUrl(h) ? h : null; },
+    read: (el) => { const h = el.getAttribute('href'); return h && _isAllowedHref(h) ? h : null; },
     create: (doc, href) => {
-      if (_isDangerousUrl(href)) return null;       // security boundary
+      if (!_isAllowedHref(href)) return null;       // security boundary (scheme allowlist)
       const a = doc.createElement('a');
       a.setAttribute('href', href);
       a.setAttribute('target', '_blank');

@@ -9,12 +9,18 @@
  * URLs with dangerous schemes (javascript:, non-image data:, …) are dropped.
  * The editor still re-sanitizes on the way in as a second layer.
  */
-import { _isDangerousUrl } from './html.js';
+import { _isDangerousUrl, _isAllowedHref } from './html.js';
 
-// Drop URLs with an executable/dangerous scheme; keep everything else. Runs on
-// the already-HTML-escaped capture, so it also feeds the sanitizer a clean value.
+// Image src: denylist (legitimately allows data:image/*). Runs on the
+// already-HTML-escaped capture, so it also feeds the sanitizer a clean value.
 function _safeSrc(url) {
   return _isDangerousUrl(url) ? '' : url;
+}
+
+// Link href: positive scheme allowlist (http/https/mailto/tel + relative),
+// matching the rest of the codebase — stricter than the img denylist.
+function _safeHref(url) {
+  return _isAllowedHref(url) ? url : '';
 }
 
 export function markdownToHtml(md) {
@@ -143,7 +149,7 @@ function inline(text) {
   let s = escapeHtml(text);
   s = s.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
   s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, alt, src) => `<img src="${_safeSrc(src)}" alt="${alt}">`);
-  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, t, url) => `<a href="${_safeSrc(url)}">${t}</a>`);
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, t, url) => `<a href="${_safeHref(url)}">${t}</a>`);
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
   s = s.replace(/(^|[^*])\*([^*\s][^*]*?)\*/g, '$1<em>$2</em>');

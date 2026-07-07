@@ -2,6 +2,25 @@ import { describe, it, expect } from 'vitest';
 import { MARKS } from '../collab/schema.js';
 
 const suggestion = MARKS.find((m) => m.key === 'suggestion');
+const link = MARKS.find((m) => m.key === 'link');
+
+// #127: the collab link mark validates hrefs with the positive scheme allowlist
+// (_isAllowedHref) like the rest of the codebase, not the img-oriented denylist,
+// so an exotic scheme a peer pushes is rejected on both read and create.
+describe('collab schema link mark scheme allowlist (#127)', () => {
+  it('rejects a non-allowlisted scheme on create', () => {
+    expect(link.create(document, 'evil:payload')).toBeNull();
+  });
+  it('accepts http(s) and relative hrefs on create', () => {
+    expect(link.create(document, 'https://y.com')).not.toBeNull();
+    expect(link.create(document, '/relative')).not.toBeNull();
+  });
+  it('rejects a non-allowlisted scheme on read', () => {
+    const a = document.createElement('a');
+    a.setAttribute('href', 'evil:payload');
+    expect(link.read(a)).toBeNull();
+  });
+});
 
 // #126: suggestion.color is peer-controlled and reaches style.color /
 // style.textDecorationColor. The color property setter already rejects url(),

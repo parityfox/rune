@@ -82,6 +82,15 @@ describe('JSON document model (#83)', () => {
         .toBe('<p><a href="https://y.com">x</a></p>');
     });
 
+    // #127: link hrefs use the positive scheme allowlist, so an exotic scheme
+    // the denylist would pass is dropped.
+    it('drops a non-allowlisted link scheme (#127)', () => {
+      expect(jsonToHtml(doc([{ type: 'link', attrs: { href: 'evil:payload' } }])))
+        .toBe('<p><a href="">x</a></p>');
+      expect(jsonToHtml(doc([{ type: 'link', attrs: { href: '/relative' } }])))
+        .toBe('<p><a href="/relative">x</a></p>');
+    });
+
     it('escapes quotes in an href so it cannot break out of the attribute', () => {
       const out = jsonToHtml(doc([{ type: 'link', attrs: { href: 'https://y.com" onmouseover="alert(1)' } }]));
       expect(out).not.toContain('" onmouseover="');

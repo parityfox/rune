@@ -110,10 +110,13 @@ export class Decorations {
     const oy = this.editor.wrapper.scrollTop;
 
     for (const [id, d] of this._items) {
+      // An endpoint that no longer resolves means the anchor was deleted —
+      // drop the decoration, or it leaks and later re-projects onto whatever
+      // node ends up at those indices.
       const a = this._resolve(d.from), b = this._resolve(d.to);
-      if (!a || !b) continue;
+      if (!a || !b) { this._items.delete(id); continue; }
       const range = document.createRange();
-      try { range.setStart(a.node, a.offset); range.setEnd(b.node, b.offset); } catch { continue; }
+      try { range.setStart(a.node, a.offset); range.setEnd(b.node, b.offset); } catch { this._items.delete(id); continue; }
       for (const rect of range.getClientRects()) {
         if (!rect.width && !rect.height) continue;
         const span = el('div', { class: d.class });

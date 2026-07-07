@@ -3,6 +3,9 @@ import { Editor } from '../../src/core/Editor.js';
 import { Paragraph } from '../../src/extensions/blocks/Paragraph.js';
 import { Toggle } from '../../src/extensions/blocks/Toggle.js';
 import { Columns } from '../../src/extensions/blocks/Columns.js';
+import { Table } from '../../src/extensions/blocks/Table.js';
+import { Callout } from '../../src/extensions/blocks/Callout.js';
+import { TaskList } from '../../src/extensions/blocks/TaskList.js';
 
 describe('Container blocks: Toggle + Columns (#88)', () => {
   let target, editor;
@@ -53,6 +56,36 @@ describe('Container blocks: Toggle + Columns (#88)', () => {
     const cols = editor.content.querySelectorAll('.rune-columns > .rune-column');
     expect(cols.length).toBe(3);
     cols.forEach((c) => expect(c.querySelector('p')).toBeTruthy());
+  });
+
+  // #113: getBlock() returns the inner block inside a container region, whose
+  // parent is the toggle body / column — not editor.content. Insert commands
+  // must not assume content-level parentage.
+  it('insertTable works when the caret is inside a toggle body (#113)', () => {
+    make([Paragraph, Toggle, Table]);
+    editor.cmd('insertToggle');
+    const bodyP = editor.content.querySelector('.rune-toggle-body > p');
+    caretInto(bodyP);
+    expect(() => editor.cmd('insertTable', 2, 2)).not.toThrow();
+    expect(editor.content.querySelector('.rune-toggle-body table.rune-table')).toBeTruthy();
+  });
+
+  it('insertCallout works when the caret is inside a column (#113)', () => {
+    make([Paragraph, Columns, Callout]);
+    editor.cmd('insertColumns', 2);
+    const colP = editor.content.querySelector('.rune-column > p');
+    caretInto(colP);
+    expect(() => editor.cmd('insertCallout')).not.toThrow();
+    expect(editor.content.querySelector('.rune-column .rune-callout')).toBeTruthy();
+  });
+
+  it('insertTaskList works when the caret is inside a toggle body (#113)', () => {
+    make([Paragraph, Toggle, TaskList]);
+    editor.cmd('insertToggle');
+    const bodyP = editor.content.querySelector('.rune-toggle-body > p');
+    caretInto(bodyP);
+    expect(() => editor.cmd('insertTaskList')).not.toThrow();
+    expect(editor.content.querySelector('.rune-toggle-body .rune-task-list')).toBeTruthy();
   });
 
   it('survives a getHtml -> setHtml round trip', () => {

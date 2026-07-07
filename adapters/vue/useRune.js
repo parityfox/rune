@@ -35,6 +35,14 @@ export function useRune(options = {}) {
     ro ? editor.value.disable() : editor.value.enable();
   });
 
+  // Live content binding (#117), guarded so a round-trip of the editor's own
+  // onChange value never resets the document (and caret) mid-typing.
+  watch(() => options.content, (content) => {
+    const ed = editor.value;
+    if (!ed || content === undefined) return;
+    if (content !== ed.getHtml()) ed.setHtml(content);
+  });
+
   return {
     el,
     editor,

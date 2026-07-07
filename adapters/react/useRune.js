@@ -47,6 +47,17 @@ export function useRune(options = {}) {
     readOnly ? editorRef.current.disable() : editorRef.current.enable();
   }, [readOnly]);
 
+  // Live content binding (#117), guarded so a round-trip of the editor's own
+  // onChange value never resets the document (and caret) mid-typing.
+  const content = options.content;
+  const lastContentRef = useRef(content);
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || content === undefined || content === lastContentRef.current) return;
+    lastContentRef.current = content;
+    if (content !== editor.getHtml()) editor.setHtml(content);
+  }, [content]);
+
   const getHtml = useCallback(() => editorRef.current?.getHtml() ?? '', []);
   const setHtml = useCallback((html) => editorRef.current?.setHtml(html), []);
   const cmd     = useCallback((name, ...args) => editorRef.current?.cmd(name, ...args), []);

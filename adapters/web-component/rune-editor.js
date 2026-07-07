@@ -61,13 +61,21 @@ class RuneEditorElement extends HTMLElement {
       config.editor.attribution = false;     // opt out of the "Made with Rune" credit
     }
 
+    // Capture author light DOM BEFORE appending the mount div, so an author
+    // <div></div> can't be confused with the mount when extracting content.
+    const lightDom = this.innerHTML.trim();
+
     // Mount point — inner div so the custom element itself stays clean
     const mount = document.createElement('div');
+    this._mount = mount;
     this.appendChild(mount);
 
     const initialContent =
-      this.getAttribute('content') ||
-      this.innerHTML.replace(mount.outerHTML, '').trim();
+      // A DOM move fires disconnected + connected; restore the edits captured
+      // on disconnect rather than resetting to the (stale) content attribute.
+      this._htmlBeforeDisconnect ??
+      (this.getAttribute('content') || lightDom);
+    this._htmlBeforeDisconnect = null;
 
     this._editor = createFromConfig(mount, config, {
       content: initialContent,
@@ -82,8 +90,11 @@ class RuneEditorElement extends HTMLElement {
   }
 
   disconnectedCallback() {
+    if (this._editor) this._htmlBeforeDisconnect = this._editor.getHtml();
     this._editor?.destroy();
     this._editor = null;
+    this._mount?.remove();   // otherwise every DOM move leaks one orphaned div
+    this._mount = null;
   }
 
   attributeChangedCallback(name, oldVal, newVal) {

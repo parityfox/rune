@@ -27,9 +27,15 @@ export function rune(node, params = {}) {
   return {
     update(next = {}) {
       const wasReadOnly = !!opts.readOnly;
+      const prevContent = opts.content;
       opts = next || {};
       if (!!opts.readOnly !== wasReadOnly) {
         opts.readOnly ? editor.disable() : editor.enable();
+      }
+      // Live content binding (#117), guarded so a round-trip of the editor's
+      // own onChange value never resets the document (and caret) mid-typing.
+      if (opts.content !== undefined && opts.content !== prevContent && opts.content !== editor.getHtml()) {
+        editor.setHtml(opts.content);
       }
     },
     destroy() {

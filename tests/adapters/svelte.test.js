@@ -24,6 +24,27 @@ describe('Svelte action (#86)', () => {
     handle.destroy();
   });
 
+  // #117: the `content` binding should be live (like the web component's
+  // content attribute) — but guarded, so a round-trip of the editor's own
+  // onChange value must NOT reset the document (and the caret with it).
+  it('update() syncs a changed content param (#117)', () => {
+    const handle = rune(node, { extensions: [Paragraph], content: '<p>one</p>' });
+    handle.update({ extensions: [Paragraph], content: '<p>two</p>' });
+    expect(node.__runeEditor.getHtml()).toContain('two');
+    handle.destroy();
+  });
+
+  it('update() ignores content equal to the current document (#117)', () => {
+    const handle = rune(node, { extensions: [Paragraph], content: '<p>one</p>' });
+    const ed = node.__runeEditor;
+    let sets = 0;
+    const origSetHtml = ed.setHtml.bind(ed);
+    ed.setHtml = (h) => { sets++; origSetHtml(h); };
+    handle.update({ extensions: [Paragraph], content: ed.getHtml() });   // onChange round-trip
+    expect(sets).toBe(0);
+    handle.destroy();
+  });
+
   it('update toggles readOnly and destroy cleans up', () => {
     const handle = rune(node, { extensions: [Paragraph], content: '<p>x</p>' });
     const ed = node.__runeEditor;

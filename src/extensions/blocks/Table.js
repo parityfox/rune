@@ -12,7 +12,7 @@ export const Table = {
     let _ctxMenu = null;
 
     // ── Tab navigation ──────────────────────────────────────────
-    editor.events.on('keydown', ({ event: e }) => {
+    const _onKeydown = ({ event: e }) => {
       if (e.key !== 'Tab') return;
       const cell = _getCursorCell();
       if (!cell) return;
@@ -32,15 +32,17 @@ export const Table = {
           _addRowAtEnd(table);
         }
       }
-    });
+    };
+    editor.events.on('keydown', _onKeydown);
 
     // ── Context menu ────────────────────────────────────────────
-    editor.content.addEventListener('contextmenu', (e) => {
+    const _onContextMenu = (e) => {
       const cell = e.target.closest?.('table.rune-table th, table.rune-table td');
       if (!cell) return;
       e.preventDefault();
       _showCtxMenu(cell, e.clientX, e.clientY);
-    });
+    };
+    editor.content.addEventListener('contextmenu', _onContextMenu);
 
     const _onDocMousedown = (e) => {
       if (_ctxMenu && !_ctxMenu.contains(e.target)) _closeCtxMenu();
@@ -71,13 +73,15 @@ export const Table = {
       _hideTimer = setTimeout(() => { if (!_overControls) { _hoverTable = null; _refresh(); } }, 140);
     };
 
-    editor.content.addEventListener('mouseover', (e) => {
+    const _onMouseover = (e) => {
       const t = e.target.closest?.('table.rune-table');
       if (t) { clearTimeout(_hideTimer); _hoverTable = t; _refresh(); }
-    });
-    editor.content.addEventListener('mouseout', (e) => {
+    };
+    const _onMouseout = (e) => {
       if (!e.relatedTarget?.closest?.('table.rune-table')) _scheduleHide();
-    });
+    };
+    editor.content.addEventListener('mouseover', _onMouseover);
+    editor.content.addEventListener('mouseout', _onMouseout);
     for (const elm of [addColBtn, addRowBtn, bar]) {
       elm.addEventListener('mouseenter', () => { _overControls = true; clearTimeout(_hideTimer); });
       elm.addEventListener('mouseleave', () => { _overControls = false; _scheduleHide(); });
@@ -113,8 +117,15 @@ export const Table = {
       }
     }
 
-    // Clean up on editor destroy
+    // Clean up on editor destroy — including the editor.content listeners,
+    // since a host may keep and reuse the content element after destroy().
     editor.events.on('destroy', () => {
+      editor.events.off('keydown', _onKeydown);
+      editor.events.off('selectionchange', _refresh);
+      editor.events.off('change', _refresh);
+      editor.content.removeEventListener('contextmenu', _onContextMenu);
+      editor.content.removeEventListener('mouseover', _onMouseover);
+      editor.content.removeEventListener('mouseout', _onMouseout);
       document.removeEventListener('mousedown', _onDocMousedown);
       window.removeEventListener('scroll', _reposition, true);
       window.removeEventListener('resize', _reposition);
@@ -128,18 +139,22 @@ export const Table = {
         editor.history.saveNow();
         const table = _buildTable(rows, cols);
 
+        // The current block may live inside a container region (toggle body /
+        // column), so insert relative to its parent, not editor.content.
         const currentBlock = editor.selection.getBlock();
-        const after = currentBlock?.nextSibling || null;
+        const parent = currentBlock?.parentNode || editor.content;
         if (currentBlock && currentBlock.textContent.trim() === '') {
-          editor.content.replaceChild(table, currentBlock);
+          parent.replaceChild(table, currentBlock);
+        } else if (currentBlock) {
+          parent.insertBefore(table, currentBlock.nextSibling);
         } else {
-          editor.content.insertBefore(table, after);
+          editor.content.appendChild(table);
         }
 
         // Ensure a paragraph after the table for continued typing
         const p = document.createElement('p');
         p.innerHTML = '<br>';
-        editor.content.insertBefore(p, table.nextSibling);
+        parent.insertBefore(p, table.nextSibling);
 
         _focusCell(table.querySelector('th, td'));
         editor._notifyChange();

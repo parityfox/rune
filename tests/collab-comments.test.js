@@ -49,6 +49,31 @@ describe('CommentStore', () => {
     expect(ta.orphaned).toBe(true);
   });
 
+  // #112: every thread field is peer-controlled — a malformed thread must not
+  // take down list() (and with it the comment UI) for every connected peer.
+  it('skips malformed remote threads instead of throwing (#112)', () => {
+    const doc = new Y.Doc();
+    seedBlock(doc, 'blk', 'hello world');
+    const cs = new CommentStore(doc);
+    const cid = cs.add({ blockId: 'blk', from: 0, to: 5, text: 'ok', author: 'A' });
+
+    // thread with no from/to/replies at all
+    const bare = new Y.Map();
+    bare.set('id', 'evil-bare');
+    // thread with wrong-typed fields
+    const wrong = new Y.Map();
+    wrong.set('id', 'evil-wrong');
+    wrong.set('from', 42);
+    wrong.set('to', 'x');
+    wrong.set('replies', 'nope');
+    doc.getArray('comments').push([bare, wrong, { id: 'evil-plain' }]);
+
+    let list;
+    expect(() => { list = cs.list(); }).not.toThrow();
+    expect(list.map((t) => t.id)).toEqual([cid]);   // good thread still listed
+    expect(list[0].replies.length).toBe(1);
+  });
+
   it('rejects a zero-width or unknown-block anchor', () => {
     const doc = new Y.Doc();
     seedBlock(doc, 'blk', 'text');

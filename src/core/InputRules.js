@@ -20,6 +20,9 @@ export function runInputRules(editor, rules) {
   const range = sel.getRangeAt(0);
   const node = range.startContainer;
   if (node.nodeType !== Node.TEXT_NODE || !editor.content.contains(node)) return false;
+  // Code content stays literal — same guard MarkdownShortcuts applies to PRE
+  // blocks, and paste rules apply via their a/code/pre skip.
+  if (node.parentElement?.closest('pre, code')) return false;
 
   const caret = range.startOffset;
   const before = node.textContent.slice(0, caret);

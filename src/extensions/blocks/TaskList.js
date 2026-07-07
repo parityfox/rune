@@ -100,12 +100,16 @@ export const TaskList = {
         const li = _makeTaskItem('');
         ul.appendChild(li);
 
+        // The current block may live inside a container region (toggle body /
+        // column), so insert relative to its parent, not editor.content.
         const currentBlock = editor.selection.getBlock();
+        const parent = currentBlock?.parentNode || editor.content;
         if (currentBlock && currentBlock.textContent.trim() === '') {
-          editor.content.replaceChild(ul, currentBlock);
+          parent.replaceChild(ul, currentBlock);
+        } else if (currentBlock) {
+          parent.insertBefore(ul, currentBlock.nextSibling);
         } else {
-          const after = currentBlock?.nextSibling || null;
-          editor.content.insertBefore(ul, after);
+          editor.content.appendChild(ul);
         }
 
         editor.selection.setAtStart(li.querySelector('.rune-task-content'));

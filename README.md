@@ -51,7 +51,7 @@ Import the stylesheet once in your app entry point:
 import '@parityfox/rune-editor/styles';
 ```
 
-> **From source:** clone the repo and open `examples/index.html` with any static server (`npx serve . -p 4000`).
+> **From source:** clone the repo and open `examples/index.html` with any static server (`npx serve . -l tcp://127.0.0.1:4000`). The examples import from `../src`, so the server runs from the repo root — bind it to localhost as shown, or the whole tree (including `.git` and `node_modules`) is exposed to your network.
 
 📦 **Setting up a specific stack?** See the **[Installation & Setup guide](./docs/installation.md)** — Vite/webpack/Rollup/esbuild, plain HTML (no bundler), React/Next.js, Vue, Svelte, Angular, the web component, plus the collaboration setup process and troubleshooting.
 

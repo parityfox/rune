@@ -73,7 +73,7 @@
     "url": "https://github.com/parityfox/rune/issues"
   },
   "scripts": {
-    "example": "npx serve . -p 4000",
+    "example": "npx serve . -l tcp://127.0.0.1:4000",
     "build:demo": "esbuild examples/vendor-entry.js --bundle --format=esm --outfile=examples/vendor/collab-deps.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

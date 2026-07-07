@@ -243,8 +243,13 @@ export function startServer(port = process.env.PORT || 1234, {
     if ((ipCounts.get(ip) || 0) >= maxConnectionsPerIp) { socket.write('HTTP/1.1 429 Too Many Requests\r\n\r\n'); socket.destroy(); return; }
     let cap = 'write';
     if (authorize) {
-      try { const r = await authorize(req, room); cap = r === false ? false : (r === 'read' ? 'read' : 'write'); }
-      catch { cap = false; }
+      // Fail closed: only explicit grants authorize. Any other return value
+      // (undefined from a missing `return false`, null/'' from a lookup miss,
+      // 0/NaN) denies — never coerce a falsy non-false value to write access.
+      try {
+        const r = await authorize(req, room);
+        cap = r === 'read' ? 'read' : (r === true || r === 'write') ? 'write' : false;
+      } catch { cap = false; }
     }
     if (!cap) { socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy(); return; }
     wss.handleUpgrade(req, socket, head, (ws) => {

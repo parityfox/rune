@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Editor } from '../../src/core/Editor.js';
 import { Paragraph } from '../../src/extensions/blocks/Paragraph.js';
+import { CodeBlock } from '../../src/extensions/blocks/CodeBlock.js';
 import { SmartTypography } from '../../src/extensions/plugins/SmartTypography.js';
 import { InlineMarkdown } from '../../src/extensions/plugins/InlineMarkdown.js';
 import { runPasteRules } from '../../src/core/InputRules.js';
@@ -90,6 +91,25 @@ describe('SmartTypography + InlineMarkdown (#81)', () => {
   it('InlineMarkdown: `code` → <code>', () => {
     const p = type('`x`', 3, [Paragraph, InlineMarkdown]);
     expect(p.querySelector('code')?.textContent).toBe('x');
+  });
+
+  // #119: code content must stay literal — the block path (MarkdownShortcuts)
+  // already guards PRE; the inline input-rule path needs the same guard.
+  it('InlineMarkdown does not fire inside a code block (#119)', () => {
+    editor = new Editor(target, {
+      extensions: [Paragraph, CodeBlock, InlineMarkdown],
+      toolbar: false, bubbleMenu: false, slashMenu: false,
+      content: '<pre>x</pre>',
+    });
+    const pre = editor.content.querySelector('pre');
+    pre.textContent = '**bold**';
+    const r = document.createRange();
+    r.setStart(pre.firstChild, 8); r.collapse(true);
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    editor.content.dispatchEvent(new InputEvent('input', { bubbles: true }));
+
+    expect(pre.querySelector('strong')).toBeFalsy();
+    expect(pre.textContent).toBe('**bold**');
   });
 
   it('SmartTypography paste rule linkifies bare URLs', () => {

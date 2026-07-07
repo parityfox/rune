@@ -80,12 +80,16 @@ export const Callout = {
         wrap.appendChild(icon);
         wrap.appendChild(body);
 
+        // The current block may live inside a container region (toggle body /
+        // column), so insert relative to its parent, not editor.content.
         const currentBlock = editor.selection.getBlock();
-        const after = currentBlock?.nextSibling || null;
+        const parent = currentBlock?.parentNode || editor.content;
         if (currentBlock && currentBlock.textContent.trim() === '') {
-          editor.content.replaceChild(wrap, currentBlock);
+          parent.replaceChild(wrap, currentBlock);
+        } else if (currentBlock) {
+          parent.insertBefore(wrap, currentBlock.nextSibling);
         } else {
-          editor.content.insertBefore(wrap, after);
+          editor.content.appendChild(wrap);
         }
 
         editor.selection.setAtStart(body);

@@ -128,18 +128,22 @@ export const Table = {
         editor.history.saveNow();
         const table = _buildTable(rows, cols);
 
+        // The current block may live inside a container region (toggle body /
+        // column), so insert relative to its parent, not editor.content.
         const currentBlock = editor.selection.getBlock();
-        const after = currentBlock?.nextSibling || null;
+        const parent = currentBlock?.parentNode || editor.content;
         if (currentBlock && currentBlock.textContent.trim() === '') {
-          editor.content.replaceChild(table, currentBlock);
+          parent.replaceChild(table, currentBlock);
+        } else if (currentBlock) {
+          parent.insertBefore(table, currentBlock.nextSibling);
         } else {
-          editor.content.insertBefore(table, after);
+          editor.content.appendChild(table);
         }
 
         // Ensure a paragraph after the table for continued typing
         const p = document.createElement('p');
         p.innerHTML = '<br>';
-        editor.content.insertBefore(p, table.nextSibling);
+        parent.insertBefore(p, table.nextSibling);
 
         _focusCell(table.querySelector('th, td'));
         editor._notifyChange();

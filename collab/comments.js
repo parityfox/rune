@@ -68,8 +68,17 @@ export class CommentStore {
   list() {
     const out = [];
     this.threads.forEach((m) => {
-      const from = Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(m.get('from')), this.doc);
-      const to = Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(m.get('to')), this.doc);
+      // Every thread field is peer-controlled (raw Yjs updates), so one
+      // malformed thread must not throw and take list() down for every peer.
+      if (!(m instanceof Y.Map)) return;
+      let from, to;
+      try {
+        from = Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(m.get('from')), this.doc);
+        to = Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(m.get('to')), this.doc);
+      } catch {
+        return; // unreadable anchor — skip the thread
+      }
+      const replies = m.get('replies');
       const orphaned = !from || !to || to.index <= from.index;
       out.push({
         id: m.get('id'),
@@ -79,7 +88,7 @@ export class CommentStore {
         resolved: !!m.get('resolved'),
         author: m.get('author'),
         ts: m.get('ts'),
-        replies: m.get('replies').toArray(),
+        replies: replies instanceof Y.Array ? replies.toArray() : [],
         orphaned,
       });
     });

@@ -540,6 +540,28 @@ describe('Editor', () => {
       const { inserted } = drop('', 'just text');
       expect(inserted).toBe('just text');
     });
+
+    // A drag that started INSIDE this editor is a native move of already-safe
+    // content — let the browser relocate it (which deletes the source) instead
+    // of inserting a sanitized duplicate. Only external drops get sanitized.
+    it('lets a native intra-editor drag move content instead of duplicating it', () => {
+      create({ content: '<p>hello</p>' });
+      editor.content.dispatchEvent(new Event('dragstart', { bubbles: true }));
+      const { inserted, prevented } = drop('<p>hello</p>');
+      expect(inserted).toBeNull();     // no insertHTML — native move left to the browser
+      expect(prevented).toBe(false);   // default (native move) not cancelled
+    });
+
+    it('still sanitizes an external drop after an internal drag ended', () => {
+      create({ content: '<p></p>' });
+      // internal drag lifecycle completes...
+      editor.content.dispatchEvent(new Event('dragstart', { bubbles: true }));
+      editor.content.dispatchEvent(new Event('dragend', { bubbles: true }));
+      // ...then a genuinely external drop must still be sanitized.
+      const { inserted } = drop('<img src=x onerror="alert(1)">');
+      expect(inserted).not.toBeNull();
+      expect(inserted).not.toContain('onerror');
+    });
   });
 
   describe('JSON document (#83)', () => {

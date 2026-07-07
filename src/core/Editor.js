@@ -543,8 +543,14 @@ export class Editor {
       input:           this._onInput.bind(this),
       keydown:         this._onKeydown.bind(this),
       paste:           this._onPaste.bind(this),
+      // Track drags that start inside the editor: those are native moves of
+      // already-sanitized content and must be left to the browser, not
+      // re-sanitized (which would duplicate them). External drops still funnel
+      // through the sanitizer.
+      dragstart:       () => { this._internalDrag = true; },
+      dragend:         () => { this._internalDrag = false; },
       // Drop needs dragover's preventDefault so the browser fires 'drop' on the
-      // editor instead of navigating; both funnel through the paste sanitizer.
+      // editor instead of navigating.
       dragover:        (e) => e.preventDefault(),
       drop:            this._onDrop.bind(this),
       selectionchange: this._onSelectionChange.bind(this),
@@ -555,6 +561,8 @@ export class Editor {
     this.content.addEventListener('input',   this._handlers.input);
     this.content.addEventListener('keydown', this._handlers.keydown);
     this.content.addEventListener('paste',   this._handlers.paste);
+    this.content.addEventListener('dragstart', this._handlers.dragstart);
+    this.content.addEventListener('dragend', this._handlers.dragend);
     this.content.addEventListener('dragover', this._handlers.dragover);
     this.content.addEventListener('drop',    this._handlers.drop);
     this.content.addEventListener('focus',   this._handlers.focus);
@@ -636,6 +644,11 @@ export class Editor {
   }
 
   _onDrop(e) {
+    // A drag that started inside this editor is a native move of already-safe
+    // content — let the browser relocate it (deleting the source) instead of
+    // inserting a sanitized duplicate. An external/hostile drag never fired this
+    // editor's dragstart, so it falls through to the sanitizing path below.
+    if (this._internalDrag) { this._internalDrag = false; return; }
     // Native contenteditable drop would insert the dragged text/html verbatim,
     // bypassing the sanitizer. Intercept and run it through the same pipeline as
     // paste so an <img onerror> dragged from a hostile page can't execute.
@@ -930,6 +943,8 @@ export class Editor {
     this.content.removeEventListener('input',   this._handlers.input);
     this.content.removeEventListener('keydown', this._handlers.keydown);
     this.content.removeEventListener('paste',   this._handlers.paste);
+    this.content.removeEventListener('dragstart', this._handlers.dragstart);
+    this.content.removeEventListener('dragend', this._handlers.dragend);
     this.content.removeEventListener('dragover', this._handlers.dragover);
     this.content.removeEventListener('drop',    this._handlers.drop);
     this.content.removeEventListener('focus',   this._handlers.focus);

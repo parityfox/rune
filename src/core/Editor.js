@@ -543,6 +543,10 @@ export class Editor {
       input:           this._onInput.bind(this),
       keydown:         this._onKeydown.bind(this),
       paste:           this._onPaste.bind(this),
+      // Drop needs dragover's preventDefault so the browser fires 'drop' on the
+      // editor instead of navigating; both funnel through the paste sanitizer.
+      dragover:        (e) => e.preventDefault(),
+      drop:            this._onDrop.bind(this),
       selectionchange: this._onSelectionChange.bind(this),
       focus:           () => this.target.classList.add('rune-focused'),
       blur:            () => this.target.classList.remove('rune-focused'),
@@ -551,6 +555,8 @@ export class Editor {
     this.content.addEventListener('input',   this._handlers.input);
     this.content.addEventListener('keydown', this._handlers.keydown);
     this.content.addEventListener('paste',   this._handlers.paste);
+    this.content.addEventListener('dragover', this._handlers.dragover);
+    this.content.addEventListener('drop',    this._handlers.drop);
     this.content.addEventListener('focus',   this._handlers.focus);
     this.content.addEventListener('blur',    this._handlers.blur);
     document.addEventListener('selectionchange', this._handlers.selectionchange);
@@ -625,12 +631,28 @@ export class Editor {
     e.preventDefault();
     const html  = e.clipboardData?.getData('text/html') || '';
     const plain = e.clipboardData?.getData('text/plain') || '';
+    this._insertTransferredContent(html, plain);
+    this.events.emit('paste', { editor: this });
+  }
 
-    // Convert when the plain text reads as Markdown. If the clipboard ALSO has
+  _onDrop(e) {
+    // Native contenteditable drop would insert the dragged text/html verbatim,
+    // bypassing the sanitizer. Intercept and run it through the same pipeline as
+    // paste so an <img onerror> dragged from a hostile page can't execute.
+    e.preventDefault();
+    const html  = e.dataTransfer?.getData('text/html') || '';
+    const plain = e.dataTransfer?.getData('text/plain') || '';
+    this._insertTransferredContent(html, plain);
+    this.events.emit('drop', { editor: this });
+  }
+
+  /** Shared sanitize-and-insert path for pasted and dropped content. */
+  _insertTransferredContent(html, plain) {
+    // Convert when the plain text reads as Markdown. If the source ALSO has
     // rich HTML (e.g. copied from a rendered page), require strong block-level
     // Markdown signals (headings, fenced code, tables, several list items, or
-    // blockquotes) before overriding it — so genuinely rich paste isn't mangled
-    // by incidental * or # characters.
+    // blockquotes) before overriding it — so genuinely rich content isn't
+    // mangled by incidental * or # characters.
     const useMd = this.options.pasteMarkdown !== false && plain && _looksLikeMarkdown(plain) &&
                   (!html || _looksLikeMarkdownDoc(plain));
 
@@ -641,7 +663,6 @@ export class Editor {
     clean = sanitize(runPasteRules(clean, this.schema.getPasteRules()));
     document.execCommand('insertHTML', false, clean);
     this._notifyChange();
-    this.events.emit('paste', { editor: this });
   }
 
   _onSelectionChange() {
@@ -909,6 +930,8 @@ export class Editor {
     this.content.removeEventListener('input',   this._handlers.input);
     this.content.removeEventListener('keydown', this._handlers.keydown);
     this.content.removeEventListener('paste',   this._handlers.paste);
+    this.content.removeEventListener('dragover', this._handlers.dragover);
+    this.content.removeEventListener('drop',    this._handlers.drop);
     this.content.removeEventListener('focus',   this._handlers.focus);
     this.content.removeEventListener('blur',    this._handlers.blur);
     document.removeEventListener('selectionchange', this._handlers.selectionchange);

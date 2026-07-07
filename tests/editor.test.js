@@ -504,6 +504,44 @@ describe('Editor', () => {
     });
   });
 
+  // #122: native contenteditable drop inserts dragged text/html verbatim, so it
+  // must go through the same sanitize pipeline as paste — otherwise an <img
+  // onerror> dragged from a hostile page executes in the host origin.
+  describe('drop sanitization (#122)', () => {
+    function drop(html, plain = '') {
+      let inserted = null;
+      const orig = document.execCommand;
+      document.execCommand = (cmd, ui, val) => { if (cmd === 'insertHTML') inserted = val; return true; };
+      const e = new Event('drop', { bubbles: true, cancelable: true });
+      e.dataTransfer = { getData: (t) => (t === 'text/html' ? html : plain) };
+      editor.content.dispatchEvent(e);
+      document.execCommand = orig;
+      return { inserted, prevented: e.defaultPrevented };
+    }
+
+    it('strips event handlers from dropped HTML', () => {
+      create({ content: '<p></p>' });
+      const { inserted, prevented } = drop('<img src=x onerror="alert(1)"><b>ok</b>');
+      expect(prevented).toBe(true);            // default insert suppressed
+      expect(inserted).not.toBeNull();         // routed through our handler
+      expect(inserted).toContain('<b>ok</b>'); // safe markup survives
+      expect(inserted).not.toContain('onerror');
+    });
+
+    it('drops a script tag from dropped HTML', () => {
+      create({ content: '<p></p>' });
+      const { inserted } = drop('<p>hi</p><script>alert(1)</script>');
+      expect(inserted).toContain('<p>hi</p>');
+      expect(inserted).not.toContain('<script');
+    });
+
+    it('falls back to plain text when no HTML is present', () => {
+      create({ content: '<p></p>' });
+      const { inserted } = drop('', 'just text');
+      expect(inserted).toBe('just text');
+    });
+  });
+
   describe('JSON document (#83)', () => {
     it('getJSON returns a portable doc and setJSON restores it', () => {
       create({ content: '<h2>Hi</h2><p><strong>bold</strong> text</p>' });

@@ -1,5 +1,9 @@
 import * as Y from 'yjs';
 import { flattenHosts, blockHostAt, textIndexInHost, domPointInHost } from './paragraph-binding.js';
+// _safeColor lives in the shared html util so schema.js can reuse it without a
+// collab import cycle (schema -> presence -> paragraph-binding -> schema).
+import { _safeColor } from '../src/utils/html.js';
+export { _safeColor };
 
 /**
  * Presence (#12) — live remote cursors + typing indicators via the ephemeral
@@ -15,18 +19,6 @@ import { flattenHosts, blockHostAt, textIndexInHost, domPointInHost } from './pa
 const TYPING_MS = 1200;
 const IDLE_MS   = 30_000;
 const AWAY_MS   = 120_000;
-
-// A remote peer controls `user.color`, and it lands in an element's style.cssText
-// (a full declaration list). Restrict it to a strict <color> allowlist — hex,
-// a bare keyword, or an rgb/hsl(a) function whose contents can't hold a ';', '('
-// or letters — so a payload like "red;position:fixed;inset:0;width:100vw" or a
-// "url(…)" beacon can't ride the color field into every peer's DOM. Deliberately
-// not CSS.supports(): some engines (and happy-dom) accept the injection verbatim.
-export function _safeColor(input) {
-  const col = typeof input === 'string' ? input.trim() : '';
-  if (!col) return '#888';
-  return /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$|^(?:rgb|hsl)a?\([\d\s.,%/]+\)$/.test(col) ? col : '#888';
-}
 
 // Bound the display fields we broadcast over awareness so a client can't push a
 // multi-MB name/avatar that fans out to every peer. Hygiene, not a hard boundary.
@@ -99,7 +91,10 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
       const user = state.user || {};
       roster.push({
         id: clientId,
-        name: user.name, color: user.color, avatar: user.avatar,
+        // color is peer-controlled and flows to style sinks (e.g. PresenceBar's
+        // style.background, which accepts url()); launder it here so getUsers()
+        // is safe for every consumer, not just the caret-overlay render path.
+        name: user.name, color: _safeColor(user.color), avatar: user.avatar,
         typing: !!state.typing,
         state: state.activity || 'active',
         cursorBlockId: state.cursor?.head?.block || null,

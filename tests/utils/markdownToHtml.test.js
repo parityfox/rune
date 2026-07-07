@@ -64,6 +64,15 @@ describe('markdownToHtml (#85)', () => {
       expect(markdownToHtml('![a](data:image/png;base64,iVBOR)')).toContain('<img src="data:image/png;base64,iVBOR" alt="a">');
     });
 
+    // #127: link hrefs use the positive scheme allowlist (http/https/mailto/tel
+    // + relative), so an exotic scheme the img denylist would pass is dropped.
+    // Images keep the denylist (they legitimately allow data:image/*).
+    it('drops a non-allowlisted link scheme the denylist would pass (#127)', () => {
+      expect(markdownToHtml('[x](evil:payload)')).toContain('<a href="">');
+      expect(markdownToHtml('[x](mailto:a@b.com)')).toContain('<a href="mailto:a@b.com">');
+      expect(markdownToHtml('[x](/relative/path)')).toContain('<a href="/relative/path">');
+    });
+
     it('escapes quotes so a URL cannot break out of the attribute', () => {
       // Quote in the URL must be entity-escaped, never a raw " that opens a new attr.
       const out = markdownToHtml('[x](https://y.com"onmouseover="alert(1))');

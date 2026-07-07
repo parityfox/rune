@@ -75,6 +75,20 @@ describe('WebSocket transport (reference server + provider)', () => {
     expect(await until(() => b.synced)).toBe(true);   // accepted
   }, 10000);
 
+  // #124: only explicit grants (true/'write'/'read') authorize. A hook that
+  // falls through and returns undefined (a common missing `return false`) or a
+  // null/'' lookup miss must fail CLOSED, not be coerced to full write access.
+  it('authorize() returning a falsy non-false value denies (fails closed) (#124)', async () => {
+    srv = startServer(0, {
+      authorize: () => undefined,     // hook forgot its explicit `return false`
+    });
+    const url = `ws://localhost:${await port(srv)}`;
+    const doc = new Y.Doc();
+    a = new WebSocketProvider(url, 'r', doc, { WebSocketPolyfill: WebSocket, params: {} });
+    await new Promise((r) => setTimeout(r, 700));
+    expect(a.synced).toBe(false);     // undefined must NOT grant access
+  }, 10000);
+
   it('rejects disallowed Origins on the handshake (CSWSH, #101)', async () => {
     srv = startServer(0, { allowedOrigins: ['https://app.example'] });
     const url = `ws://localhost:${await port(srv)}`;

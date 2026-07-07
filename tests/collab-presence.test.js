@@ -38,6 +38,26 @@ describe('presence roster API + bar (#91)', () => {
     expect(['active', 'idle', 'away']).toContain(bob.state);
   });
 
+  // #123: a remote peer controls their user.color; computeRoster (the public
+  // getUsers() payload, consumed by PresenceBar's style.background) must launder
+  // it through _safeColor so a url() beacon can't fire in every peer's browser.
+  it('launders a hostile peer color out of the roster (#123)', () => {
+    pB.setUser({ name: 'Bob', color: 'url(https://evil.example/beacon)' });
+    const bob = pA.getUsers().find((u) => u.name === 'Bob');
+    expect(bob).toBeTruthy();
+    expect(bob.color).toBe('#888');            // beacon payload replaced with default
+    expect(bob.color).not.toContain('url(');
+  });
+
+  it('PresenceBar renders a safe background for a hostile peer color (#123)', () => {
+    pB.setUser({ name: 'Bob', color: 'url(https://evil.example/beacon)' });
+    const bar = new PresenceBar(pA, tA);
+    const avatar = tA.querySelector('.rune-presence-avatar');
+    expect(avatar).toBeTruthy();
+    expect(avatar.getAttribute('style') || '').not.toContain('url(');
+    bar.destroy();
+  });
+
   it('emits change on roster updates; follow/unfollow are safe', () => {
     let fired = 0;
     const unsub = pA.on('change', () => { fired++; });

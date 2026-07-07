@@ -99,7 +99,10 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
       const user = state.user || {};
       roster.push({
         id: clientId,
-        name: user.name, color: user.color, avatar: user.avatar,
+        // color is peer-controlled and flows to style sinks (e.g. PresenceBar's
+        // style.background, which accepts url()); launder it here so getUsers()
+        // is safe for every consumer, not just the caret-overlay render path.
+        name: user.name, color: _safeColor(user.color), avatar: user.avatar,
         typing: !!state.typing,
         state: state.activity || 'active',
         cursorBlockId: state.cursor?.head?.block || null,

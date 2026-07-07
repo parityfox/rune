@@ -9,13 +9,23 @@
  * values are HTML-escaped (quotes included) and link hrefs with dangerous
  * schemes are dropped, so structured nodes are safe to render directly.
  *
- * NOTE: the { type:'html', html } passthrough (used so callout/table/image/
- * toggle/columns round-trip losslessly) is emitted verbatim. In the normal
- * getJSON()->setJSON() round-trip that HTML originated from the editor's own
- * sanitized content; if you build docs by hand, treat passthrough html as
- * trusted input — jsonToHtml cannot sanitize it without a DOM.
+ * The { type:'html', html } passthrough (used so callout/table/image/toggle/
+ * columns round-trip losslessly) carries raw markup. htmlToJson sanitizes it at
+ * creation, and jsonToHtml sanitizes it again whenever a DOM is available. When
+ * jsonToHtml runs in a pure no-DOM environment it cannot sanitize a passthrough
+ * node you built BY HAND — so if you hand-author { type:'html' } nodes and render
+ * them server-side, sanitize that HTML yourself first.
  */
-import { _isDangerousUrl } from './html.js';
+import { _isDangerousUrl, sanitizeContent } from './html.js';
+
+// The { type:'html' } passthrough carries raw markup. Sanitize it wherever a DOM
+// is available so it can never smuggle script into jsonToHtml output. htmlToJson
+// always has a DOM (it parses with one), so passthrough it produces is cleaned
+// at creation; jsonToHtml stays no-DOM-capable and only sanitizes when it can.
+function _safePassthrough(html) {
+  const s = html || '';
+  return typeof document !== 'undefined' ? sanitizeContent(s) : s;
+}
 
 const INLINE_MARK = {
   STRONG: 'bold', B: 'bold', EM: 'italic', I: 'italic', U: 'underline',
@@ -53,7 +63,7 @@ function _blockToJson(el) {
   }
   if (tag === 'ul' && !el.classList.contains('rune-task-list')) return { type: 'bulletList', content: _listItems(el) };
   if (tag === 'ol') return { type: 'orderedList', content: _listItems(el) };
-  return { type: 'html', html: el.outerHTML };           // passthrough — nothing lost
+  return { type: 'html', html: sanitizeContent(el.outerHTML) };   // passthrough — sanitized, nothing lost
 }
 
 function _inlineToJson(el) {
@@ -101,7 +111,7 @@ function _blockToHtml(node) {
     case 'codeBlock':      { const lang = node.attrs?.language; const text = (node.content || []).map((n) => n.text || '').join(''); return `<pre><code${lang ? ` class="language-${_esc(lang)}"` : ''}>${_esc(text)}</code></pre>`; }
     case 'bulletList':     return `<ul>${(node.content || []).map((li) => `<li>${_inlineToHtml(li.content)}</li>`).join('')}</ul>`;
     case 'orderedList':    return `<ol>${(node.content || []).map((li) => `<li>${_inlineToHtml(li.content)}</li>`).join('')}</ol>`;
-    case 'html':           return node.html || '';
+    case 'html':           return _safePassthrough(node.html);
     default:               return '';
   }
 }

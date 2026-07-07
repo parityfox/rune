@@ -43,6 +43,27 @@ describe('JSON document model (#83)', () => {
     expect(jsonToHtml(doc)).toBe(html);
   });
 
+  // #125: the { type:'html' } passthrough was emitted verbatim, so
+  // jsonToHtml(htmlToJson(untrusted)) round-tripped raw script. Sanitize it
+  // where a DOM is available (creation in htmlToJson; render in jsonToHtml).
+  describe('passthrough html is sanitized (#125)', () => {
+    it('sanitizes html manufactured by htmlToJson from untrusted input', () => {
+      const out = jsonToHtml(htmlToJson('<div><img src=x onerror="alert(1)"></div>'));
+      expect(out).not.toContain('onerror');
+    });
+
+    it('sanitizes a hand-built html passthrough node when a DOM is available', () => {
+      const out = jsonToHtml({ type: 'doc', content: [{ type: 'html', html: '<img src=x onerror="alert(1)">' }] });
+      expect(out).not.toContain('onerror');
+    });
+
+    it('drops a script tag in passthrough while keeping safe markup', () => {
+      const out = jsonToHtml({ type: 'doc', content: [{ type: 'html', html: '<div>ok</div><script>alert(1)</script>' }] });
+      expect(out).not.toContain('<script');
+      expect(out).toContain('ok');
+    });
+  });
+
   it('escapes text in jsonToHtml', () => {
     expect(jsonToHtml({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a <b> & c' }] }] }))
       .toBe('<p>a &lt;b&gt; &amp; c</p>');

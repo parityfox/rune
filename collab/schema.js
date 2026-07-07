@@ -1,4 +1,4 @@
-import { _isDangerousUrl } from '../src/utils/html.js';
+import { _isDangerousUrl, _safeColor } from '../src/utils/html.js';
 
 /**
  * Central collab schema (#10) — the declarative DOM <-> Yjs mapping the binding
@@ -25,8 +25,12 @@ export const MARKS = [
       s.setAttribute('data-suggestion', JSON.stringify(sug));
       if (sug.author) s.setAttribute('title', `${type === 'delete' ? 'Deletion' : 'Insertion'} by ${sug.author}`);
       if (sug.color) {                                   // author color overrides the CSS default
-        s.style.color = sug.color;
-        if (type === 'insert') { s.style.textDecoration = 'underline'; s.style.textDecorationColor = sug.color; }
+        // Peer-controlled — launder so a url() beacon / declaration breakout
+        // can't ride the color into every peer's DOM (text-decoration-color in
+        // particular accepts url()).
+        const color = _safeColor(sug.color);
+        s.style.color = color;
+        if (type === 'insert') { s.style.textDecoration = 'underline'; s.style.textDecorationColor = color; }
         else { s.style.textDecoration = 'line-through'; }
       }
       return s;

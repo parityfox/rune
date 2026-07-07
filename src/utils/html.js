@@ -130,6 +130,19 @@ export function _isDangerousUrl(url) {
     stripped.startsWith('data:image/svg');
 }
 
+// A peer-controlled color can land in an element's style (cssText, a shorthand
+// like `background` that accepts url(), or text-decoration-color). Restrict it to
+// a strict <color> allowlist — hex, a bare keyword, or an rgb/hsl(a) function
+// whose contents can't hold a ';', '(' or letters — so a payload like
+// "red;position:fixed;inset:0" or a "url(…)" beacon can't ride the color field
+// into a peer's DOM. Deliberately not CSS.supports(): some engines (and
+// happy-dom) accept the injection verbatim.
+export function _safeColor(input) {
+  const col = typeof input === 'string' ? input.trim() : '';
+  if (!col) return '#888';
+  return /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$|^(?:rgb|hsl)a?\([\d\s.,%/]+\)$/.test(col) ? col : '#888';
+}
+
 /**
  * Positive scheme allowlist for link hrefs. _isDangerousUrl is a denylist tuned
  * for <img src> (it permits data:image/* etc.), which is wrong for a hyperlink.

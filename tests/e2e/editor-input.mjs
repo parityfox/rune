@@ -252,6 +252,65 @@ try {
   ok(changes === 1, `panel mouse: applies once (got ${changes} changes)`);
   ok(await page.evaluate(() => window.ed.content.contains(document.activeElement)), 'panel mouse: focus returns to the editor');
 
+  // ── Find and replace from the keyboard ─────────────────────
+  const frOpen = async () => {
+    await fresh('<p>cat cat cat</p>');
+    await page.click('#t .rune-content');
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+f' : 'Control+f');
+    await sleep(80);
+    await page.keyboard.type('cat');
+    await sleep(80);
+  };
+  const frCount = () => page.evaluate(() => document.querySelector('.rune-fr-count').textContent);
+  const frFocus = (title) => page.evaluate((title) => {
+    [...document.querySelectorAll('.rune-fr-panel button')].find((b) => (b.title || b.textContent).startsWith(title)).focus();
+  }, title);
+
+  await frOpen();
+  await frFocus('Next');
+  await page.keyboard.press('Enter');
+  ok((await frCount()) === '2/3', 'find: Enter on Next moves on');
+  await page.keyboard.press('Space');
+  ok((await frCount()) === '3/3', 'find: Space on Next moves on, with focus still on it');
+  await frFocus('Previous');
+  await page.keyboard.press('Enter');
+  ok((await frCount()) === '2/3', 'find: Enter on Previous moves back');
+
+  await frOpen();
+  await page.keyboard.press('Tab');           // Previous
+  await page.keyboard.press('Tab');           // Next
+  await page.keyboard.press('Tab');           // Close
+  await page.keyboard.press('Tab');           // Replace field
+  await page.keyboard.type('dog');
+  await page.keyboard.press('Tab');           // Replace button
+  await page.keyboard.press('Enter');
+  await sleep(50);
+  ok((await text()).startsWith('dog cat cat'), `find: Tab to Replace and press Enter (got "${await text()}")`);
+  await page.keyboard.press('Tab');           // All button
+  await page.keyboard.press('Enter');
+  await sleep(50);
+  ok((await text()).startsWith('dog dog dog'), `find: Tab to All and press Enter (got "${await text()}")`);
+
+  await frOpen();
+  await frFocus('Next');
+  await page.keyboard.press('Escape');
+  await sleep(200);
+  ok(await page.evaluate(() => !document.querySelector('.rune-fr-panel')), 'find: Escape from a button closes the panel');
+  ok(await page.evaluate(() => window.ed.content.contains(document.activeElement)), 'find: focus returns to the editor');
+  await page.keyboard.type('!');
+  ok((await text()).includes('!'), 'find: typing continues after closing');
+
+  await frOpen();
+  await page.evaluate(() => { window.changes = 0; });
+  await page.fill('.rune-fr-replace', 'dog');
+  await page.click('.rune-fr-panel button:has-text("Replace")');
+  await sleep(50);
+  ok((await text()).split('dog').length === 2, `find: a mouse press on Replace acts once (got "${await text()}")`);
+  await page.click('.rune-fr-panel button[title^="Next"]');
+  ok(/^\d+\/\d+$/.test(await frCount()), 'find: a mouse press on Next still works');
+  await page.keyboard.press('Escape');
+  await sleep(200);
+
   // ── Drag and drop ──────────────────────────────────────────
   // Headless Chrome won't start a native text drag (not even on a plain
   // contenteditable), so this drives the events with a real DataTransfer: the token

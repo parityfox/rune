@@ -1,4 +1,5 @@
 import { el } from '../../utils/dom.js';
+import { onActivate } from '../_onActivate.js';
 
 // Per-editor WeakMap so the static keymap can reference the open function
 const _openers = new WeakMap();
@@ -25,15 +26,18 @@ export const FindReplace = {
 
     function _open() {
       if (_panel) { _panel.querySelector('.rune-fr-find').focus(); return; }
-      _panel = _buildPanel();
-      document.body.appendChild(_panel);
-      requestAnimationFrame(() => _panel.classList.add('is-open'));
-      _panel.querySelector('.rune-fr-find').focus();
+      const panel = _panel = _buildPanel();
+      document.body.appendChild(panel);
+      // `panel`, not `_panel`: it may already have been closed by the next frame.
+      requestAnimationFrame(() => panel.classList.add('is-open'));
+      panel.querySelector('.rune-fr-find').focus();
     }
 
     function _close() {
       clearTimeout(_rehlTimer);
       _clearHighlights();
+      // The focused control is going away, so send focus back to the document.
+      if (_panel?.contains(document.activeElement)) editor.content.focus();
       _panel?.classList.remove('is-open');
       const p = _panel;
       _panel = null;
@@ -44,6 +48,7 @@ export const FindReplace = {
     }
 
     _openers.set(editor, _open);
+    editor.events.on('destroy', () => { if (_panel) _close(); });
 
     // Highlights live in the decoration overlay (not injected into the editable
     // tree), so getHtml()/getMarkdown() stay clean — no monkey-patching needed.
@@ -101,19 +106,18 @@ export const FindReplace = {
 
       findInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter')  { e.preventDefault(); e.shiftKey ? _step(-1) : _step(1); _updateCount(); }
-        if (e.key === 'Escape') { _close(); }
       });
 
-      replInput.addEventListener('keydown', (e) => {
+      // On the panel, so Escape works from the buttons as well as the fields.
+      panel.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') _close();
       });
 
-      prevBtn.addEventListener('mousedown',   (e) => { e.preventDefault(); _step(-1); _updateCount(); });
-      nextBtn.addEventListener('mousedown',   (e) => { e.preventDefault(); _step(1);  _updateCount(); });
-      closeBtn.addEventListener('mousedown',  (e) => { e.preventDefault(); _close(); });
+      onActivate(prevBtn,  () => { _step(-1); _updateCount(); });
+      onActivate(nextBtn,  () => { _step(1);  _updateCount(); });
+      onActivate(closeBtn, () => _close());
 
-      replBtn.addEventListener('mousedown', (e) => {
-        e.preventDefault();
+      onActivate(replBtn, () => {
         // In-place replace + offset shift advances to the next match without a
         // full re-scan (so navigation doesn't reset and replacements aren't
         // re-matched). #31, #32
@@ -121,8 +125,7 @@ export const FindReplace = {
         _updateCount();
       });
 
-      replAllBtn.addEventListener('mousedown', (e) => {
-        e.preventDefault();
+      onActivate(replAllBtn, () => {
         _replaceAll(replInput.value);
         _updateCount();
       });
@@ -203,7 +206,7 @@ export const FindReplace = {
     // ── Replace (in-place via replaceData; offsets shift, no node split) ─
 
     function _replaceCurrent(replacement) {
-      if (_current < 0 || _current >= _matches.length) return;
+      if (editor._disabled || _current < 0 || _current >= _matches.length) return;
       editor.history.saveNow();
       const m = _matches[_current];
       const len = m.end - m.start;
@@ -225,7 +228,7 @@ export const FindReplace = {
     }
 
     function _replaceAll(replacement) {
-      if (_matches.length === 0) return;
+      if (editor._disabled || _matches.length === 0) return;
       editor.history.saveNow();
       // Replace last-to-first so earlier offsets stay valid.
       for (let i = _matches.length - 1; i >= 0; i--) {

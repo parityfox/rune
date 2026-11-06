@@ -26,13 +26,21 @@ const charAttrs = (delta) => {
   return out;
 };
 
-/** Element's inline content -> normalized delta, using the schema's marks. */
+/**
+ * Element's inline content -> normalized delta, using the schema's marks.
+ *
+ * A <br> is stored as '\n', except a final one: that is only the placeholder that
+ * gives an empty block or an empty last line its height, and is not visible content.
+ * A raw newline in a text node is HTML whitespace, not a break, so it becomes a space.
+ */
 function serializeInline(el) {
   const ops = [];
   (function walk(node, attrs) {
     for (const c of node.childNodes) {
       if (c.nodeType === 3) {
-        if (c.data.length) ops.push({ insert: c.data, attributes: { ...attrs } });
+        if (c.data.length) ops.push({ insert: c.data.replace(/\n/g, ' '), attributes: { ...attrs } });
+      } else if (c.nodeType === 1 && c.tagName === 'BR') {
+        ops.push({ insert: '\n', attributes: { ...attrs }, placeholder: true });
       } else if (c.nodeType === 1) {
         const mark = markForTag(c.tagName.toLowerCase());
         const next = { ...attrs };
@@ -44,6 +52,7 @@ function serializeInline(el) {
       }
     }
   })(el, {});
+  if (ops[ops.length - 1]?.placeholder) ops.pop();
   const merged = [];
   for (const op of ops) {
     const last = merged[merged.length - 1];
@@ -55,7 +64,7 @@ function serializeInline(el) {
 
 /** One delta op -> a DOM run node (text wrapped in marks, outer = schema order). */
 function makeRunNode(doc, op) {
-  let node = doc.createTextNode(op.insert);
+  let node = op.insert === '\n' ? doc.createElement('br') : doc.createTextNode(op.insert);
   const a = op.attributes || {};
   for (let i = MARKS.length - 1; i >= 0; i--) {         // inner -> outer
     const m = MARKS[i];
@@ -68,12 +77,22 @@ function makeRunNode(doc, op) {
   return node;
 }
 
-/** delta -> element inline DOM (full rebuild), nesting marks by schema precedence. */
-function renderInline(el, delta) {
+/**
+ * delta -> element inline DOM (full rebuild), nesting marks by schema precedence.
+ * '\n' renders as <br>, unless `literalNewlines` keeps it as text (code blocks).
+ */
+function renderInline(el, delta, { literalNewlines = false } = {}) {
   const doc = el.ownerDocument;
   el.textContent = '';
   if (!delta.length) { el.appendChild(doc.createElement('br')); return; }
-  for (const op of delta) el.appendChild(makeRunNode(doc, op));
+  for (const op of delta) {
+    if (literalNewlines) { el.appendChild(makeRunNode(doc, op)); continue; }
+    for (const part of op.insert.match(/\n|[^\n]+/g) || []) {
+      el.appendChild(makeRunNode(doc, { insert: part, attributes: op.attributes }));
+    }
+  }
+  // A final break needs the placeholder after it, or its empty line has no height.
+  if (!literalNewlines && textOf(delta).endsWith('\n')) el.appendChild(doc.createElement('br'));
 }
 
 /** Reconstruct {insert, attributes} from a canonical run node (single mark chain
@@ -103,7 +122,8 @@ const runEq = (a, b) => a.insert === b.insert && sameAttrs(a.attributes, b.attri
  * selection in them survive a remote edit to a different run of the same block.
  */
 function patchInline(el, delta) {
-  if (!delta.length) { renderInline(el, delta); return { lo: 0, hi: Infinity }; }
+  // Runs map one-to-one to nodes, which a break would split, so just rebuild.
+  if (!delta.length || delta.some((op) => op.insert.includes('\n'))) { renderInline(el, delta); return { lo: 0, hi: Infinity }; }
   const nodes = [...el.childNodes];
   const oldRuns = [];
   for (const n of nodes) { const r = runOf(n); if (!r) { renderInline(el, delta); return { lo: 0, hi: Infinity }; } oldRuns.push(r); }
@@ -230,10 +250,28 @@ export function modelForHost(blocks, b) {
 
 /** Caret text-offset of (node, offset) within host element. */
 export function textIndexInHost(host, node, offset) {
+  // A <br> is one character, except in code blocks, whose text is taken as is.
+  const brLength = host.tagName === 'PRE' ? 0 : 1;
+  const lengthOf = (n) => {
+    if (n.nodeType === 3) return n.data.length;
+    if (n.nodeType !== 1) return 0;
+    if (n.tagName === 'BR') return brLength;
+    let sum = 0;
+    for (const c of n.childNodes) sum += lengthOf(c);
+    return sum;
+  };
+  const lastBr = (n) => {
+    const last = n.lastChild;
+    if (!last) return false;
+    return last.nodeType === 1 && (last.tagName === 'BR' || lastBr(last));
+  };
+  // The final <br> is a placeholder with no character in the model.
+  const clamp = (i) => Math.min(i, lengthOf(host) - (lastBr(host) ? brLength : 0));
+
   if (node === host) {                     // caret anchored to the block element (offset = child index)
     let sum = 0;
-    for (let k = 0; k < offset && k < host.childNodes.length; k++) sum += host.childNodes[k].textContent.length;
-    return sum;
+    for (let k = 0; k < offset && k < host.childNodes.length; k++) sum += lengthOf(host.childNodes[k]);
+    return clamp(sum);
   }
   let idx = 0, done = false;
   (function walk(n) {
@@ -241,14 +279,15 @@ export function textIndexInHost(host, node, offset) {
       if (done) return;
       if (c === node) {
         if (c.nodeType === 3) idx += offset;
-        else for (let k = 0; k < offset; k++) idx += c.childNodes[k]?.textContent.length || 0;
+        else for (let k = 0; k < offset && k < c.childNodes.length; k++) idx += lengthOf(c.childNodes[k]);
         done = true; return;
       }
       if (c.nodeType === 3) idx += c.data.length;
+      else if (c.nodeType === 1 && c.tagName === 'BR') idx += brLength;
       else if (c.nodeType === 1) walk(c);
     }
   })(host);
-  return done ? idx : -1;
+  return done ? clamp(idx) : -1;
 }
 
 /** {node, off} for a text offset within host element. */
@@ -260,6 +299,10 @@ export function domPointInHost(host, index) {
       if (c.nodeType === 3) {
         if (remaining <= c.data.length) { node = c; off = remaining; return; }
         remaining -= c.data.length;
+      } else if (c.nodeType === 1 && c.tagName === 'BR') {
+        // An empty line has no text node to land in, so sit just before its <br>.
+        if (remaining === 0) { node = n; off = [...n.childNodes].indexOf(c); return; }
+        if (host.tagName !== 'PRE') remaining -= 1;
       } else if (c.nodeType === 1) walk(c);
     }
   })(host);

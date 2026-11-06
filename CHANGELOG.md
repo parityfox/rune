@@ -32,6 +32,7 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 - Collab: `setHtml`, undo and redo, and direct-DOM commands now reach peers (#136)
 - Collab: IME text commits to the block it was composed in when a peer inserts above it (#137)
 - Collab: joining a room no longer adds a blank paragraph (#138)
+- Collab: Shift+Enter line breaks now sync between peers. They were previously lost, for everyone, on the next remote update (#187)
 - Collab: suggestions and comments no longer throw when the document contains an image (#150)
 - Collab: a malformed peer cursor or text-less block no longer stops rendering for others (#151, #170)
 - Slash menu: picking an item removes only `/query`, Backspace removes one character, and Enter works when nothing matches (#142)

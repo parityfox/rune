@@ -97,6 +97,76 @@ try {
   });
   await sleep(150);
   ok(!/onerror/.test(await html(B)), 'paste: dangerous event handler stripped');
+
+  // ── Line breaks (#187): real keys, because the DOM Chrome builds is the hard part ──
+  const setA = (h) => page.evaluate((h) => {
+    const c = document.querySelector('#editorA .rune-content');
+    c.innerHTML = h;
+    c.dispatchEvent(new Event('input', { bubbles: true }));
+  }, h);
+  const clean = (h) => h.replace(/ data-id="[^"]*"/g, '');
+  const caretEnd = (sel) => page.evaluate((sel) => {
+    const c = document.querySelector(sel);
+    const p = c.querySelector('p');
+    const r = document.createRange(); r.selectNodeContents(p); r.collapse(false);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r); c.focus();
+  }, sel);
+
+  await setA('<p>one</p>'); await sleep(150);
+  await caretEnd(A);
+  await page.keyboard.press('Shift+Enter');
+  await sleep(100);
+  ok(clean(await html(B)) === '<p>one<br><br></p>', `breaks: a break at the end of a line reaches B (got ${clean(await html(B))})`);
+  await page.keyboard.type('two');
+  await sleep(150);
+  ok(clean(await html(A)) === '<p>one<br>two</p>', `breaks: typing continues on the new line in A (got ${clean(await html(A))})`);
+  ok(clean(await html(B)) === '<p>one<br>two</p>', `breaks: B sees both lines (got ${clean(await html(B))})`);
+
+  await caretEnd(B);
+  await page.keyboard.type('!');
+  await sleep(150);
+  ok(clean(await html(A)) === '<p>one<br>two!</p>', `breaks: the break survives B typing (got ${clean(await html(A))})`);
+  ok(clean(await html(B)) === '<p>one<br>two!</p>', `breaks: B keeps the break too (got ${clean(await html(B))})`);
+
+  // A break in the middle of a line.
+  await setA('<p>onetwo</p>'); await sleep(150);
+  await page.evaluate(() => {
+    const c = document.querySelector('#editorA .rune-content');
+    const t = c.querySelector('p').firstChild;
+    const r = document.createRange(); r.setStart(t, 3); r.collapse(true);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r); c.focus();
+  });
+  await page.keyboard.press('Shift+Enter');
+  await page.keyboard.type('X');
+  await sleep(150);
+  ok(clean(await html(B)) === '<p>one<br>Xtwo</p>', `breaks: a break mid-line keeps the caret after it (got ${clean(await html(B))})`);
+
+  // A's caret stays on its line while B edits the line above.
+  await setA('<p>top<br>bottom</p>'); await sleep(150);
+  await caretEnd(A);
+  await page.evaluate(() => {
+    const c = document.querySelector('#editorB .rune-content');
+    const t = c.querySelector('p').firstChild;
+    t.data = 'TOP!';
+    c.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await sleep(150);
+  await page.keyboard.type('Z');
+  await sleep(150);
+  ok(clean(await html(A)) === '<p>TOP!<br>bottomZ</p>', `breaks: the caret stays on its line through a remote edit (got ${clean(await html(A))})`);
+  ok(clean(await html(B)) === '<p>TOP!<br>bottomZ</p>', `breaks: B converges (got ${clean(await html(B))})`);
+
+  // Backspace removes a break again.
+  await setA('<p>one<br>two</p>'); await sleep(150);
+  await page.evaluate(() => {
+    const c = document.querySelector('#editorA .rune-content');
+    const t = c.querySelector('p').lastChild;
+    const r = document.createRange(); r.setStart(t, 0); r.collapse(true);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r); c.focus();
+  });
+  await page.keyboard.press('Backspace');
+  await sleep(150);
+  ok(clean(await html(B)) === '<p>onetwo</p>', `breaks: Backspace removes a break for both (got ${clean(await html(B))})`);
 } catch (e) {
   fails.push('exception: ' + e.message);
 } finally {

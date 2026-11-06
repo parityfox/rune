@@ -60,7 +60,7 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
   function renderBlock(block) {
     const id = block.get('id');
     const h = flattenHosts(content).find((x) => x.el.getAttribute('data-id') === id);
-    if (h) _internals.renderInline(h.host, block.get('text').toDelta());
+    if (h) _internals.renderInline(h.host, block.get('text').toDelta(), { literalNewlines: h.host.tagName === 'PRE' });
   }
 
   function setCaret(id, index) {

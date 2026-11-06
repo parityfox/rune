@@ -290,9 +290,7 @@ describe('bindSuggestionMode', () => {
   });
 
   describe('a line break in the shared document', () => {
-    // Known bug: serializeInline ignores <br>, so a peer receives "onetwo". it.fails
-    // goes red once this is fixed, so the marker can't outlive the bug.
-    it.fails('reaches a peer', () => {
+    it('reaches a peer (#187)', () => {
       enabled = false;
       const hub = new MemoryHub();
       const peerDoc = new Y.Doc();

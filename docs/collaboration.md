@@ -264,7 +264,10 @@ These are intentional v1 boundaries, not bugs:
 - **Suggestion mode** — range ops and paste are single-block; multi-block range
   operations fall back to normal editing. Enter and Shift+Enter are not tracked,
   because suggestions live on text and the model can't represent a tracked block
-  split. A word or line delete that would cross into another block does nothing.
+  split. A word or line delete that would cross into another block does nothing,
+  and neither does dragging text within the editor. Formatting and commands from
+  the toolbar, slash menu or `editor.cmd()` are not tracked, because they fire no
+  input event.
 - **Undo** is the editor's snapshot history, not per-user. Undoing restores your
   earlier snapshot of the whole document and syncs it, so it can also revert
   edits a peer made since then. Swap in a Yjs `UndoManager` via

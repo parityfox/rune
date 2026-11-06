@@ -183,6 +183,48 @@ try {
   ok(afterEnter.ps.join('|') === 'he|lloX', `suggest: Enter splits the block without losing text (got ${afterEnter.ps.join('|')})`);
   ok(afterEnter.marked, 'suggest: Enter keeps an existing suggestion');
   ok(afterEnter.peer.join('|') === 'he|lloX', `suggest: the split reaches the other peer (got ${afterEnter.peer.join('|')})`);
+
+  // IME with a real composition via CDP: it can't be cancelled, so it's tracked on commit.
+  const cdp = await page.context().newCDPSession(page);
+  const insText = () => page.evaluate(() => [...document.querySelectorAll('#editorA .rune-suggestion--insert')].map((e) => e.textContent).join('|'));
+  const insTextB = () => page.evaluate(() => [...document.querySelectorAll('#editorB .rune-suggestion--insert')].map((e) => e.textContent).join('|'));
+
+  await reset('<p>hello</p>'); await sleep(150);
+  await caretAt(5);
+  await cdp.send('Input.imeSetComposition', { text: 'ni', selectionStart: 2, selectionEnd: 2 });
+  await cdp.send('Input.imeSetComposition', { text: 'nihao', selectionStart: 5, selectionEnd: 5 });
+  await sleep(60);
+  await cdp.send('Input.insertText', { text: '你好' });
+  await sleep(200);
+  ok((await insText()) === '你好', `suggest: IME text is a tracked insertion (marked "${await insText()}")`);
+  ok((await insTextB()) === '你好', `suggest: the tracked IME text reaches the other peer (marked "${await insTextB()}")`);
+  ok((await text(A)).trim() === 'hello你好', `suggest: IME leaves the right text (got "${await text(A)}")`);
+  await page.keyboard.type('X');
+  await sleep(150);
+  ok((await text(A)).trim() === 'hello你好X' && (await insText()) === '你好X', `suggest: typing continues after the composed text (got "${await text(A)}", marked "${await insText()}")`);
+
+  await reset('<p>hello</p>'); await sleep(150);
+  await selectRange(0, 2);
+  await cdp.send('Input.imeSetComposition', { text: 'ni', selectionStart: 2, selectionEnd: 2 });
+  await sleep(60);
+  await cdp.send('Input.insertText', { text: '你' });
+  await sleep(200);
+  ok((await delText()) === 'he' && (await insText()) === '你' && (await text(A)).trim() === 'he你llo', `suggest: IME over a selection is tracked (got "${await text(A)}", deleted "${await delText()}", inserted "${await insText()}")`);
+
+  // Drop at a real point.
+  await reset('<p>one two</p>'); await sleep(150);
+  await caretAt(7);
+  await page.evaluate(() => {
+    const c = document.querySelector('#editorA .rune-content');
+    const t = c.querySelector('p').firstChild;
+    const m = document.createRange(); m.setStart(t, 3); m.collapse(true);
+    const rect = m.getBoundingClientRect();
+    const dt = new DataTransfer(); dt.setData('text/html', 'DROP<img src=x onerror="window.pwned=1">');
+    c.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true, clientX: rect.left, clientY: rect.top + rect.height / 2 }));
+  });
+  await sleep(150);
+  ok((await insText()) === 'DROP' && (await text(A)).trim() === 'oneDROP two', `suggest: a drop is tracked at the drop point (got "${await text(A)}", marked "${await insText()}")`);
+  ok(await page.evaluate(() => !window.pwned && !document.querySelector('#editorA .rune-content').innerHTML.includes('onerror')), 'suggest: a tracked drop is sanitized');
 } catch (e) {
   fails.push('exception: ' + e.message);
 } finally {

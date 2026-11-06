@@ -383,6 +383,225 @@ describe('bindSuggestionMode', () => {
     });
   });
 
+  describe('IME composition (#188)', () => {
+    const fire = (type, data) => {
+      const e = new Event(type, { bubbles: true, cancelable: false });
+      if (data !== undefined) e.data = data;
+      editor.content.dispatchEvent(e);
+    };
+    // The browser changes the DOM directly while composing, then commits on compositionend.
+    function compose(text, at = 5) {
+      caret(at);
+      fire('compositionstart');
+      const n = para().firstChild;
+      n.insertData(window.getSelection().anchorOffset, text);
+      const r = document.createRange(); r.setStart(n, at + text.length); r.collapse(true);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      editor.content.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    it('tracks the composed text as an insertion', () => {
+      compose('你好');
+      fire('compositionend', '你好');
+      expect(textOf()).toBe('hello你好');
+      expect(list()).toMatchObject([{ type: 'insert', author: 'Ada', color: '#f00', from: 5, to: 7 }]);
+      expect(editor.content.querySelector('.rune-suggestion--insert')?.textContent).toBe('你好');
+    });
+
+    it('leaves the caret after the composed text', () => {
+      compose('你好');
+      fire('compositionend', '你好');
+      expect(caretPosition()).toBe(7);
+    });
+
+    it('works in the middle of the text', () => {
+      compose('你', 2);
+      fire('compositionend', '你');
+      expect(textOf()).toBe('he你llo');
+      expect(list()).toMatchObject([{ type: 'insert', from: 2, to: 3 }]);
+    });
+
+    it('joins an adjacent typed run of your own', () => {
+      caret(5);
+      input('insertText', 'a');
+      const s = window.getSelection();
+      fire('compositionstart');
+      const n = s.anchorNode;
+      n.insertData(s.anchorOffset, '你');
+      fire('compositionend', '你');
+      expect(textOf()).toBe('helloa你');
+      expect(list().length).toBe(1);
+    });
+
+    it('over a selection marks it deleted and keeps the text', () => {
+      select(0, 2);
+      fire('compositionstart');
+      expect(list()).toMatchObject([{ type: 'delete', from: 0, to: 2 }]);
+      expect(window.getSelection().isCollapsed).toBe(true);
+      expect(caretPosition()).toBe(2);
+    });
+
+    it('a cancelled composition tracks nothing', () => {
+      caret(5);
+      fire('compositionstart');
+      fire('compositionend', '');
+      expect(textOf()).toBe('hello');
+      expect(list()).toEqual([]);
+    });
+
+    it('stays on the composed text when a peer inserts in front of it', () => {
+      caret(5);
+      fire('compositionstart');
+      para().firstChild.insertData(5, '你');
+      ytext().insert(0, 'ZZ');
+      fire('compositionend', '你');
+      const text = textOf();
+      const [s] = list();
+      expect(text.slice(s.from, s.to)).toBe('你');
+    });
+
+    it('does nothing when the mode is off', () => {
+      enabled = false;
+      compose('你好');
+      fire('compositionend', '你好');
+      expect(textOf()).toBe('hello你好');
+      expect(list()).toEqual([]);
+    });
+
+    it('does not treat a later composition as tracked once the mode is off', () => {
+      compose('你');
+      fire('compositionend', '你');
+      enabled = false;
+      compose('好', 0);                    // at the start, in the unmarked text node
+      fire('compositionend', '好');
+      expect(textOf()).toBe('好hello你');
+      expect(list()).toMatchObject([{ type: 'insert', from: 6, to: 7 }]);
+    });
+  });
+
+  describe('spellcheck and autocorrect replacements (#188)', () => {
+    function replace({ data, from = 0, to = 2, transfer = null }) {
+      const e = new Event('beforeinput', { bubbles: true, cancelable: true });
+      const n = para().firstChild;
+      Object.assign(e, { inputType: 'insertReplacementText', data, dataTransfer: transfer });
+      e.getTargetRanges = () => [{ startContainer: n, startOffset: from, endContainer: n, endOffset: to }];
+      editor.content.dispatchEvent(e);
+      return e;
+    }
+
+    it('marks the old text deleted and tracks the new text', () => {
+      caret(1);
+      expect(replace({ data: 'XY' }).defaultPrevented).toBe(true);
+      expect(textOf()).toBe('heXYllo');
+      expect(list().map((s) => s.type).sort()).toEqual(['delete', 'insert']);
+      expect(caretPosition()).toBe(4);
+    });
+
+    it('reads the replacement from dataTransfer when data is empty', () => {
+      caret(1);
+      replace({ data: null, transfer: { getData: () => 'XY' } });
+      expect(textOf()).toBe('heXYllo');
+    });
+
+    it('is blocked when it can\'t be tracked', () => {
+      caret(1);
+      const e = new Event('beforeinput', { bubbles: true, cancelable: true });
+      Object.assign(e, { inputType: 'insertReplacementText', data: 'XY' });
+      e.getTargetRanges = () => [];
+      editor.content.dispatchEvent(e);
+      expect(e.defaultPrevented).toBe(true);
+      expect(textOf()).toBe('hello');
+    });
+  });
+
+  describe('other edits the mode can\'t track (#188)', () => {
+    for (const type of ['insertFromYank', 'insertTranspose', 'insertFromDrop', 'deleteByDrag', 'insertFromPasteAsQuotation']) {
+      it(`blocks ${type}`, () => {
+        caret(2);
+        expect(input(type, 'x').defaultPrevented).toBe(true);
+      });
+    }
+
+    for (const type of ['insertParagraph', 'insertLineBreak', 'insertCompositionText', 'deleteCompositionText', 'insertFromComposition', 'formatBold', 'historyUndo']) {
+      it(`leaves ${type} to the browser`, () => {
+        caret(2);
+        expect(input(type, 'x').defaultPrevented).toBe(false);
+      });
+    }
+
+    it('blocks nothing when the mode is off', () => {
+      enabled = false;
+      caret(2);
+      expect(input('insertTranspose').defaultPrevented).toBe(false);
+    });
+  });
+
+  describe('drop (#188)', () => {
+    function drop({ html = '', plain = '', types = [], files = [], point = null }) {
+      let direct = false;
+      const orig = document.execCommand;
+      document.execCommand = () => { direct = true; return true; };
+      const e = new Event('drop', { bubbles: true, cancelable: true });
+      e.clientX = 1; e.clientY = 1;
+      e.dataTransfer = { types, files, getData: (t) => (t === 'text/html' ? html : t === 'text/plain' ? plain : t === 'application/x-rune-drag' && types.length ? 'token' : '') };
+      if (point) document.caretRangeFromPoint = () => point;
+      editor.content.dispatchEvent(e);
+      delete document.caretRangeFromPoint;
+      document.execCommand = orig;
+      return { e, direct };
+    }
+    const pointAt = (off) => {
+      const r = document.createRange(); r.setStart(para().firstChild, off); r.collapse(true);
+      return r;
+    };
+
+    it('tracks dropped text at the drop point, skipping the direct insert', () => {
+      caret(5);
+      const { e, direct } = drop({ plain: 'XY', point: pointAt(2) });
+      expect(e.defaultPrevented).toBe(true);
+      expect(direct).toBe(false);
+      expect(textOf()).toBe('heXYllo');
+      expect(list()).toMatchObject([{ type: 'insert', from: 2, to: 4 }]);
+    });
+
+    it('sanitizes dropped HTML', () => {
+      caret(5);
+      drop({ html: 'ok<img src=x onerror="alert(1)">' });
+      expect(textOf()).toContain('ok');
+      expect(editor.content.innerHTML).not.toContain('onerror');
+    });
+
+    it('blocks a drag within the editor, since a move can\'t be tracked', () => {
+      caret(5);
+      const { e, direct } = drop({ plain: 'he', types: ['application/x-rune-drag'] });
+      expect(e.defaultPrevented).toBe(true);
+      expect(direct).toBe(false);
+      expect(textOf()).toBe('hello');
+    });
+
+    it('still reports dropped files', () => {
+      const seen = [];
+      editor.events.on('drop', (p) => seen.push(p.files));
+      const file = { name: 'a.png' };
+      drop({ files: [file] });
+      expect(seen).toEqual([[file]]);
+      expect(textOf()).toBe('hello');
+    });
+
+    it('leaves drop to the editor when the mode is off', () => {
+      enabled = false;
+      caret(5);
+      expect(drop({ plain: 'X' }).direct).toBe(true);
+    });
+
+    it('changes nothing on a disabled editor', () => {
+      editor.disable();
+      caret(5);
+      drop({ plain: 'X' });
+      expect(textOf()).toBe('hello');
+    });
+  });
+
   describe('destroy', () => {
     it('stops intercepting', () => {
       mode.destroy();

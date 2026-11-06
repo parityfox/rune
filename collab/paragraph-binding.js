@@ -439,9 +439,11 @@ export function bindParagraph(editor, doc, { provider } = {}) {
   // for mutations that fire no input event (setHtml, undo/redo, direct-DOM commands).
   const onChange = () => { if (!applyingRemote && !composing) reconcileFromDom(); };
   const onCompositionStart = () => { composing = true; };
-  const onCompositionEnd = () => {
+  const onCompositionEnd = (e) => {
     composing = false;
     if (!applyingRemote) commitComposingBlock();          // 1. commit just the composed block
+    // Composition can't be cancelled, so suggestion mode tracks the text once committed.
+    editor.events.emit('collab:compositioncommit', { data: e?.data });
     if (pendingRemote) {                                  // 2. then apply any deferred remote patch
       pendingRemote = false;
       applyingRemote = true;

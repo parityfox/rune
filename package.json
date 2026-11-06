@@ -87,7 +87,7 @@
     "playwright-core": "^1.60.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "vitest": "^4.1.12",
+    "vitest": "^5.1.0",
     "vue": "^3.5.45",
     "ws": "^8.21.0",
     "y-indexeddb": "^9.0.12",

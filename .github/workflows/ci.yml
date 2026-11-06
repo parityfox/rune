@@ -26,3 +26,16 @@ jobs:
         run: >
           node --input-type=module -e
           "import('./src/index.js').then(() => console.log('import ok')).catch((e) => { console.error(e); process.exit(1); })"
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The scripts drive the system Chrome, which ubuntu-latest includes.
+      - run: google-chrome --version
+      - run: npm run test:e2e

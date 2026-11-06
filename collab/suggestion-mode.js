@@ -11,6 +11,7 @@ import { blockHostAt, modelForHost, textIndexInHost, flattenHosts, domPointInHos
  *  - deleteContentBackward -> if deleting your own un-accepted insertion, remove
  *    it; otherwise MARK the char `suggestion:{delete}` (struck-through, kept
  *    until accepted) and move the caret left.
+ *  - deleteContentForward -> the same for the character after the caret.
  *
  * Selections (#19): typing over a selection marks it deleted + inserts the new
  * text; Delete/Backspace on a selection marks the range deleted. Single-block
@@ -123,6 +124,25 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
       }, LOCAL);
       renderBlock(pos.block);
       setCaret(pos.id, pos.index - 1);
+    } else if (e.inputType === 'deleteContentForward') {
+      const pos = caretPos();
+      if (!pos) return;
+      e.preventDefault();                                   // also stops a native merge at the block's end
+      const yt = pos.block.get('text');
+      if (pos.index >= yt.length) return;
+      const right = sugAt(yt, pos.index);
+      const own = right && right.type === 'insert' && right.author === author;
+      doc.transact(() => {
+        if (own) {
+          yt.delete(pos.index, 1);                          // un-type your own pending insertion
+        } else {
+          const left = pos.index > 0 ? sugAt(yt, pos.index - 1) : null;   // merge with an adjacent delete run
+          const sug = (left && left.type === 'delete' && left.author === author) ? left : { id: uid(), type: 'delete', author, ...(color ? { color } : {}) };
+          yt.format(pos.index, 1, { suggestion: sug });     // mark, don't remove
+        }
+      }, LOCAL);
+      renderBlock(pos.block);
+      setCaret(pos.id, own ? pos.index : pos.index + 1);
     }
   };
 
@@ -131,8 +151,9 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
   // content as a tracked insertion. Inline marks are preserved; block structure
   // is flattened into the current block (multi-block paste is future work).
   const onPaste = (e) => {
-    if (!isEnabled()) return;
-    const pos = caretPos();
+    if (!isEnabled() || editor._disabled) return;
+    const rng = selectionRange();                 // pasting over a selection replaces it
+    const pos = rng ? { block: rng.block, id: rng.id, index: rng.to } : caretPos();
     if (!pos) return;
     e.preventDefault();
     e.stopImmediatePropagation();                 // skip the editor's direct-insert paste handler
@@ -141,6 +162,11 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
     const yt = pos.block.get('text');
     const sug = { id: uid(), type: 'insert', author, ...(color ? { color } : {}) };
     const htmlData = dt.getData('text/html');
+    if (rng && (htmlData || dt.getData('text/plain'))) {
+      doc.transact(() => yt.format(rng.from, rng.to - rng.from, {
+        suggestion: { id: uid(), type: 'delete', author, ...(color ? { color } : {}) },
+      }), LOCAL);
+    }
     let at = pos.index;
     if (htmlData) {
       const tmp = cdoc.createElement('div');

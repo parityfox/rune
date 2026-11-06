@@ -103,6 +103,32 @@ try {
   await page.keyboard.press('Backspace');
   await sleep(200);
   ok(/rune-suggestion--delete/.test(await html(A)) && (await text(A)).includes('world'), 'suggest(range): Backspace on a selection marks it deleted (text kept)');
+
+  // Forward Delete with the real key: the browser's inputType must reach the mode.
+  await reset('<p>hello world</p>'); await sleep(150);
+  await page.evaluate((sel) => {
+    const t = document.querySelector(sel + ' p').firstChild;
+    const r = document.createRange(); r.setStart(t, 0); r.collapse(true);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    document.querySelector(sel).focus();
+  }, A);
+  await page.keyboard.press('Delete');
+  await sleep(100);
+  ok(/rune-suggestion--delete/.test(await html(A)) && (await text(A)).startsWith('hello'), 'suggest: Delete marks the next character (text kept)');
+
+  // Pasting over a selection, through the real clipboard event.
+  await reset('<p>hello world</p>'); await sleep(150);
+  await page.evaluate((sel) => {
+    const t = document.querySelector(sel + ' p').firstChild;
+    const r = document.createRange(); r.setStart(t, 0); r.setEnd(t, 5);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    document.querySelector(sel).focus();
+    const dt = new DataTransfer(); dt.setData('text/plain', 'PASTED');
+    document.querySelector(sel).dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  }, A);
+  await sleep(100);
+  const pasted = await html(A);
+  ok(/rune-suggestion--delete/.test(pasted) && /rune-suggestion--insert/.test(pasted) && (await text(A)).includes('hello') && (await text(A)).includes('PASTED'), 'suggest: paste over a selection is tracked');
 } catch (e) {
   fails.push('exception: ' + e.message);
 } finally {

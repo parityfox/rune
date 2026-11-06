@@ -58,6 +58,7 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 - The bubble menu stays hidden on a disabled editor and stops reacting after destroy
 - Find and replace buttons work from the keyboard, Escape closes from anywhere in the panel, focus returns to the editor on close, and destroying the editor removes the panel (#185)
 - Replace and Replace all no longer change a disabled editor
+- Suggestion mode now tracks forward Delete and pasting over a selection, and paste no longer changes the shared document on a disabled editor
 - Deleting a table row or column keeps the caret in the table, deleting a table leaves the caret in a nearby block, and deleting the last block in a toggle or column leaves it editable
 - The table toolbar, table menu and edge add buttons no longer work on a disabled editor
 - Toolbar and bubble menu panel options work from the keyboard, the table size grid can be reached and sized with arrow keys, and focus returns to the editor after choosing (#184)

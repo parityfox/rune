@@ -66,8 +66,9 @@ const provider = new WebSocketProvider('ws://localhost:1234', 'my-doc', doc, {
 const local = persistLocally(doc, 'my-doc');
 await local.whenSynced;
 
-// 3. Bind the editor's DOM to the Yjs document.
-bindParagraphSpike(editor, doc);
+// 3. Bind the editor's DOM to the Yjs document. Passing the provider means content
+//    already in the editor only seeds the room if it syncs and turns out to be empty.
+bindParagraphSpike(editor, doc, { provider });
 
 // 4. Presence — your cursor/selection broadcast to peers.
 bindPresence(editor, doc, provider.awareness, { name: 'Alice', color: '#2563eb' });
@@ -262,6 +263,10 @@ These are intentional v1 boundaries, not bugs:
   add-remove are best-effort (cells are keyed by coordinates).
 - **Suggestion mode** — range ops and paste are single-block; multi-block range
   operations fall back to normal editing.
+- **Undo** is the editor's snapshot history, not per-user. Undoing restores your
+  earlier snapshot of the whole document and syncs it, so it can also revert
+  edits a peer made since then. Swap in a Yjs `UndoManager` via
+  `editor.replaceHistory()` for per-user undo.
 - **The reference server** is exactly that — reference. It has an `authorize()`
   hook but no built-in persistence, presence GC tuning, or horizontal scaling.
   Production deployments bring their own backend (see server docs).

@@ -1,6 +1,6 @@
 import { uid } from '../src/utils/id.js';
 import { sanitize } from '../src/utils/html.js';
-import { blockHostAt, textIndexInHost, flattenHosts, domPointInHost, _internals, LOCAL } from './paragraph-binding.js';
+import { blockHostAt, modelForHost, textIndexInHost, flattenHosts, domPointInHost, _internals, LOCAL } from './paragraph-binding.js';
 
 /**
  * Suggestion mode (#15) — intercept typing so edits become tracked changes.
@@ -36,9 +36,8 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
     if (!sel || !sel.rangeCount || !sel.isCollapsed) return null;
     const r = sel.getRangeAt(0);
     const b = content.contains(r.startContainer) ? blockHostAt(content, r.startContainer) : null;
-    if (!b || b.index >= blocks.length) return null;
-    const block = blocks.get(b.index);
-    if (!block.get('text')) return null;                  // atomic block — not editable here
+    const block = modelForHost(blocks, b);
+    if (!block || !block.get('text')) return null;        // atomic block — not editable here
     const idx = textIndexInHost(b.host, r.startContainer, r.startOffset);
     return idx < 0 ? null : { block, id: block.get('id'), index: idx };
   }
@@ -70,9 +69,9 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
     if (!content.contains(r.startContainer) || !content.contains(r.endContainer)) return null;
     const b1 = blockHostAt(content, r.startContainer);
     const b2 = blockHostAt(content, r.endContainer);
-    if (!b1 || !b2 || b1.index !== b2.index || b1.index >= blocks.length) return null;   // single block only (v1)
-    const block = blocks.get(b1.index);
-    if (!block.get('text')) return null;
+    if (!b1 || !b2 || b1.index !== b2.index) return null;   // single block only (v1)
+    const block = modelForHost(blocks, b1);
+    if (!block || !block.get('text')) return null;
     const a = textIndexInHost(b1.host, r.startContainer, r.startOffset);
     const z = textIndexInHost(b1.host, r.endContainer, r.endOffset);
     if (a < 0 || z < 0 || a === z) return null;

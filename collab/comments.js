@@ -29,7 +29,7 @@ export class CommentStore {
   /** Create a thread anchored to [from, to) within block `blockId`. */
   add({ blockId, from, to, text, author, id = uid(), ts = Date.now() }) {
     const block = this._blockById(blockId);
-    if (!block || to <= from) return null;
+    if (!block?.get('text') || to <= from) return null;   // atomic blocks have no text to anchor to
     author = _clip(author, MAX_AUTHOR);
     text = _clip(text, MAX_TEXT);
     const yt = block.get('text');

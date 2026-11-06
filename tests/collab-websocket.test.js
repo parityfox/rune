@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import * as Y from 'yjs';
 import WebSocket from 'ws';
 import { Awareness } from 'y-protocols/awareness';
@@ -73,6 +73,51 @@ describe('WebSocket transport (reference server + provider)', () => {
     const docGood = new Y.Doc();
     b = new WebSocketProvider(url, 'r', docGood, { WebSocketPolyfill: WebSocket, params: { token: 'good' } });
     expect(await until(() => b.synced)).toBe(true);   // accepted
+  }, 10000);
+
+  // #139: Node drops its own socket error listener before emitting 'upgrade', so
+  // a reset while an async hook is in flight would be an uncaught exception.
+  it('survives a connection reset during an async authorize() (#139)', async () => {
+    let listeners = -1, done = false;
+    srv = startServer(0, {
+      authorize: async (req) => {
+        listeners = req.socket.listenerCount('error');
+        req.socket.destroy(new Error('ECONNRESET'));
+        await new Promise((r) => setTimeout(r, 30));
+        done = true;
+        return true;
+      },
+    });
+    const ws = new WebSocket(`ws://localhost:${await port(srv)}/r`);
+    ws.on('error', () => {});
+    expect(await until(() => done)).toBe(true);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(listeners).toBeGreaterThan(0);
+    expect(srv.wss.clients.size).toBe(0);       // never upgraded a dead socket
+  }, 10000);
+
+  // #154: returning a truthy user object used to grant nothing, silently.
+  it('warns once when authorize() returns an unsupported value (#154)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    srv = startServer(0, { authorize: () => ({ sub: 'user-1' }) });
+    const url = `ws://localhost:${await port(srv)}`;
+    for (let i = 0; i < 2; i++) {
+      const ws = new WebSocket(`${url}/r`);
+      await new Promise((r) => { ws.on('error', r); ws.on('close', r); });
+    }
+    const calls = warn.mock.calls.filter(([m]) => String(m).includes('authorize'));
+    warn.mockRestore();
+    expect(calls.length).toBe(1);
+  }, 10000);
+
+  it('does not warn for documented authorize() returns (#154)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    srv = startServer(0, { authorize: () => false });
+    const ws = new WebSocket(`ws://localhost:${await port(srv)}/r`);
+    await new Promise((r) => { ws.on('error', r); ws.on('close', r); });
+    const calls = warn.mock.calls.filter(([m]) => String(m).includes('authorize'));
+    warn.mockRestore();
+    expect(calls.length).toBe(0);
   }, 10000);
 
   // #124: only explicit grants (true/'write'/'read') authorize. A hook that

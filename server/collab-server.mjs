@@ -229,7 +229,13 @@ export function startServer(port = process.env.PORT || 1234, {
   }, heartbeatMs);
   heartbeat.unref?.();
 
+  let warnedAuthorize = false;
   server.on('upgrade', async (req, socket, head) => {
+    // Node removes its own listener before emitting 'upgrade', so without this a
+    // reset during the async authorize below is an uncaught exception that takes
+    // the process and every room down. ws attaches its own after handleUpgrade.
+    const onSocketError = () => {};
+    socket.on('error', onSocketError);
     const room = (req.url || '/').slice(1).split('?')[0] || 'default';
     // Reject malformed room names and refuse to open new rooms past the cap.
     if (!_validRoom(room)) { socket.write('HTTP/1.1 400 Bad Request\r\n\r\n'); socket.destroy(); return; }
@@ -248,10 +254,16 @@ export function startServer(port = process.env.PORT || 1234, {
       // 0/NaN) denies — never coerce a falsy non-false value to write access.
       try {
         const r = await authorize(req, room);
+        if (r !== true && r !== false && r !== 'read' && r !== 'write' && !warnedAuthorize) {
+          warnedAuthorize = true;
+          console.warn(`[rune-collab] authorize() returned an unsupported value (${typeof r}), so the connection was denied. Return true or 'write' for write access, 'read' for read-only, or false to reject.`);
+        }
         cap = r === 'read' ? 'read' : (r === true || r === 'write') ? 'write' : false;
       } catch { cap = false; }
     }
+    if (socket.destroyed) return;              // client went away during authorize
     if (!cap) { socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy(); return; }
+    socket.off('error', onSocketError);
     wss.handleUpgrade(req, socket, head, (ws) => {
       ws._runeCap = cap;
       ipCounts.set(ip, (ipCounts.get(ip) || 0) + 1);

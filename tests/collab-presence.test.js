@@ -8,6 +8,30 @@ import { PresenceBar } from '../src/ui/PresenceBar.js';
 import { Editor } from '../src/core/Editor.js';
 import { Paragraph } from '../src/extensions/blocks/Paragraph.js';
 
+describe('presence with a malformed peer cursor (#151)', () => {
+  it('still draws the carets of peers after the malformed one', async () => {
+    const tA = document.createElement('div'); document.body.appendChild(tA);
+    const hub = new MemoryHub();
+    const docA = new Y.Doc(), docB = new Y.Doc(), docC = new Y.Doc();
+    const awA = new Awareness(docA), awB = new Awareness(docB), awC = new Awareness(docC);
+    hub.connect(docA, awA); hub.connect(docB, awB); hub.connect(docC, awC);
+    const edA = new Editor(tA, { extensions: [Paragraph], toolbar: false, bubbleMenu: false, slashMenu: false, content: '<p>hi</p>' });
+    bindParagraph(edA, docA);
+    const pA = bindPresence(edA, docA, awA, { name: 'Ada', color: '#f00' });
+
+    const block = docA.getArray('blocks').get(0);
+    const rel = Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(block.get('text'), 0));
+    const id = block.get('id');
+    awB.setLocalState({ user: { name: 'Mallory' }, cursor: { collapsed: true, head: { block: id, rel: { type: 'x' } } } });
+    awC.setLocalState({ user: { name: 'Carol' }, cursor: { collapsed: true, head: { block: id, rel } } });
+    await new Promise((r) => setTimeout(r, 60));
+
+    const labels = [...tA.querySelectorAll('.rune-presence-label')].map((l) => l.textContent);
+    pA.destroy(); edA.destroy(); tA.remove();
+    expect(labels).toContain('Carol');
+  });
+});
+
 describe('presence roster API + bar (#91)', () => {
   let hub, edA, edB, docA, docB, awA, awB, pA, pB, tA, tB;
 
@@ -102,4 +126,14 @@ describe('_safeColor rejects CSS injection via a peer\'s user.color', () => {
     expect(_safeColor('')).toBe('#888');
     expect(_safeColor({})).toBe('#888');
   });
+});
+
+describe('_safeColor accepts modern CSS colors (#155)', () => {
+  for (const c of ['hsl(200deg 60% 50%)', 'hsl(0.5turn 60% 50%)', 'rgb(255 0 0 / 50%)', 'oklch(70% 0.1 200)',
+    'oklab(50% 0.1 -0.1)', 'lab(50% 0 0)', 'lch(50% 30 200)', 'hwb(200 10% 10%)', 'oklch(70% none 200 / 0.5)']) {
+    it(`keeps ${c}`, () => expect(_safeColor(c)).toBe(c));
+  }
+  for (const c of ['rgb(0 0 0);position:fixed', 'oklch(url(x))', 'lab(var(--x))', 'hsl(calc(1))', 'rgb(deg;x)', 'url(x)', 'foo(1 2 3)']) {
+    it(`rejects ${c}`, () => expect(_safeColor(c)).toBe('#888'));
+  }
 });

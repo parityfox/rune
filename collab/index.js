@@ -68,7 +68,7 @@ export function collab(editor, provider, options = {}) {
     destroy() { while (teardowns.length) { try { teardowns.pop()(); } catch { /* ignore */ } } },
   };
 
-  teardowns.push(bindParagraph(editor, doc).destroy);
+  teardowns.push(bindParagraph(editor, doc, { provider: provider.doc ? provider : undefined }).destroy);
 
   if (presence && awareness) {
     handle.presence = bindPresence(editor, doc, awareness, { name: user.name, color: user.color, onChange: onPresence });

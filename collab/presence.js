@@ -1,5 +1,5 @@
 import * as Y from 'yjs';
-import { flattenHosts, blockHostAt, textIndexInHost, domPointInHost } from './paragraph-binding.js';
+import { flattenHosts, blockHostAt, modelForHost, textIndexInHost, domPointInHost } from './paragraph-binding.js';
 // _safeColor lives in the shared html util so schema.js can reuse it without a
 // collab import cycle (schema -> presence -> paragraph-binding -> schema).
 import { _safeColor } from '../src/utils/html.js';
@@ -65,11 +65,12 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
     const pointInfo = (node, offset) => {
       if (!content.contains(node)) return null;
       const b = blockHostAt(content, node);
-      if (!b || b.index >= blocks.length) return null;
+      const m = modelForHost(blocks, b);
+      if (!m) return null;
       const idx = textIndexInHost(b.host, node, offset);
-      const yt = blocks.get(b.index)?.get('text');
+      const yt = m.get('text');
       if (idx < 0 || !yt) return null;
-      return { block: blocks.get(b.index).get('id'), rel: Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(yt, idx)) };
+      return { block: m.get('id'), rel: Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(yt, idx)) };
     };
 
     let cursor = null;
@@ -118,7 +119,11 @@ export function bindPresence(editor, doc, awareness, { name = 'Anon', color = '#
 
     const resolve = (p) => {
       if (!p) return null;
-      const abs = Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(p.rel), doc);
+      // p.rel is peer-controlled: one malformed cursor must only cost that peer's
+      // caret, never abort the frame for everyone drawn after it.
+      let abs;
+      try { abs = Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(p.rel), doc); }
+      catch { return null; }
       const host = hosts.find((h) => h.el.getAttribute('data-id') === p.block)?.host;
       if (!abs || !host) return null;
       const dp = domPointInHost(host, abs.index);

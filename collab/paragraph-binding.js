@@ -216,6 +216,18 @@ export function blockHostAt(content, node) {
   return null;
 }
 
+/**
+ * The Y.Map behind a flattened block, matched by data-id. Never use the flattened
+ * index for this: the DOM lags the model while a remote patch is deferred (IME),
+ * so the same index can name a different block.
+ */
+export function modelForHost(blocks, b) {
+  const id = b && idOfEntry(b);
+  if (!id) return null;
+  for (const m of blocks) if (m.get('id') === id) return m;
+  return null;
+}
+
 /** Caret text-offset of (node, offset) within host element. */
 export function textIndexInHost(host, node, offset) {
   if (node === host) {                     // caret anchored to the block element (offset = child index)
@@ -256,7 +268,7 @@ export function domPointInHost(host, index) {
 
 // ─── binding ────────────────────────────────────────────────────────────────
 
-export function bindParagraph(editor, doc) {
+export function bindParagraph(editor, doc, { provider } = {}) {
   const blocks = doc.getArray('blocks');
   const content = editor.content;
   const cdoc = content.ownerDocument;
@@ -348,6 +360,7 @@ export function bindParagraph(editor, doc) {
         if (k === 'atomic') {
           if (JSON.stringify(m.get('data')) !== JSON.stringify(d.data)) m.set('data', d.data);
         } else {
+          if (!m.get('text')) m.set('text', new Y.Text());
           reconcileText(m.get('text'), d.delta);
           if (k === 'wrapped' && d.meta) {
             if (m.get('emoji') !== d.meta.emoji) m.set('emoji', d.meta.emoji);
@@ -372,13 +385,16 @@ export function bindParagraph(editor, doc) {
     if (!sel || !sel.rangeCount) { reconcileFromDom(); return; }
     const r = sel.getRangeAt(0);
     const b = content.contains(r.startContainer) ? blockHostAt(content, r.startContainer) : null;
-    if (!b || b.index >= blocks.length) { reconcileFromDom(); return; }
-    const m = blocks.get(b.index);
+    if (!b || !idOfEntry(b)) { reconcileFromDom(); return; }
+    const m = modelForHost(blocks, b);
+    if (!m) return;                                         // removed remotely — the deferred patch drops it
     if (!m.get('text')) { reconcileFromDom(); return; }     // atomic block — nothing to compose
     doc.transact(() => { reconcileText(m.get('text'), serializeHost(b.host, b.type)); }, LOCAL);
   }
 
-  const onInput = () => { if (!applyingRemote && !composing) reconcileFromDom(); };
+  // 'change' rather than the DOM 'input' event: the editor emits it for typing AND
+  // for mutations that fire no input event (setHtml, undo/redo, direct-DOM commands).
+  const onChange = () => { if (!applyingRemote && !composing) reconcileFromDom(); };
   const onCompositionStart = () => { composing = true; };
   const onCompositionEnd = () => {
     composing = false;
@@ -389,7 +405,7 @@ export function bindParagraph(editor, doc) {
       try { renderFromModel(); } finally { applyingRemote = false; }
     }
   };
-  content.addEventListener('input', onInput);
+  editor.events.on('change', onChange);
   content.addEventListener('compositionstart', onCompositionStart);
   content.addEventListener('compositionend', onCompositionEnd);
 
@@ -401,11 +417,12 @@ export function bindParagraph(editor, doc) {
     if (!sel || !sel.rangeCount) { caret = null; return; }
     const r = sel.getRangeAt(0);
     const b = content.contains(r.startContainer) ? blockHostAt(content, r.startContainer) : null;
-    if (!b || b.index >= blocks.length) { caret = null; return; }
-    const yt = blocks.get(b.index).get('text');
+    const m = modelForHost(blocks, b);
+    if (!m) { caret = null; return; }
+    const yt = m.get('text');
     const idx = yt ? textIndexInHost(b.host, r.startContainer, r.startOffset) : -1;
     caret = (idx < 0 || !yt) ? null
-      : { blockId: blocks.get(b.index).get('id'), rel: Y.createRelativePositionFromTypeIndex(yt, idx) };
+      : { blockId: m.get('id'), rel: Y.createRelativePositionFromTypeIndex(yt, idx) };
   }
   const onBeforeTxn = (txn) => { if (txn.origin !== LOCAL) captureCaret(); };
   doc.on('beforeTransaction', onBeforeTxn);
@@ -462,7 +479,9 @@ export function bindParagraph(editor, doc) {
         rerendered.add(id);
         return made;
       }
-      const delta = m.get('text').toDelta();
+      // Peer-controlled: a block with no text renders empty rather than throwing out
+      // of the observer, which would stop every later remote update from rendering.
+      const delta = m.get('text')?.toDelta() ?? [];
       // Wrapped block (callout): top-level wrapper + a separate editable body.
       if (kind === 'wrapped') {
         const spec = BLOCKS[type];
@@ -589,15 +608,37 @@ export function bindParagraph(editor, doc) {
   blocks.observeDeep(observer);
 
   // ---- initial sync ----------------------------------------------------------
-  if (blocks.length === 0) reconcileFromDom();
-  else { applyingRemote = true; try { renderFromModel(); } finally { applyingRemote = false; } }
+  // Never seed an empty editor: the room state may still be on its way, and a
+  // seeded blank block would merge into it as a phantom paragraph for every peer.
+  // With no blocks yet, the first keystroke creates them.
+  const isBlank = () => {
+    const kids = content.children;
+    return kids.length === 0 || (kids.length === 1 && kids[0].tagName === 'P' && !kids[0].textContent.trim());
+  };
+  const seed = () => { if (blocks.length === 0 && !isBlank()) reconcileFromDom(); };
+  let onSync = null;
+  if (blocks.length > 0) {
+    applyingRemote = true; try { renderFromModel(); } finally { applyingRemote = false; }
+  } else if (provider && provider.synced === false && provider.on) {
+    // Local content (a template, say) only seeds a room that turns out to be empty.
+    onSync = (isSynced) => {
+      if (!isSynced) return;
+      provider.off?.('sync', onSync);
+      onSync = null;
+      seed();
+    };
+    provider.on('sync', onSync);
+  } else {
+    seed();
+  }
 
   let _destroyed = false;
   const api = {
     destroy() {
       if (_destroyed) return;
       _destroyed = true;
-      content.removeEventListener('input', onInput);
+      editor.events.off('change', onChange);
+      if (onSync) provider.off?.('sync', onSync);
       content.removeEventListener('compositionstart', onCompositionStart);
       content.removeEventListener('compositionend', onCompositionEnd);
       blocks.unobserveDeep(observer);

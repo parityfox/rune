@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MARKS } from '../collab/schema.js';
+import { MARKS, BLOCKS } from '../collab/schema.js';
 
 const suggestion = MARKS.find((m) => m.key === 'suggestion');
 const link = MARKS.find((m) => m.key === 'link');
@@ -39,5 +39,24 @@ describe('collab schema suggestion mark color laundering (#126)', () => {
   it('preserves a valid peer color', () => {
     const span = suggestion.create(document, { type: 'insert', color: 'rebeccapurple' });
     expect(span.style.color).toBe('rebeccapurple');
+  });
+});
+
+describe('callout color from a peer (#153)', () => {
+  const made = (color) => BLOCKS.callout.createWrapper(document, { color }).wrapper;
+
+  it('cannot add extra classes to a new wrapper', () => {
+    expect(made('red is-open rune-focused').className).toBe('rune-callout rune-callout--gray');
+  });
+
+  it('cannot add extra classes to a reused wrapper', () => {
+    const el = made('blue');
+    BLOCKS.callout.applyMeta(el, { color: 'red is-open rune-focused' });
+    expect(el.className).toBe('rune-callout rune-callout--gray');
+  });
+
+  it('keeps palette and custom single-token colors', () => {
+    expect(made('blue').className).toBe('rune-callout rune-callout--blue');
+    expect(made('brand-1').className).toBe('rune-callout rune-callout--brand-1');
   });
 });

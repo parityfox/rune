@@ -33,9 +33,21 @@ export class WebSocketProvider {
   readonly doc: any;
   readonly awareness: any;
   readonly synced: boolean;
+  readonly status: string;
+  readonly lastSynced: number | null;
+  onStatus(cb: (state: { status: string; synced: boolean; lastSynced: number | null }) => void): () => void;
+  on(event: string, cb: (...args: any[]) => void): void;
+  off(event: string, cb: (...args: any[]) => void): void;
+  connect(): void;
+  disconnect(): void;
   destroy(): void;
 }
-export class MemoryHub { connect(doc: any, awareness?: any): () => void; }
+export class MemoryHub {
+  connect(doc: any, awareness?: any): () => void;
+  disconnect(doc: any): void;
+  pause(): void;
+  resume(): void;
+}
 export class CommentStore {
   constructor(doc: any);
   add(t: any): any; reply(id: string, r: any): void; resolve(id: string, resolved?: boolean): void;
@@ -43,12 +55,18 @@ export class CommentStore {
 }
 export class SuggestionStore {
   constructor(doc: any);
+  suggestInsert(blockId: string, pos: number, text: string, author: string, color?: string | null): string | null;
+  suggestDelete(blockId: string, from: number, to: number, author: string, color?: string | null): string | null;
   accept(id: string): void; reject(id: string): void; acceptAll(): void; rejectAll(): void; list(): any[];
+  observe(cb: (...args: any[]) => void): void; unobserve(cb: (...args: any[]) => void): void;
 }
 
 export function persistLocally(doc: any, name: string, opts?: { timeout?: number }):
   { whenSynced: Promise<boolean>; synced: boolean; clear(): Promise<void>; destroy(): Promise<void> };
-export function bindParagraph(editor: Editor, doc: any): { destroy(): void };
+export function bindParagraph(editor: Editor, doc: any, opts?: {
+  /** With a provider, local content only seeds the room after it syncs and proves empty. */
+  provider?: { synced: boolean; on(event: 'sync', cb: (isSynced: boolean) => void): void; off?(event: 'sync', cb: (isSynced: boolean) => void): void };
+}): { destroy(): void };
 export const bindParagraphSpike: typeof bindParagraph;
 export function bindPresence(editor: Editor, doc: any, awareness: any, opts?: { name?: string; color?: string; avatar?: string; onChange?: (r: PresenceUser[]) => void }): PresenceHandle;
 export function bindCommentsUI(editor: Editor, doc: any, store: CommentStore, opts?: any): { render(): void; addFromSelection(author: string, text: string): any; destroy(): void };
@@ -57,7 +75,7 @@ export function bindSuggestionMode(editor: Editor, doc: any, opts?: { author?: s
 export interface CollabSession {
   presence?: PresenceHandle;
   comments?: CommentStore;
-  commentsUI?: { render(): void; destroy(): void };
+  commentsUI?: { render(): void; addFromSelection(author: string, text: string): any; destroy(): void };
   suggestions?: SuggestionStore;
   setSuggesting?: (on: boolean) => void;
   isSuggesting?: () => boolean;

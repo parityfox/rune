@@ -29,7 +29,7 @@ export class SuggestionStore {
   /** Propose inserting `text` at `pos` in a block. */
   suggestInsert(blockId, pos, text, author, color = null) {
     const block = this._block(blockId);
-    if (!block || !text) return null;
+    if (!block?.get('text') || !text) return null;
     if (text.length > MAX_TEXT) text = text.slice(0, MAX_TEXT);
     const id = uid();
     block.get('text').insert(pos, text, { suggestion: { id, type: 'insert', author, ...(color ? { color } : {}) } });
@@ -39,7 +39,7 @@ export class SuggestionStore {
   /** Propose deleting [from, to) in a block (marks it; text stays until accept). */
   suggestDelete(blockId, from, to, author, color = null) {
     const block = this._block(blockId);
-    if (!block || to <= from) return null;
+    if (!block?.get('text') || to <= from) return null;
     const id = uid();
     block.get('text').format(from, to - from, { suggestion: { id, type: 'delete', author, ...(color ? { color } : {}) } });
     return id;
@@ -69,10 +69,12 @@ export class SuggestionStore {
     const out = [];
     for (let i = 0; i < this.blocks.length; i++) {
       const block = this.blocks.get(i);
+      const yt = block.get('text');
+      if (!yt) continue;                 // atomic block (image): nothing to suggest on
       const blockId = block.get('id');
       let pos = 0;
       const seen = new Map();
-      for (const op of block.get('text').toDelta()) {
+      for (const op of yt.toDelta()) {
         const s = op.attributes?.suggestion;
         if (s) {
           const r = seen.get(s.id) || { id: s.id, type: s.type, author: s.author, color: s.color || null, blockId, from: pos, to: pos };

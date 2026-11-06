@@ -73,6 +73,9 @@ export function sameAttrs(a = {}, b = {}) {
 
 // kind: 'text' (default — has a Y.Text, inline|plain) | 'atomic' (no text;
 // stored as a `data` object, rendered from it).
+// A callout color is peer-controlled: allow one class-safe token, so it can't add classes.
+const _calloutClass = (color) => `rune-callout rune-callout--${/^[\w-]+$/.test(color) ? color : 'gray'}`;
+
 export const BLOCKS = {
   p:          { tag: 'p',          kind: 'text', content: 'inline' },
   h1: { tag: 'h1', kind: 'text', content: 'inline' }, h2: { tag: 'h2', kind: 'text', content: 'inline' }, h3: { tag: 'h3', kind: 'text', content: 'inline' },
@@ -115,7 +118,7 @@ export const BLOCKS = {
     }),
     createWrapper: (doc, meta = {}) => {
       const div = doc.createElement('div');
-      div.className = `rune-callout rune-callout--${meta.color || 'gray'}`;
+      div.className = _calloutClass(meta.color);
       div.setAttribute('data-type', 'callout');
       const icon = doc.createElement('span');
       icon.className = 'rune-callout-icon';
@@ -130,7 +133,7 @@ export const BLOCKS = {
       const icon = el.querySelector('.rune-callout-icon');
       const emoji = meta.emoji || '💡';
       if (icon && icon.textContent !== emoji) icon.textContent = emoji;
-      const want = `rune-callout rune-callout--${meta.color || 'gray'}`;
+      const want = _calloutClass(meta.color);
       if (el.className !== want) el.className = want;
     },
   },

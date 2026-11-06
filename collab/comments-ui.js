@@ -1,4 +1,4 @@
-import { flattenHosts, blockHostAt, textIndexInHost, domPointInHost } from './paragraph-binding.js';
+import { flattenHosts, blockHostAt, modelForHost, textIndexInHost, domPointInHost } from './paragraph-binding.js';
 
 /**
  * Comments UI (#14) — renders highlights for anchored threads over an editor and
@@ -51,7 +51,8 @@ export function bindCommentsUI(editor, doc, store, { onChange } = {}) {
     if (!b1 || !b2 || b1.index !== b2.index) return null;   // single block for v1
     const a = textIndexInHost(b1.host, r.startContainer, r.startOffset);
     const z = textIndexInHost(b1.host, r.endContainer, r.endOffset);
-    const blockId = doc.getArray('blocks').get(b1.index).get('id');
+    const blockId = modelForHost(doc.getArray('blocks'), b1)?.get('id');
+    if (!blockId) return null;
     return store.add({ blockId, from: Math.min(a, z), to: Math.max(a, z), text, author });
   }
 

@@ -93,9 +93,18 @@ wss.on('connection', setupWSConnection);
 ## Authentication
 
 `startServer` accepts an optional `authorize(req, room)` hook, called **before**
-the WebSocket upgrade. Return `false` (or throw) to reject the connection with
-`401` before any socket is established. The default (no hook) is open, so the
-demo stays zero-config.
+the WebSocket upgrade. The default (no hook) is open, so the demo stays
+zero-config. The hook fails closed, so only these return values grant access:
+
+| Return value | Result |
+|---|---|
+| `true` or `'write'` | Connect with write access |
+| `'read'` | Connect read-only |
+| anything else, or a throw | Reject with `401` before any socket is established |
+
+A truthy value such as a decoded JWT or user object does **not** grant access. The
+server logs one warning when a hook returns something other than `true`, `false`,
+`'read'` or `'write'`.
 
 ```js
 import { startServer } from './server/collab-server.mjs';

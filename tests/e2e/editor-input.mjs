@@ -94,6 +94,52 @@ try {
   await page.keyboard.type('Title');
   ok((await html()) === '<h2>Title</h2>', `slash: /h2 on an empty line, then typing (got ${await html()})`);
 
+  // Inline markdown, with real typing (#192): Chrome decides where the caret really is.
+  await fresh('<p>x</p>');
+  await caretAtEnd();
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('type **bold** and `code` here');
+  await sleep(60);
+  ok((await html()) === '<p>type <strong>bold</strong> and <code>code</code> here</p>', `markdown: typing continues plain after a mark (got ${await html()})`);
+
+  for (const [typed, want] of [
+    ['**b**c', '<p><strong>b</strong>c</p>'],
+    ['*i* c', '<p><em>i</em> c</p>'],
+    ['~~s~~ c', '<p><s>s</s> c</p>'],
+    ['`k` c', '<p><code>k</code> c</p>'],
+  ]) {
+    await fresh('<p>x</p>');
+    await caretAtEnd();
+    await page.keyboard.press('Backspace');
+    await page.keyboard.type(typed);
+    await sleep(60);
+    ok((await html()) === want, `markdown: "${typed}" gives ${want} (got ${await html()})`);
+  }
+
+  await fresh('<p>x</p>');
+  await caretAtEnd();
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('**b** ');
+  await sleep(40);
+  ok(await page.evaluate(() => {
+    const p = window.ed.content.querySelector('p');
+    return p.lastChild.nodeType === 3 && /^[\s\u00A0]$/.test(p.lastChild.data);
+  }), 'markdown: a space after a mark sits outside it');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('**c**');
+  await sleep(40);
+  ok((await text()).includes('b') && !(await html()).includes('<strong><strong>'), `markdown: backspace then more markdown stays sane (got ${await html()})`);
+
+  await fresh('<p>x</p>');
+  await caretAtEnd();
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('**b**');
+  await sleep(40);
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('next');
+  await sleep(40);
+  ok(!/<strong>next/.test(await html()) && (await text()).includes('next'), `markdown: Enter after a mark is unaffected (got ${await html()})`);
+
   // ── Backspace on structural blocks ─────────────────────────
   await fresh('<p></p>');
   await page.evaluate(() => window.ed.cmd('insertTable'));

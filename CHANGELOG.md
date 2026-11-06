@@ -37,6 +37,7 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 - Collab: Shift+Enter line breaks now sync between peers. They were previously lost, for everyone, on the next remote update (#187)
 - Collab: suggestions and comments no longer throw when the document contains an image (#150)
 - Collab: a malformed peer cursor or text-less block no longer stops rendering for others (#151, #170)
+- Typing after inline markdown such as `**bold**` no longer stays in the mark, and neither does pressing Enter (#192)
 - Slash menu: `/h1`, `/h2` and `/h3` now exist, as the README always said (#191)
 - Slash menu: picking an item removes only `/query`, Backspace removes one character, and Enter works when nothing matches (#142)
 - Unwrapping a nested list no longer duplicates items, and nested lists survive `getJSON()`/`setJSON()` (#143, #144)

@@ -48,5 +48,11 @@ export const Heading = {
     isActive: (editor) => /^H[1-6]$/.test(editor.selection.getBlock()?.tagName),
   },
 
-  slashItem: null, // heading uses individual slash items below
+  slashItems: [1, 2, 3].map((level) => ({
+    icon: `H${level}`,
+    title: `Heading ${level}`,
+    description: ['Large section heading', 'Medium section heading', 'Small section heading'][level - 1],
+    keywords: [`h${level}`],
+    action: (editor) => editor.cmd('setHeading', level),
+  })),
 };

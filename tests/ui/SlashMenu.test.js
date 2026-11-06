@@ -1,6 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SlashMenu } from '../../src/ui/SlashMenu.js';
 import { EventBus } from '../../src/core/EventBus.js';
+import { Editor } from '../../src/core/Editor.js';
+import { Paragraph } from '../../src/extensions/blocks/Paragraph.js';
+import { Heading } from '../../src/extensions/blocks/Heading.js';
+import { Blockquote } from '../../src/extensions/blocks/Blockquote.js';
 
 function mockEditor() {
   const content = document.createElement('div');
@@ -171,5 +175,98 @@ describe('SlashMenu editing behaviour (#142)', () => {
     expect(e.defaultPrevented).toBe(true);
     expect(action).toHaveBeenCalled();
     menu.destroy();
+  });
+});
+
+describe('heading slash items (#191)', () => {
+  let target, editor, menu;
+  async function make(content, extra = {}) {
+    if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {};
+    target = document.createElement('div'); document.body.appendChild(target);
+    editor = new Editor(target, { extensions: [Paragraph, Heading, Blockquote], toolbar: false, bubbleMenu: false, slashMenu: false, content, ...extra });
+    menu = new SlashMenu(editor);
+  }
+  afterEach(() => { menu?.destroy(); editor?.destroy(); target?.remove(); menu = editor = target = null; });
+
+  // Open the menu with the caret after the text, then type "/query" into the DOM.
+  function open(query) {
+    const n = editor.content.querySelector('p').firstChild;
+    const end = n.length;
+    const r = document.createRange(); r.setStart(n, end); r.collapse(true);
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    editor.events.emit('slash:open', { editor });
+    n.data += `/${query}`;
+    const r2 = document.createRange(); r2.setStart(n, n.length); r2.collapse(true);
+    s.removeAllRanges(); s.addRange(r2);
+    for (const c of query) {
+      editor.content.dispatchEvent(new KeyboardEvent('keydown', { key: c, bubbles: true, cancelable: true }));
+    }
+  }
+  const titles = () => menu._filtered.map((i) => i.title);
+  const enter = () => editor.content.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+  it('lists all three levels', async () => {
+    await make('<p>abc</p>');
+    const all = editor.schema.getSlashItems().map((i) => i.title);
+    expect(all).toEqual(expect.arrayContaining(['Heading 1', 'Heading 2', 'Heading 3']));
+  });
+
+  it('gives each level its own icon', async () => {
+    await make('<p>abc</p>');
+    const icons = editor.schema.getSlashItems().filter((i) => /^Heading/.test(i.title)).map((i) => i.icon);
+    expect(new Set(icons).size).toBe(3);
+  });
+
+  for (const [query, tag] of [['h1', 'H1'], ['h2', 'H2'], ['h3', 'H3']]) {
+    it(`/${query} finds and applies ${tag}, keeping the text`, async () => {
+      await make('<p>abc</p>');
+      open(query);
+      expect(titles()[0]).toBe(`Heading ${query[1]}`);
+      enter();
+      const block = editor.content.firstElementChild;
+      expect(block.tagName).toBe(tag);
+      expect(block.textContent).toBe('abc');
+    });
+  }
+
+  it('/hea finds the headings', async () => {
+    await make('<p>abc</p>');
+    open('hea');
+    expect(titles()).toEqual(expect.arrayContaining(['Heading 1', 'Heading 2', 'Heading 3']));
+  });
+
+  it('matches keywords case-insensitively', async () => {
+    await make('<p>abc</p>');
+    open('H1');
+    expect(titles()[0]).toBe('Heading 1');
+  });
+
+  it('other items still match on title and description', async () => {
+    await make('<p>abc</p>');
+    open('quote');
+    expect(titles()).toEqual(['Quote']);
+  });
+
+  it('a consumer item with no keywords still works', async () => {
+    await make('<p>abc</p>', { slashMenu: false });
+    menu.destroy();
+    editor.options.slashMenu = { items: [{ title: 'Custom', description: 'x', action() {} }] };
+    menu = new SlashMenu(editor);
+    open('custom');
+    expect(titles()).toEqual(['Custom']);
+  });
+
+  it('an extension can supply several items alongside a single one', async () => {
+    await make('<p>abc</p>');
+    const ext = {
+      name: 'multi', type: 'block', tag: 'x-multi',
+      slashItem: { title: 'One', action() {} },
+      slashItems: [{ title: 'Two', action() {} }, { title: 'Three', action() {} }],
+      toolbarItem: { icon: 'TOOL' },
+    };
+    editor.use(ext);
+    const items = editor.schema.getSlashItems().filter((i) => i.extension === ext);
+    expect(items.map((i) => i.title)).toEqual(['One', 'Two', 'Three']);
+    expect(items.every((i) => i.icon === 'TOOL')).toBe(true);
   });
 });

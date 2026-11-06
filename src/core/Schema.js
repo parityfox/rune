@@ -10,7 +10,8 @@
  *   commands  {object}   - { commandName: fn(editor, ...args) }
  *   keymap    {object}   - { 'Mod-b': fn(editor) }
  *   toolbarItem {object} - { icon, title, action, isActive }
- *   slashItem   {object} - { icon, title, description, action }
+ *   slashItem   {object} - { icon, title, description, keywords, action }
+ *   slashItems  {object[]} - several of the above, for an extension with many entries
  *
  * Mark extensions also have:
  *   tag       {string}   - inline tag (e.g. 'strong', 'em')
@@ -143,6 +144,10 @@ export class Schema {
         // icon language; fall back to the slash glyph if no SVG exists.
         const icon = ext.toolbarItem?.icon ?? ext.slashItem.icon;
         items.push({ ...ext.slashItem, icon, extension: ext });
+      }
+      // These can carry their own icons, since one toolbar icon can't tell them apart.
+      for (const item of ext.slashItems || []) {
+        items.push({ ...item, icon: item.icon ?? ext.toolbarItem?.icon, extension: ext });
       }
     }
     return items;

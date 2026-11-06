@@ -128,7 +128,8 @@ export class SlashMenu {
     this._filtered = q
       ? this._items.filter(i =>
           i.title.toLowerCase().includes(q) ||
-          i.description?.toLowerCase().includes(q))
+          i.description?.toLowerCase().includes(q) ||
+          i.keywords?.some((k) => k.toLowerCase().includes(q)))
       : this._items;
     this._activeIndex = 0;
     this._renderList();

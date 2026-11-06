@@ -70,6 +70,30 @@ try {
   await page.keyboard.press('Enter');
   ok((await page.evaluate(() => window.ed.content.children.length)) === 2, 'slash: Enter with no matches makes a new block');
 
+  // Heading items, with real typing (#191).
+  for (const level of [1, 2, 3]) {
+    await fresh('<p>abc</p>');
+    await caretAtEnd();
+    await page.keyboard.type(`/h${level}`);
+    await page.keyboard.press('Enter');
+    await sleep(40);
+    ok((await html()) === `<h${level}>abc</h${level}>`, `slash: /h${level} makes a heading and keeps the text (got ${await html()})`);
+  }
+  await page.keyboard.type('!');
+  ok((await text()) === 'abc!', 'slash: typing continues in the heading');
+
+  await fresh('<p></p>');
+  await page.evaluate(() => {
+    const p = window.ed.content.querySelector('p'); p.innerHTML = '<br>';
+    const r = document.createRange(); r.selectNodeContents(p); r.collapse(true);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  });
+  await page.keyboard.type('/h2');
+  await page.keyboard.press('Enter');
+  await sleep(40);
+  await page.keyboard.type('Title');
+  ok((await html()) === '<h2>Title</h2>', `slash: /h2 on an empty line, then typing (got ${await html()})`);
+
   // ── Backspace on structural blocks ─────────────────────────
   await fresh('<p></p>');
   await page.evaluate(() => window.ed.cmd('insertTable'));

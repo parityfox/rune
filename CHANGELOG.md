@@ -17,6 +17,7 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 
 ### ✨ Added
 
+- Slash items can now set `keywords`, and an extension can supply several through `slashItems`
 - Table commands: `insertRowBefore`, `insertRowAfter`, `insertColumnBefore`, `insertColumnAfter`, `deleteRow`, `deleteColumn` and `deleteTable`
 - Table keyboard access: `Alt+F10` moves to the table toolbar, and `Shift+F10` or the Menu key opens the table menu, with arrow keys inside both (#185)
 - `editor.listen(target, type, fn, options)` adds a listener that detaches on destroy
@@ -36,6 +37,7 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 - Collab: Shift+Enter line breaks now sync between peers. They were previously lost, for everyone, on the next remote update (#187)
 - Collab: suggestions and comments no longer throw when the document contains an image (#150)
 - Collab: a malformed peer cursor or text-less block no longer stops rendering for others (#151, #170)
+- Slash menu: `/h1`, `/h2` and `/h3` now exist, as the README always said (#191)
 - Slash menu: picking an item removes only `/query`, Backspace removes one character, and Enter works when nothing matches (#142)
 - Unwrapping a nested list no longer duplicates items, and nested lists survive `getJSON()`/`setJSON()` (#143, #144)
 - Inline code no longer throws when a selection crosses a bold or link boundary (#146)

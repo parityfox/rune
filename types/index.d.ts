@@ -68,6 +68,8 @@ export interface SlashItem {
   icon: string;
   title: string;
   description?: string;
+  /** Extra terms the slash menu filter matches, such as `h1`. */
+  keywords?: string[];
   action: (editor: Editor) => void;
 }
 
@@ -109,6 +111,8 @@ export interface Extension {
   init?: (editor: Editor) => void;
   toolbarItem?: ToolbarItem;
   slashItem?: SlashItem;
+  /** Several slash items from one extension. `icon` falls back to the toolbar icon. */
+  slashItems?: (Omit<SlashItem, 'icon'> & { icon?: string })[];
   [key: string]: unknown;
 }
 

@@ -64,6 +64,7 @@ class RuneEditorElement extends HTMLElement {
     // Capture author light DOM BEFORE appending the mount div, so an author
     // <div></div> can't be confused with the mount when extracting content.
     const lightDom = this.innerHTML.trim();
+    this.replaceChildren();    // it moves into the editor, or it would show twice
 
     // Mount point — inner div so the custom element itself stays clean
     const mount = document.createElement('div');

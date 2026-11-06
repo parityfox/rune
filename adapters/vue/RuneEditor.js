@@ -40,6 +40,14 @@ export const RuneEditor = defineComponent({
       ro ? api.editor.value.disable() : api.editor.value.enable();
     });
 
+    // api got props.content by value, so its own watcher can't see prop changes.
+    // The guard keeps a round trip of the editor's own value from resetting the caret.
+    watch(() => props.content, (content) => {
+      const ed = api.editor.value;
+      if (!ed || content === undefined) return;
+      if (content !== ed.getHtml()) ed.setHtml(content);
+    });
+
     expose({ editor: api.editor, getHtml: api.getHtml, setHtml: api.setHtml, cmd: api.cmd, focus: api.focus });
     return () => h('div', { ref: api.el, class: `rune-editor-container ${props.class}`.trim() });
   },

@@ -211,7 +211,9 @@ export class Editor {
   isActive(type: string, attrs?: Record<string, unknown>): boolean;
 
   getHtml(): string;
-  setHtml(html: string): void;
+  setHtml(html?: string | null): void;
+  /** addEventListener that detaches when the editor is destroyed. */
+  listen(target: EventTarget, type: string, fn: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
   getText(): string;
   getMarkdown(): string;
   setMarkdown(md: string): void;

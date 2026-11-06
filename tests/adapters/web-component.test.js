@@ -40,3 +40,15 @@ describe('<rune-editor> web component', () => {
     expect(el.getHtml()).not.toContain('rune');   // mount/editor markup must not leak into content
   });
 });
+
+describe('<rune-editor> light DOM (#171)', () => {
+  it('does not stay visible next to the editor', () => {
+    const el = document.createElement('rune-editor');
+    el.innerHTML = '<p>from light dom</p>';
+    document.body.appendChild(el);
+    expect(el.getHtml()).toContain('from light dom');
+    expect(el.querySelectorAll(':scope > p').length).toBe(0);
+    expect(el.textContent.match(/from light dom/g).length).toBe(1);
+    el.remove();
+  });
+});

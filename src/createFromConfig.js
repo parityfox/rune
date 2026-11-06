@@ -77,6 +77,8 @@ const MARK_MAP = {
   hashtag:        Hashtag,
 };
 
+const PLUGIN_NAMES = ['markdownShortcuts', 'findReplace', 'dragReorder', 'formatPainter', 'smartTypography', 'inlineMarkdown', 'emoji'];
+
 const FORMATTING_MAP = {
   textAlign:      TextAlign,
   lineHeight:     LineHeight,
@@ -130,12 +132,12 @@ export function createFromConfig(target, config, overrides = {}) {
   if (plugins.emoji           !== false) extensions.push(Emoji);
 
   // ── Resolve toolbar items (skip disabled features) ─────────
+  // Everything is on unless switched off, so absent keys count as enabled.
   const enabledNames = new Set([
-    ...Object.entries(blocks).filter(([, v]) => v !== false).map(([k]) => k),
-    ...Object.entries(marks).filter(([, v]) => v !== false).map(([k]) => k),
-    ...Object.entries(formatting).filter(([, v]) => v !== false).map(([k]) => k),
-    ...Object.entries(plugins).filter(([, v]) => v !== false).map(([k]) => k),
-    'clearFormat', // always available
+    ...Object.keys(BLOCK_MAP).filter((k) => blocks[k] !== false),
+    ...Object.keys(MARK_MAP).filter((k) => marks[k] !== false),
+    ...Object.keys(FORMATTING_MAP).filter((k) => formatting[k] !== false),
+    ...PLUGIN_NAMES.filter((k) => plugins[k] !== false),
   ]);
 
   const toolbarItems = toolbar.enabled === false

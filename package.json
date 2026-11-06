@@ -83,9 +83,9 @@
   },
   "devDependencies": {
     "esbuild": "^0.28.1",
-    "happy-dom": "^20.8.3",
+    "happy-dom": "^21.0.4",
     "playwright-core": "^1.60.0",
-    "vitest": "^4.0.18",
+    "vitest": "^4.1.12",
     "ws": "^8.21.0",
     "y-indexeddb": "^9.0.12",
     "y-protocols": "^1.0.7",

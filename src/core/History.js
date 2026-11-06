@@ -13,6 +13,15 @@ function _captureCaret(content) {
   if (!sel || !sel.rangeCount) return null;
   const r = sel.getRangeAt(0);
   if (!content.contains(r.startContainer)) return null;
+  // A caret on an element (an empty <p><br></p>) has no text offset, so record
+  // where it is structurally. Snapshots restore the same structure.
+  if (r.startContainer.nodeType !== 3) {
+    const path = [];
+    for (let n = r.startContainer; n !== content; n = n.parentNode) {
+      path.unshift([...n.parentNode.childNodes].indexOf(n));
+    }
+    return { path, offset: r.startOffset };
+  }
   let offset = 0;
   const walker = doc.createTreeWalker(content, NodeFilter.SHOW_TEXT);
   let node;
@@ -28,6 +37,16 @@ function _restoreCaret(content, offset) {
   const doc = content.ownerDocument;
   const sel = doc.defaultView?.getSelection?.();
   if (!sel) return;
+  if (typeof offset === 'object') {
+    let el = content;
+    for (const i of offset.path) el = el?.childNodes[i];
+    const r = doc.createRange();
+    if (el) r.setStart(el, Math.min(offset.offset, el.childNodes.length));
+    else { r.selectNodeContents(content); r.collapse(false); }
+    r.collapse(true);
+    try { sel.removeAllRanges(); sel.addRange(r); } catch { /* detached */ }
+    return;
+  }
   const walker = doc.createTreeWalker(content, NodeFilter.SHOW_TEXT);
   let node, acc = 0, target = null, targetOff = 0;
   while ((node = walker.nextNode())) {
@@ -94,9 +113,12 @@ export class History {
     const html = raw.replace(DATA_URI_RE, ' $1=""');
 
     const current = this._stack[this._index];
-    if (current === html) return;
-
     const caret = _captureCaret(this.editor.content);
+    if (current === html) {
+      // Same document, newer caret: undo should land where the user just was.
+      if (caret != null) this._carets[this._index] = caret;
+      return;
+    }
 
     // Drop any redo states and recalculate byte total
     const kept = this._stack.slice(0, this._index + 1);

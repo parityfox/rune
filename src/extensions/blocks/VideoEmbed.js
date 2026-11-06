@@ -56,7 +56,7 @@ export const VideoEmbed = {
 
     let drag = null;
 
-    content.addEventListener('pointerdown', (e) => {
+    editor.listen(content, 'pointerdown', (e) => {
       if (e.button > 0) return; // ignore non-primary buttons
       const handle = e.target.closest?.('.rune-video-handle');
       if (!handle) return;
@@ -78,7 +78,7 @@ export const VideoEmbed = {
       try { handle.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
     });
 
-    content.addEventListener('pointermove', (e) => {
+    editor.listen(content, 'pointermove', (e) => {
       if (!drag) return;
       // Horizontal axis → width as a % of the content (stays fluid).
       if (drag.dir.includes('e')) {
@@ -102,8 +102,8 @@ export const VideoEmbed = {
       editor.history.saveNow();
       editor._notifyChange();
     };
-    content.addEventListener('pointerup', end);
-    content.addEventListener('pointercancel', end);
+    editor.listen(content, 'pointerup', end);
+    editor.listen(content, 'pointercancel', end);
   },
 
   commands(editor) {
@@ -141,17 +141,17 @@ export const VideoEmbed = {
         figure.appendChild(cap);
 
         const currentBlock = editor.selection.getBlock();
-        const after = currentBlock?.nextSibling || null;
+        const parent = currentBlock?.parentNode || editor.content;
         if (currentBlock && currentBlock.textContent.trim() === '') {
-          editor.content.replaceChild(figure, currentBlock);
+          currentBlock.replaceWith(figure);
         } else {
-          editor.content.insertBefore(figure, after);
+          parent.insertBefore(figure, currentBlock?.nextSibling || null);
         }
 
         // Paragraph after so user can keep typing
         const p = document.createElement('p');
         p.innerHTML = '<br>';
-        editor.content.insertBefore(p, figure.nextSibling || null);
+        figure.after(p);
         editor.selection.setAtStart(p);
         editor._notifyChange();
       },

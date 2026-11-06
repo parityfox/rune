@@ -158,7 +158,7 @@ export const Link = {
 
     // Open existing links from the editor: modifier/middle click jumps straight
     // to a new tab; a plain click surfaces the Open/Edit/Remove popover.
-    editor.content.addEventListener('click', (e) => {
+    editor.listen(editor.content, 'click', (e) => {
       const a = e.target.closest?.('a');
       if (!a || !editor.content.contains(a)) return;
       if (e.metaKey || e.ctrlKey) {
@@ -168,7 +168,7 @@ export const Link = {
         ui.openInfo(a);
       }
     });
-    editor.content.addEventListener('auxclick', (e) => {
+    editor.listen(editor.content, 'auxclick', (e) => {
       const a = e.target.closest?.('a');
       if (a && e.button === 1) {
         e.preventDefault();

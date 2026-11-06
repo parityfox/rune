@@ -68,16 +68,13 @@ export const Image = {
         }
 
         const currentBlock = editor.selection.getBlock();
-        if (currentBlock && currentBlock.nextSibling) {
-          editor.content.insertBefore(figure, currentBlock.nextSibling);
-        } else {
-          editor.content.appendChild(figure);
-        }
+        const parent = currentBlock?.parentNode || editor.content;
+        parent.insertBefore(figure, currentBlock?.nextSibling || null);
 
         // Insert a new paragraph after
         const p = document.createElement('p');
         p.innerHTML = '<br>';
-        editor.content.insertBefore(p, figure.nextSibling || null);
+        figure.after(p);
         editor.selection.setAtStart(p);
         editor._notifyChange();
 

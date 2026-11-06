@@ -32,10 +32,15 @@ export class CommandChain {
   // Proxy: dynamically create chained methods from registered commands
   static create(editor) {
     return new Proxy(new CommandChain(editor), {
-      get(target, prop) {
-        if (prop in target) return target[prop].bind(target);
+      get(target, prop, proxy) {
+        if (prop in target) {
+          const value = target[prop];
+          return typeof value === 'function' ? value.bind(target) : value;
+        }
+        // Not commands: `then` would make the chain a thenable that never settles.
+        if (typeof prop === 'symbol' || prop === 'then') return undefined;
         // Treat unknown props as command names
-        return (...args) => target._add(prop, args);
+        return (...args) => { target._add(prop, args); return proxy; };
       }
     });
   }

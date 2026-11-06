@@ -27,7 +27,7 @@ export * from './extensions/index.js';
 
 // Utils (useful for building custom extensions)
 export * from './utils/dom.js';
-export * from './utils/html.js';
+export { sanitize, sanitizeContent, normalizeHtml } from './utils/html.js';
 export * from './utils/id.js';
 export { htmlToMarkdown } from './utils/markdown.js';
 export { markdownToHtml } from './utils/markdownToHtml.js';

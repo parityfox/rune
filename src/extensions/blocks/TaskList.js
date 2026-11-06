@@ -18,18 +18,19 @@ export const TaskList = {
     };
 
     // Toggle on pointer…
-    editor.content.addEventListener('mousedown', (e) => {
+    editor.listen(editor.content, 'mousedown', (e) => {
       const cb = e.target.closest?.('.rune-task-checkbox');
       if (!cb) return;
       e.preventDefault();
+      if (editor._disabled) return;
       _toggle(cb);
     });
 
     // …and on keyboard (the checkbox is role=checkbox, tabindex=0).
-    editor.content.addEventListener('keydown', (e) => {
+    editor.listen(editor.content, 'keydown', (e) => {
       if (e.key !== ' ' && e.key !== 'Enter') return;
       const cb = e.target.closest?.('.rune-task-checkbox');
-      if (!cb) return;
+      if (!cb || editor._disabled) return;
       e.preventDefault();
       _toggle(cb);
     });
@@ -46,7 +47,7 @@ export const TaskList = {
           // Empty item — exit the list, create paragraph after
           const p = document.createElement('p');
           p.innerHTML = '<br>';
-          editor.content.insertBefore(p, block.nextSibling || null);
+          block.after(p);
           li.remove();
           if (!block.querySelector('li')) block.remove();
           editor.selection.setAtStart(p);
@@ -77,7 +78,7 @@ export const TaskList = {
             if (!block.querySelector('li')) {
               const p = document.createElement('p');
               p.innerHTML = '<br>';
-              editor.content.replaceChild(p, block);
+              block.replaceWith(p);
               editor.selection.setAtStart(p);
             } else if (prev) {
               editor.selection.setAtEnd(prev.querySelector('.rune-task-content') || prev);

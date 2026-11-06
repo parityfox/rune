@@ -1,3 +1,4 @@
+import { unwrapList } from './_unwrapList.js';
 export const BulletList = {
   name: 'bulletList',
   type: 'block',
@@ -11,13 +12,7 @@ export const BulletList = {
         editor.history.saveNow();
         if (block.tagName === 'UL') {
           // Unwrap list items into paragraphs
-          const frag = document.createDocumentFragment();
-          for (const li of block.querySelectorAll('li')) {
-            const p = document.createElement('p');
-            p.innerHTML = li.innerHTML;
-            frag.appendChild(p);
-          }
-          editor.content.replaceChild(frag, block);
+          unwrapList(block);
         } else {
           document.execCommand('insertUnorderedList');
         }

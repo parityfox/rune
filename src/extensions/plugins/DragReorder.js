@@ -34,7 +34,7 @@ export const DragReorder = {
 
     // ── Show handle on block hover ──────────────────────────────
 
-    editor.content.addEventListener('mousemove', (e) => {
+    editor.listen(editor.content, 'mousemove', (e) => {
       if (_active) return;
       const block = _getDirectChild(e.target);
       if (!block) return;
@@ -42,14 +42,14 @@ export const DragReorder = {
       _positionHandle(block);
     });
 
-    editor.content.addEventListener('mouseleave', () => {
+    editor.listen(editor.content, 'mouseleave', () => {
       if (_active) return;
       _scheduleHide();
     });
 
     // Touch has no hover: reveal the handle when a block is tapped so touch
     // users can grab it.
-    editor.content.addEventListener('pointerdown', (e) => {
+    editor.listen(editor.content, 'pointerdown', (e) => {
       if (e.pointerType !== 'touch' || _active) return;
       const block = _getDirectChild(e.target);
       if (block) { _targetBlock = block; _positionHandle(block); }
@@ -195,6 +195,7 @@ export const DragReorder = {
 
     // Clean up on editor destroy
     editor.events.on('destroy', () => {
+      clearTimeout(_hideTimer);
       _handle.remove();
       _indicator.remove();
     });

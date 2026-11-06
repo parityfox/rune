@@ -23,8 +23,16 @@ export const Code = {
           codeEl.replaceWith(frag);
         } else {
           // Wrap
+          // A code span can't hold block elements, so a selection across blocks is a no-op.
+          if (range.cloneContents().querySelector('p,h1,h2,h3,h4,h5,h6,li,ul,ol,div,blockquote,pre,table,tr,td,th,figure')) return;
+          // extract + insert, not surroundContents: that throws when the selection
+          // only partly covers an inline element such as <strong>.
           const code = document.createElement('code');
-          range.surroundContents(code);
+          code.appendChild(range.extractContents());
+          range.insertNode(code);
+          range.selectNodeContents(code);
+          sel.removeAllRanges();
+          sel.addRange(range);
         }
         editor._notifyChange();
       },

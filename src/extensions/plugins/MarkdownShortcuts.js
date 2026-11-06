@@ -84,8 +84,8 @@ function _handleEnter(editor, e) {
     const p = document.createElement('p');
     p.innerHTML = '<br>';
 
-    editor.content.replaceChild(hr, block);
-    editor.content.insertBefore(p, hr.nextSibling || null);
+    block.replaceWith(hr);
+    hr.after(p);
     editor.selection.setAtStart(p);
     editor._notifyChange();
   }

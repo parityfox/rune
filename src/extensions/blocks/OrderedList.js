@@ -1,3 +1,4 @@
+import { unwrapList } from './_unwrapList.js';
 export const OrderedList = {
   name: 'orderedList',
   type: 'block',
@@ -10,13 +11,7 @@ export const OrderedList = {
         if (!block) return;
         editor.history.saveNow();
         if (block.tagName === 'OL') {
-          const frag = document.createDocumentFragment();
-          for (const li of block.querySelectorAll('li')) {
-            const p = document.createElement('p');
-            p.innerHTML = li.innerHTML;
-            frag.appendChild(p);
-          }
-          editor.content.replaceChild(frag, block);
+          unwrapList(block);
         } else {
           document.execCommand('insertOrderedList');
         }

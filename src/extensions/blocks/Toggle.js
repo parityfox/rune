@@ -13,7 +13,7 @@ export const Toggle = {
 
   commands(editor) {
     // Click the arrow to collapse / expand.
-    editor.content.addEventListener('click', (e) => {
+    editor.listen(editor.content, 'click', (e) => {
       const arrow = e.target.closest?.('.rune-toggle-arrow');
       if (!arrow) return;
       e.preventDefault();

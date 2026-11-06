@@ -1,3 +1,4 @@
+import { clearSelectedStyle } from './_clearStyle.js';
 import { el } from '../../utils/dom.js';
 
 export const TEXT_COLORS = [
@@ -23,13 +24,15 @@ export const TextColor = {
     return {
       setTextColor(color) {
         if (color === 'inherit' || !color) {
-          document.execCommand('removeFormat');
+          const sel = window.getSelection();
+          if (!sel || sel.isCollapsed) return;
+          clearSelectedStyle(sel, 'color');
+          editor._notifyChange();
         } else {
-          document.execCommand('foreColor', false, color);
-          // execCommand wraps in <font> — convert to span for cleanliness
-          _fontToSpan(editor.content, 'color');
+          // Spans are normalized inside the input event's change handler too, so
+          // convert before anything reads the HTML.
+          editor._execOnce('foreColor', color, () => _fontToSpan(editor.content, 'color'));
         }
-        editor._notifyChange();
       },
     };
   },

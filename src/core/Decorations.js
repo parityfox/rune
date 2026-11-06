@@ -14,6 +14,8 @@ import { el } from '../utils/dom.js';
  *   editor.decorations.remove(id);
  *   editor.decorations.clear('search');
  */
+const _isPoint = (p) => Array.isArray(p.path) && Number.isInteger(p.offset);
+
 export class Decorations {
   constructor(editor) {
     this.editor = editor;
@@ -42,6 +44,8 @@ export class Decorations {
   /** Add a decoration spanning {path,offset} points. Returns an id. */
   add({ from, to, class: cls = 'rune-decoration', attrs = {}, onClick = null, type = null } = {}) {
     if (!from || !to) return null;
+    // Checked here: a bad point would otherwise throw later, inside the render frame.
+    if (!_isPoint(from) || !_isPoint(to)) throw new TypeError('[Rune] A decoration point must be { path: number[], offset: number }');
     const id = `dec-${++this._seq}`;
     this._items.set(id, { from, to, class: cls, attrs, onClick, type });
     this._schedule();

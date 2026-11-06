@@ -20,16 +20,16 @@ export const Callout = {
 
   commands(editor) {
     // Open the emoji picker by pointer or keyboard (the icon is role=button).
-    editor.content.addEventListener('click', (e) => {
+    editor.listen(editor.content, 'click', (e) => {
       const icon = e.target.closest?.('.rune-callout-icon');
-      if (!icon) return;
+      if (!icon || editor._disabled) return;
       e.preventDefault();
       _openEmojiPicker(editor, icon);
     });
-    editor.content.addEventListener('keydown', (e) => {
+    editor.listen(editor.content, 'keydown', (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       const icon = e.target.closest?.('.rune-callout-icon');
-      if (!icon) return;
+      if (!icon || editor._disabled) return;
       e.preventDefault();
       _openEmojiPicker(editor, icon);
     });
@@ -37,7 +37,7 @@ export const Callout = {
     // Enter inside a callout body: keep the line break inside the body (the
     // native split would spawn a sibling <div> that breaks the flex layout),
     // and exit into a paragraph below when pressed on an empty trailing line.
-    editor.content.addEventListener('keydown', (e) => {
+    editor.listen(editor.content, 'keydown', (e) => {
       if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
       const sel = window.getSelection();
       if (!sel || !sel.rangeCount || !sel.isCollapsed) return;

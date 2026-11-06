@@ -1,3 +1,4 @@
+import { clearSelectedStyle } from './_clearStyle.js';
 import { el } from '../../utils/dom.js';
 
 const FONTS = [
@@ -26,13 +27,7 @@ export const FontFamily = {
         const range = sel.getRangeAt(0);
 
         if (family === 'inherit' || !family) {
-          // Strip font-family from spans in selection
-          const anc = range.commonAncestorContainer;
-          const spans = (anc.querySelectorAll?.('span[style*="font-family"]') || []);
-          spans.forEach(s => {
-            s.style.fontFamily = '';
-            if (!s.getAttribute('style').trim()) s.replaceWith(...s.childNodes);
-          });
+          clearSelectedStyle(sel, 'fontFamily');
         } else {
           const frag = range.extractContents();
           const div  = document.createElement('div');

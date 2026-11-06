@@ -16,13 +16,13 @@ export const HorizontalRule = {
 
         // Insert after current block
         const currentBlock = editor.selection.getBlock();
-        const after = currentBlock?.nextSibling || null;
-        editor.content.insertBefore(hr, after);
+        const parent = currentBlock?.parentNode || editor.content;
+        parent.insertBefore(hr, currentBlock?.nextSibling || null);
 
         // Add a paragraph after so the user can keep typing
         const p = document.createElement('p');
         p.innerHTML = '<br>';
-        editor.content.insertBefore(p, hr.nextSibling);
+        hr.after(p);
         editor.selection.setAtStart(p);
         editor._notifyChange();
       },

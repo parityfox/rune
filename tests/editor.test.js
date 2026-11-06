@@ -472,6 +472,29 @@ describe('Editor', () => {
       expect(out).toBe('just some plain text, nothing special');
     });
 
+    it('inserts plain-text-only paste literally, not as markup (#135)', () => {
+      create({ content: '<p></p>' });
+      expect(paste('<b>x</b> &amp; y')).toBe('&lt;b&gt;x&lt;/b&gt; &amp;amp; y');
+    });
+
+    it('keeps line structure of plain-text-only paste (#135)', () => {
+      create({ content: '<p></p>' });
+      expect(paste('line one\nline two')).toBe('line one<br>line two');
+      expect(paste('para one\n\npara two')).toBe('<p>para one</p><p>para two</p>');
+    });
+
+    it('keeps raw newlines when pasting plain text into a code block (#135)', () => {
+      create({ content: '<pre><code>x</code></pre>' });
+      const r = document.createRange(); r.selectNodeContents(editor.content.querySelector('code')); r.collapse(false);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      expect(paste('a <b\nc')).toBe('a &lt;b\nc');
+    });
+
+    it('still treats a real text/html flavour as HTML (#135)', () => {
+      create({ content: '<p></p>' });
+      expect(paste('x', '<b>x</b>')).toBe('<b>x</b>');
+    });
+
     it('respects pasteMarkdown:false', () => {
       create({ content: '<p></p>', pasteMarkdown: false });
       const out = paste('## Hi');
@@ -508,12 +531,24 @@ describe('Editor', () => {
   // must go through the same sanitize pipeline as paste — otherwise an <img
   // onerror> dragged from a hostile page executes in the host origin.
   describe('drop sanitization (#122)', () => {
-    function drop(html, plain = '') {
+    // A fake DataTransfer: what dragstart stores is what the matching drop reads.
+    const dataStore = () => {
+      const data = {};
+      return { data, setData: (t, v) => { data[t] = v; }, getData: (t) => data[t] ?? '' };
+    };
+    function dragStart(dt) {
+      const e = new Event('dragstart', { bubbles: true });
+      e.dataTransfer = dt;
+      editor.content.dispatchEvent(e);
+    }
+    function drop(html, plain = '', dt = dataStore()) {
       let inserted = null;
       const orig = document.execCommand;
       document.execCommand = (cmd, ui, val) => { if (cmd === 'insertHTML') inserted = val; return true; };
       const e = new Event('drop', { bubbles: true, cancelable: true });
-      e.dataTransfer = { getData: (t) => (t === 'text/html' ? html : plain) };
+      dt.setData('text/html', html);
+      dt.setData('text/plain', plain);
+      e.dataTransfer = dt;
       editor.content.dispatchEvent(e);
       document.execCommand = orig;
       return { inserted, prevented: e.defaultPrevented };
@@ -546,8 +581,9 @@ describe('Editor', () => {
     // of inserting a sanitized duplicate. Only external drops get sanitized.
     it('lets a native intra-editor drag move content instead of duplicating it', () => {
       create({ content: '<p>hello</p>' });
-      editor.content.dispatchEvent(new Event('dragstart', { bubbles: true }));
-      const { inserted, prevented } = drop('<p>hello</p>');
+      const dt = dataStore();
+      dragStart(dt);
+      const { inserted, prevented } = drop('<p>hello</p>', '', dt);
       expect(inserted).toBeNull();     // no insertHTML — native move left to the browser
       expect(prevented).toBe(false);   // default (native move) not cancelled
     });
@@ -555,12 +591,64 @@ describe('Editor', () => {
     it('still sanitizes an external drop after an internal drag ended', () => {
       create({ content: '<p></p>' });
       // internal drag lifecycle completes...
-      editor.content.dispatchEvent(new Event('dragstart', { bubbles: true }));
+      dragStart(dataStore());
       editor.content.dispatchEvent(new Event('dragend', { bubbles: true }));
       // ...then a genuinely external drop must still be sanitized.
       const { inserted } = drop('<img src=x onerror="alert(1)">');
       expect(inserted).not.toBeNull();
       expect(inserted).not.toContain('onerror');
+    });
+  });
+
+  describe('drop sanitization when dragend never fires (#141)', () => {
+    function dropEvent(data) {
+      let inserted = null;
+      const orig = document.execCommand;
+      document.execCommand = (cmd, ui, val) => { if (cmd === 'insertHTML') inserted = val; return true; };
+      const e = new Event('drop', { bubbles: true, cancelable: true });
+      e.dataTransfer = { getData: (t) => data[t] ?? '' };
+      editor.content.dispatchEvent(e);
+      document.execCommand = orig;
+      return { inserted, prevented: e.defaultPrevented };
+    }
+    function dragStartStoring() {
+      const stored = {};
+      const e = new Event('dragstart', { bubbles: true });
+      e.dataTransfer = { setData: (t, v) => { stored[t] = v; } };
+      editor.content.dispatchEvent(e);
+      return stored;
+    }
+
+    it('sanitizes an external drop after a drag that never ended', () => {
+      create({ content: '<p>hello</p>' });
+      dragStartStoring();                     // source removed mid-drag: no dragend
+      const { inserted, prevented } = dropEvent({ 'text/html': '<img src=x onerror="alert(1)">' });
+      expect(prevented).toBe(true);
+      expect(inserted).not.toBeNull();
+      expect(inserted).not.toContain('onerror');
+    });
+
+    it('does not trust a drop carrying a guessed marker value', () => {
+      create({ content: '<p>hello</p>' });
+      const stored = dragStartStoring();
+      const forged = Object.fromEntries(Object.keys(stored).map((k) => [k, 'guess']));
+      const { prevented } = dropEvent({ ...forged, 'text/html': '<b onclick="x">y</b>' });
+      expect(prevented).toBe(true);
+    });
+
+    it('does not treat a drag from another editor as internal', () => {
+      create({ content: '<p>hello</p>' });
+      const first = editor;
+      const t2 = document.createElement('div'); document.body.appendChild(t2);
+      const other = new Editor(t2, { extensions: [Paragraph], toolbar: false, bubbleMenu: false, slashMenu: false, content: '<p>x</p>' });
+      const stored = {};
+      const e = new Event('dragstart', { bubbles: true });
+      e.dataTransfer = { setData: (t, v) => { stored[t] = v; } };
+      other.content.dispatchEvent(e);
+      const { prevented } = dropEvent({ ...stored, 'text/html': '<b>y</b>' });
+      expect(prevented).toBe(true);
+      expect(editor).toBe(first);
+      other.destroy(); t2.remove();
     });
   });
 

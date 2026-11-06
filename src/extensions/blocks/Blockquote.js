@@ -13,12 +13,12 @@ export const Blockquote = {
         if (block.tagName === 'BLOCKQUOTE') {
           const p = document.createElement('p');
           p.innerHTML = block.innerHTML;
-          editor.content.replaceChild(p, block);
+          block.replaceWith(p);
           editor.selection.setAtEnd(p);
         } else {
           const bq = document.createElement('blockquote');
           bq.innerHTML = block.innerHTML;
-          editor.content.replaceChild(bq, block);
+          block.replaceWith(bq);
           editor.selection.setAtEnd(bq);
         }
         editor._notifyChange();

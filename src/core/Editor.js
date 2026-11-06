@@ -84,6 +84,29 @@ const _CMD_LABELS = {
  *     onChange(html) { console.log(html) }
  *   });
  */
+const DRAG_TOKEN_TYPE = 'application/x-rune-drag';
+
+// Commands that don't change the document, so they still run while disabled.
+const READ_ONLY_COMMANDS = new Set(['focus']);
+
+// An empty table, figure or list has no text but is still real content: its
+// cells, caption and items belong to the extension's own key handling, so the
+// core "Backspace removes an empty block" rule must leave it alone.
+function _isRemovableWhenEmpty(block) {
+  return !block.matches('table, figure, ul, ol') && !block.querySelector('img, iframe, video, hr');
+}
+
+// Plain text is literal: its <, > and & are characters, not markup. Blank lines
+// separate paragraphs and single newlines are line breaks, except inside a code
+// block, where newlines are already significant.
+function _plainTextToHtml(text, inCode) {
+  const esc = text.replace(/\r\n?/g, '\n')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  if (inCode) return esc;
+  const paras = esc.split(/\n{2,}/).filter((t) => t.trim()).map((t) => t.replace(/\n/g, '<br>'));
+  return paras.length > 1 ? paras.map((t) => `<p>${t}</p>`).join('') : paras.join('');
+}
+
 export class Editor {
   constructor(target, options = {}) {
     if (typeof target === 'string') target = document.querySelector(target);
@@ -117,6 +140,7 @@ export class Editor {
     this.selection = new Selection(this);
 
     this._destroyed = false;
+    this._listeners = [];
     this._ready = false;          // suppress onChange until construction finishes
     this._selRaf = null;          // rAF handle coalescing selectionchange emits
     this._slashQuery = '';
@@ -394,7 +418,7 @@ export class Editor {
         Object.entries(attrs).forEach(([k, v]) => newBlock.setAttribute(k, v));
         newBlock.setAttribute('data-id', currentBlock.getAttribute('data-id') || uid());
 
-        self.content.replaceChild(newBlock, currentBlock);
+        currentBlock.replaceWith(newBlock);
         self.selection.setAtEnd(newBlock);
         self._notifyChange();
       },
@@ -412,11 +436,8 @@ export class Editor {
         Object.entries(attrs).forEach(([k, v]) => newBlock.setAttribute(k, v));
 
         const currentBlock = self.selection.getBlock();
-        if (currentBlock && currentBlock.nextSibling) {
-          self.content.insertBefore(newBlock, currentBlock.nextSibling);
-        } else {
-          self.content.appendChild(newBlock);
-        }
+        const parent = currentBlock?.parentNode || self.content;
+        parent.insertBefore(newBlock, currentBlock?.nextSibling || null);
         self.selection.setAtStart(newBlock);
         self._notifyChange();
       },
@@ -427,15 +448,23 @@ export class Editor {
         const block = self.selection.getBlock();
         if (!block) return false;
         const prev = block.previousElementSibling;
+        const parent = block.parentNode;
         block.remove();
         if (self.content.children.length === 0) self._ensureContent();
+        else if (parent !== self.content && parent.children.length === 0) {
+          // A toggle body / column must keep an editable block.
+          const p = document.createElement('p');
+          p.innerHTML = '<br>';
+          parent.appendChild(p);
+          self.selection.setAtStart(p);
+        }
         if (prev) self.selection.setAtEnd(prev);
         self._notifyChange();
       },
 
       // Indent / outdent list items
-      indent() { document.execCommand('indent'); self._notifyChange(); },
-      outdent() { document.execCommand('outdent'); self._notifyChange(); },
+      indent() { self._execOnce('indent'); },
+      outdent() { self._execOnce('outdent'); },
 
       // History
       undo() { self.history.undo(); },
@@ -547,8 +576,11 @@ export class Editor {
       // already-sanitized content and must be left to the browser, not
       // re-sanitized (which would duplicate them). External drops still funnel
       // through the sanitizer.
-      dragstart:       () => { this._internalDrag = true; },
-      dragend:         () => { this._internalDrag = false; },
+      // The drop must prove it is this drag by echoing an unguessable token. That
+      // can't go stale the way a flag can when dragend never fires (source block
+      // re-rendered mid-drag), and a foreign page or editor can't produce it.
+      dragstart:       (e) => { this._dragToken = uid(); e.dataTransfer?.setData(DRAG_TOKEN_TYPE, this._dragToken); },
+      dragend:         () => { this._dragToken = null; },
       // Drop needs dragover's preventDefault so the browser fires 'drop' on the
       // editor instead of navigating.
       dragover:        (e) => e.preventDefault(),
@@ -571,10 +603,13 @@ export class Editor {
   }
 
   _onInput(e) {
+    this._inputFired = true;
     this._ensureContent();
     // Auto-formatting input rules (smart typography, inline markdown…); skip
-    // mid-IME-composition. A fired rule handles its own history + change notify.
-    if (!e?.isComposing && runInputRules(this, this.schema.getInputRules())) return;
+    // mid-IME-composition and programmatic inserts, whose text the user didn't
+    // type. A fired rule handles its own history + change notify.
+    if (this._onBeforeNotify) { this._onBeforeNotify(); this._onBeforeNotify = null; }
+    if (!e?.isComposing && !this._inExec && runInputRules(this, this.schema.getInputRules())) return;
     this.history.save();
     this._notifyChange();
   }
@@ -624,8 +659,8 @@ export class Editor {
     // Backspace in empty block — remove it
     if (e.key === 'Backspace') {
       const block = this.selection.getBlock();
-      if (block && block.textContent.trim() === '' &&
-          this.content.children.length > 1) {
+      if (block && _isRemovableWhenEmpty(block) && block.textContent.trim() === '' &&
+          block.parentNode.children.length > 1) {
         e.preventDefault();
         this.chain().deleteBlock().run();
         return;
@@ -648,19 +683,42 @@ export class Editor {
     // content — let the browser relocate it (deleting the source) instead of
     // inserting a sanitized duplicate. An external/hostile drag never fired this
     // editor's dragstart, so it falls through to the sanitizing path below.
-    if (this._internalDrag) { this._internalDrag = false; return; }
+    const internal = this._dragToken && e.dataTransfer?.getData(DRAG_TOKEN_TYPE) === this._dragToken;
+    this._dragToken = null;
+    if (internal) return;
     // Native contenteditable drop would insert the dragged text/html verbatim,
     // bypassing the sanitizer. Intercept and run it through the same pipeline as
     // paste so an <img onerror> dragged from a hostile page can't execute.
     e.preventDefault();
     const html  = e.dataTransfer?.getData('text/html') || '';
     const plain = e.dataTransfer?.getData('text/plain') || '';
-    this._insertTransferredContent(html, plain);
-    this.events.emit('drop', { editor: this });
+    if (html || plain) {
+      // preventDefault above cancelled the browser's own placement at the drop point.
+      this._placeCaretAtPoint(e.clientX, e.clientY);
+      this._insertTransferredContent(html, plain);
+    }
+    this.events.emit('drop', { editor: this, files: [...(e.dataTransfer?.files || [])] });
+  }
+
+  _placeCaretAtPoint(x, y) {
+    this.content.focus();
+    let range = null;
+    if (document.caretPositionFromPoint) {
+      const pos = document.caretPositionFromPoint(x, y);
+      if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); }
+    } else if (document.caretRangeFromPoint) {
+      range = document.caretRangeFromPoint(x, y);
+    }
+    if (!range || !this.content.contains(range.startContainer)) return;
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
   }
 
   /** Shared sanitize-and-insert path for pasted and dropped content. */
   _insertTransferredContent(html, plain) {
+    if (!html && !plain) return;                 // e.g. an image file on the clipboard
     // Convert when the plain text reads as Markdown. If the source ALSO has
     // rich HTML (e.g. copied from a rendered page), require strong block-level
     // Markdown signals (headings, fenced code, tables, several list items, or
@@ -669,13 +727,13 @@ export class Editor {
     const useMd = this.options.pasteMarkdown !== false && plain && _looksLikeMarkdown(plain) &&
                   (!html || _looksLikeMarkdownDoc(plain));
 
-    let clean = useMd ? sanitize(markdownToHtml(plain)) : sanitize(html || plain);
+    let clean = sanitize(useMd ? markdownToHtml(plain)
+      : html || _plainTextToHtml(plain, this.selection.getBlock()?.tagName === 'PRE'));
     // Paste rules inject HTML (e.g. linkify bare URLs), so sanitize AGAIN after
     // them — a consumer-registered rule could otherwise emit unsanitized markup
     // that lands straight in the document.
     clean = sanitize(runPasteRules(clean, this.schema.getPasteRules()));
-    document.execCommand('insertHTML', false, clean);
-    this._notifyChange();
+    this._execOnce('insertHTML', clean);
   }
 
   _onSelectionChange() {
@@ -705,8 +763,25 @@ export class Editor {
 
   _execFormat(command) {
     this.content.focus();
-    document.execCommand(command);
-    this._notifyChange();
+    this._execOnce(command);
+  }
+
+  /**
+   * Run execCommand and notify exactly once. Browsers fire `input` from inside
+   * execCommand, which already notifies through _onInput; environments that don't
+   * still need the explicit notify. `prepare` runs before anything reads the HTML.
+   */
+  _execOnce(command, value, prepare) {
+    this._inputFired = false;
+    this._inExec = true;
+    this._onBeforeNotify = prepare || null;
+    try {
+      document.execCommand(command, false, value);
+    } finally {
+      this._inExec = false;
+    }
+    if (this._onBeforeNotify) { this._onBeforeNotify(); this._onBeforeNotify = null; }
+    if (!this._inputFired) this._notifyChange();
   }
 
   _insertNode(node) {
@@ -759,6 +834,7 @@ export class Editor {
   cmd(name, ...args) {
     const fn = this.commands.get(name);
     if (!fn) { console.warn(`[Rune] Unknown command: "${name}"`); return false; }
+    if (this._disabled && !READ_ONLY_COMMANDS.has(name)) return false;
     const result = fn(...args);
     this._announceCommand(name);
     return result;
@@ -767,6 +843,12 @@ export class Editor {
   /** Start a command chain: editor.chain().toggleBold().run() */
   chain() {
     return CommandChain.create(this);
+  }
+
+  /** addEventListener that detaches on destroy, for extensions: a host may keep the element. */
+  listen(target, type, fn, options) {
+    target.addEventListener(type, fn, options);
+    this._listeners.push(() => target.removeEventListener(type, fn, options));
   }
 
   /** Execute an internal format command (used by extensions). */
@@ -827,7 +909,7 @@ export class Editor {
 
   /** Set editor HTML content. */
   setHtml(html) {
-    this.content.innerHTML = normalizeHtml(sanitizeContent(html));
+    this.content.innerHTML = normalizeHtml(sanitizeContent(html == null ? '' : String(html)));
     this._ensureContent();
     this.history.saveNow();
     // Route through _notifyChange so the onChange callback fires too — not just
@@ -864,8 +946,7 @@ export class Editor {
   insertMarkdown(md) {
     const clean = sanitize(markdownToHtml(md));
     this.content.focus();
-    document.execCommand('insertHTML', false, clean);
-    this._notifyChange();
+    this._execOnce('insertHTML', clean);
   }
 
   /** Open browser print dialog with clean editor styles. */
@@ -923,6 +1004,7 @@ export class Editor {
 
   /** Enable editing. */
   enable() {
+    this._disabled = false;
     this.content.contentEditable = 'true';
     this.target.classList.remove('rune-disabled');
     return this;
@@ -930,6 +1012,7 @@ export class Editor {
 
   /** Disable editing. */
   disable() {
+    this._disabled = true;
     this.content.contentEditable = 'false';
     this.target.classList.add('rune-disabled');
     return this;
@@ -950,6 +1033,8 @@ export class Editor {
     this.content.removeEventListener('focus',   this._handlers.focus);
     this.content.removeEventListener('blur',    this._handlers.blur);
     document.removeEventListener('selectionchange', this._handlers.selectionchange);
+    for (const off of this._listeners) off();
+    this._listeners = [];
 
     this.toolbar?.destroy?.();
     this.bubbleMenu?.destroy?.();

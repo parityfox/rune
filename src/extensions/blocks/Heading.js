@@ -19,7 +19,7 @@ export const Heading = {
         editor.history.saveNow();
         const newBlock = document.createElement(tag);
         newBlock.innerHTML = current.innerHTML || '<br>';
-        editor.content.replaceChild(newBlock, current);
+        current.replaceWith(newBlock);
         editor.selection.setAtEnd(newBlock);
         editor._notifyChange();
       },

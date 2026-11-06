@@ -26,7 +26,7 @@ export const CodeBlock = {
             if (line) p.appendChild(document.createTextNode(line));
           });
           if (!p.firstChild) p.innerHTML = '<br>';
-          editor.content.replaceChild(p, block);
+          block.replaceWith(p);
           editor.selection.setAtEnd(p);
         } else {
           // Paragraph -> code: preserve <br> line breaks as real newlines.
@@ -34,7 +34,7 @@ export const CodeBlock = {
           const code = document.createElement('code');
           code.textContent = _blockText(block);
           pre.appendChild(code);
-          editor.content.replaceChild(pre, block);
+          block.replaceWith(pre);
           editor.selection.setAtEnd(pre);
         }
         editor._notifyChange();

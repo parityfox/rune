@@ -31,6 +31,7 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 - Plain-text paste is inserted literally and keeps its line breaks (#135)
 - Collab: `setHtml`, undo and redo, and direct-DOM commands now reach peers (#136)
 - Collab: IME text commits to the block it was composed in when a peer inserts above it (#137)
+- Collab: a peer's edit to the same block during IME composition is no longer lost (#189)
 - Collab: joining a room no longer adds a blank paragraph (#138)
 - Collab: Shift+Enter line breaks now sync between peers. They were previously lost, for everyone, on the next remote update (#187)
 - Collab: suggestions and comments no longer throw when the document contains an image (#150)

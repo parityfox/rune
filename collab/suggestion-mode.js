@@ -240,6 +240,7 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
       }), LOCAL);
       renderBlock(rng.block);
       setCaret(rng.id, rng.to);
+      editor.events.emit('collab:compositionmoved');
     }
     const pos = caretPos();
     if (!pos) return;

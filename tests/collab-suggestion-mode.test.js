@@ -457,6 +457,7 @@ describe('bindSuggestionMode', () => {
       fire('compositionend', '你');
       const text = textOf();
       const [s] = list();
+      expect(text).toBe('ZZhello你');
       expect(text.slice(s.from, s.to)).toBe('你');
     });
 

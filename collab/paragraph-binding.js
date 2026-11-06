@@ -419,11 +419,19 @@ export function bindParagraph(editor, doc, { provider } = {}) {
   // block the user is composing in (which would abort/corrupt the IME).
   let composing = false;
   let pendingRemote = false;
+  let composition = null;        // see captureComposition
+  let caretAfterRender = null;
 
   // Commit only the block the caret sits in (the one just composed) — a whole
   // reconcile would read other blocks' DOM, which may be stale if a remote
   // patch was deferred during composition, and revert it.
-  function commitComposingBlock() {
+  function commitComposingBlock(data) {
+    const c = composition;
+    if (c) {
+      const m = modelById(c.id);
+      if (!m) return;                                       // removed remotely — the deferred patch drops it
+      if (JSON.stringify(m.get('text').toDelta()) !== c.modelBefore) { commitOverRemoteEdit(c, m.get('text'), data); return; }
+    }
     const sel = getSel();
     if (!sel || !sel.rangeCount) { reconcileFromDom(); return; }
     const r = sel.getRangeAt(0);
@@ -435,21 +443,96 @@ export function bindParagraph(editor, doc, { provider } = {}) {
     doc.transact(() => { reconcileText(m.get('text'), serializeHost(b.host, b.type)); }, LOCAL);
   }
 
+  // A peer changed this block during the composition, so the DOM (patches deferred)
+  // is out of date and reconciling against it would revert the peer. Apply only what
+  // the composition did, at positions tied to the shared text.
+  function commitOverRemoteEdit(c, yt, data) {
+    const delta = serializeHost(c.host, c.type);
+    const now = textOf(delta);
+    const tailLength = c.baseText.length - c.end;
+    const fits = now.length >= c.start + tailLength
+      && now.startsWith(c.baseText.slice(0, c.start))
+      && now.endsWith(c.baseText.slice(c.end));
+    const text = fits ? now.slice(c.start, now.length - tailLength) : (data || '');
+    const attrs = fits ? charAttrs(delta).slice(c.start, c.start + text.length) : [];
+
+    const abs = (rel) => Y.createAbsolutePositionFromRelativePosition(rel, doc)?.index ?? null;
+    let at = abs(c.relStart);
+    if (at == null) return;
+    doc.transact(() => {
+      if (c.relEnd) {
+        const end = abs(c.relEnd);
+        if (end != null && end > at) yt.delete(at, end - at);
+      }
+      // Explicit attributes, or the text would inherit marks from the peer's edits.
+      for (let i = 0; i < text.length;) {
+        let j = i + 1;
+        while (j < text.length && sameAttrs(attrs[j] || {}, attrs[i] || {})) j++;
+        yt.insert(at + i, text.slice(i, j), { ...(attrs[i] || {}) });
+        i = j;
+      }
+    }, LOCAL);
+    caretAfterRender = { id: c.id, index: at + text.length };
+    pendingRemote = true;                                   // the DOM must catch up with the peer
+  }
+
+  // Where the composition sits, in both the DOM's text and the shared text.
+  function captureComposition() {
+    composition = null;
+    const sel = getSel();
+    if (!sel || !sel.rangeCount) return;
+    const r = sel.getRangeAt(0);
+    if (!content.contains(r.startContainer) || !content.contains(r.endContainer)) return;
+    const b = blockHostAt(content, r.startContainer);
+    if (!b || !b.host.contains(r.endContainer)) return;
+    const yt = modelForHost(blocks, b)?.get('text');
+    if (!yt) return;
+    const baseText = textOf(serializeHost(b.host, b.type));
+    if (baseText !== yt.toString()) return;                 // positions wouldn't line up
+    const start = textIndexInHost(b.host, r.startContainer, r.startOffset);
+    const end = textIndexInHost(b.host, r.endContainer, r.endOffset);
+    if (start < 0 || end < 0) return;
+    const replacing = end > start;
+    composition = {
+      id: idOfEntry(b), host: b.host, type: b.type, start, end, baseText,
+      modelBefore: JSON.stringify(yt.toDelta()),
+      // A selection is pinned to its own first and last characters, so a peer's text
+      // beside it survives. A bare caret stays after the text to its left.
+      relStart: Y.createRelativePositionFromTypeIndex(yt, start, replacing ? 0 : -1),
+      relEnd: replacing ? Y.createRelativePositionFromTypeIndex(yt, end, -1) : null,
+    };
+  }
+
+  function modelById(id) {
+    for (const m of blocks) if (m.get('id') === id) return m;
+    return null;
+  }
+
   // 'change' rather than the DOM 'input' event: the editor emits it for typing AND
   // for mutations that fire no input event (setHtml, undo/redo, direct-DOM commands).
   const onChange = () => { if (!applyingRemote && !composing) reconcileFromDom(); };
-  const onCompositionStart = () => { composing = true; };
+  const onCompositionStart = () => { composing = true; captureComposition(); };
   const onCompositionEnd = (e) => {
     composing = false;
-    if (!applyingRemote) commitComposingBlock();          // 1. commit just the composed block
-    // Composition can't be cancelled, so suggestion mode tracks the text once committed.
-    editor.events.emit('collab:compositioncommit', { data: e?.data });
+    if (!applyingRemote) commitComposingBlock(e?.data);   // 1. commit just the composed block
+    composition = null;
     if (pendingRemote) {                                  // 2. then apply any deferred remote patch
       pendingRemote = false;
       applyingRemote = true;
       try { renderFromModel(); } finally { applyingRemote = false; }
     }
+    if (caretAfterRender) {
+      const { id, index } = caretAfterRender;
+      caretAfterRender = null;
+      const host = flattenHosts(content).find((h) => idOfEntry(h) === id)?.host;
+      const sel = getSel();
+      if (host && sel) setCaretInHost(host, index, sel);
+    }
+    // Composition can't be cancelled, so suggestion mode tracks the text once committed.
+    editor.events.emit('collab:compositioncommit', { data: e?.data });
   };
+  // Suggestion mode moves the caret past a selection before composing over it.
+  editor.events.on('collab:compositionmoved', captureComposition);
   editor.events.on('change', onChange);
   content.addEventListener('compositionstart', onCompositionStart);
   content.addEventListener('compositionend', onCompositionEnd);
@@ -683,6 +766,7 @@ export function bindParagraph(editor, doc, { provider } = {}) {
       if (_destroyed) return;
       _destroyed = true;
       editor.events.off('change', onChange);
+      editor.events.off('collab:compositionmoved', captureComposition);
       if (onSync) provider.off?.('sync', onSync);
       content.removeEventListener('compositionstart', onCompositionStart);
       content.removeEventListener('compositionend', onCompositionEnd);

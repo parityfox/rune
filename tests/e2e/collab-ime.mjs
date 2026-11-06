@@ -98,6 +98,66 @@ try {
   await sleep(150);
   ok(!/onerror/.test(await html(B)), 'paste: dangerous event handler stripped');
 
+  // ── A peer edits the block being composed in (#189) ──
+  const setBlock = (h) => page.evaluate((h) => {
+    const c = document.querySelector('#editorA .rune-content');
+    c.innerHTML = h;
+    c.dispatchEvent(new Event('input', { bubbles: true }));
+  }, h);
+  const caretA = (off) => page.evaluate((off) => {
+    const c = document.querySelector('#editorA .rune-content');
+    const t = c.querySelector('p').firstChild;
+    const r = document.createRange(); r.setStart(t, off); r.collapse(true);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r); c.focus();
+  }, off);
+  const peerEdit = (fn) => page.evaluate((fn) => {
+    const c = document.querySelector('#editorB .rune-content');
+    const t = c.querySelector('p').firstChild;
+    t.data = fn === 'before' ? 'PEER ' + t.data : t.data + ' PEER';
+    c.dispatchEvent(new Event('input', { bubbles: true }));
+  }, fn);
+  const plain = (h) => h.replace(/ data-id="[^"]*"/g, '');
+
+  await setBlock('<p>hello</p>'); await sleep(150);
+  await caretA(5);
+  await cdp.send('Input.imeSetComposition', { text: 'ni', selectionStart: 2, selectionEnd: 2 });
+  await sleep(40);
+  await peerEdit('before');
+  await sleep(100);
+  await cdp.send('Input.insertText', { text: '你' });
+  await sleep(200);
+  ok(plain(await html(A)) === '<p>PEER hello你</p>', `same block: a peer's text before the composition survives in A (got ${plain(await html(A))})`);
+  ok(plain(await html(B)) === '<p>PEER hello你</p>', `same block: and in B (got ${plain(await html(B))})`);
+  await page.keyboard.type('Z');
+  await sleep(150);
+  ok(plain(await html(B)) === '<p>PEER hello你Z</p>', `same block: typing continues after the composed text (got ${plain(await html(B))})`);
+
+  await setBlock('<p>hello</p>'); await sleep(150);
+  await caretA(2);
+  await cdp.send('Input.imeSetComposition', { text: 'ni', selectionStart: 2, selectionEnd: 2 });
+  await sleep(40);
+  await peerEdit('after');
+  await sleep(100);
+  await cdp.send('Input.insertText', { text: '你' });
+  await sleep(200);
+  ok(plain(await html(A)) === '<p>he你llo PEER</p>', `same block: a peer's text after the composition survives (got ${plain(await html(A))})`);
+  ok(plain(await html(B)) === '<p>he你llo PEER</p>', `same block: and in B (got ${plain(await html(B))})`);
+
+  await setBlock('<p>hello world</p>'); await sleep(150);
+  await page.evaluate(() => {
+    const c = document.querySelector('#editorA .rune-content');
+    const t = c.querySelector('p').firstChild;
+    const r = document.createRange(); r.setStart(t, 0); r.setEnd(t, 5);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r); c.focus();
+  });
+  await cdp.send('Input.imeSetComposition', { text: 'ni', selectionStart: 2, selectionEnd: 2 });
+  await sleep(40);
+  await peerEdit('after');
+  await sleep(100);
+  await cdp.send('Input.insertText', { text: '你' });
+  await sleep(200);
+  ok(plain(await html(B)) === '<p>你 world PEER</p>', `same block: composing over a selection replaces only it (got ${plain(await html(B))})`);
+
   // ── Line breaks (#187): real keys, because the DOM Chrome builds is the hard part ──
   const setA = (h) => page.evaluate((h) => {
     const c = document.querySelector('#editorA .rune-content');

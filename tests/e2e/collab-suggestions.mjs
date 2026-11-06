@@ -233,4 +233,5 @@ try {
 }
 
 console.log(fails.length ? `\n${fails.length} failure(s)` : '\nall suggestion checks passed');
+fails.forEach((f) => console.log('  - ' + f));
 process.exit(fails.length ? 1 : 0);

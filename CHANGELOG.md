@@ -24,7 +24,7 @@ Includes security fixes, so all users should upgrade.
 
 ### ⚠️ Changed
 
-- `engines.node` is now `>=20`. Node 18 is end of life and CI only covers 20 and 22
+- `engines.node` is now `>=20`, because Node 18 is end of life
 - The internal helpers `_isDangerousUrl`, `_safeColor` and `_isAllowedHref` are no longer exported from the package entry point
 - `editor.disable()` now blocks commands, not just typing. `cmd()` returns `false` while disabled, except for `focus`. `setHtml()` still works
 - An empty editor no longer seeds a blank paragraph into the shared document when it binds. `bindParagraph(editor, doc, { provider })` also holds back non-empty local content until the provider has synced

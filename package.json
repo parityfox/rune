@@ -78,7 +78,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm test",
-    "test:e2e": "node tests/e2e/collab-ime.mjs && node tests/e2e/collab-persistence.mjs && node tests/e2e/collab-suggestions.mjs && node tests/e2e/editor-input.mjs",
+    "test:e2e": "npm run build:demo && node tests/e2e/collab-ime.mjs && node tests/e2e/collab-persistence.mjs && node tests/e2e/collab-suggestions.mjs && node tests/e2e/editor-input.mjs",
     "collab-server": "node server/collab-server.mjs"
   },
   "devDependencies": {

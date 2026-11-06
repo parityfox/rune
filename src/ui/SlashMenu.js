@@ -17,7 +17,6 @@ export class SlashMenu {
     this._activeIndex = 0;
     this._query      = '';
     this._open       = false;
-    this._triggerRange = null;
     this._caretRect  = null;
 
     this._buildItems();
@@ -57,8 +56,6 @@ export class SlashMenu {
     // the capturing keydown listener and the bus subscriptions pin this SlashMenu
     // (and the whole editor it closes over) in memory across mount/unmount cycles.
     this._onSlashOpen = () => {
-      const sel = window.getSelection();
-      this._triggerRange = sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
       this._caretRect    = this._getCaretRect();
       this._query        = '';
       this._open         = true;
@@ -91,6 +88,7 @@ export class SlashMenu {
         return;
       }
       if (e.key === 'Enter') {
+        if (!this._filtered.length) { this._close(); return; }   // not a command: Enter is Enter
         e.preventDefault(); e.stopPropagation();
         this._select(this._filtered[this._activeIndex]);
         return;
@@ -102,14 +100,14 @@ export class SlashMenu {
       }
       if (e.key === 'Backspace') {
         if (this._query.length === 0) {
-          this._close();
-          document.execCommand('delete');
+          this._close();     // the browser's own Backspace removes the "/"
         } else {
           this._query = this._query.slice(0, -1);
           this._filter(this._query);
         }
         return;
       }
+      if (e.key === ' ' && !this._filtered.length) { this._close(); return; }
       if (e.key.length === 1) {
         this._query += e.key;
         this._filter(this._query);
@@ -201,22 +199,30 @@ export class SlashMenu {
   // ─── Select ──────────────────────────────────────────────────
   _select(item) {
     if (!item) return;
+    const query = this._query;     // _close() clears it
     this._close();
-    this._deleteSlashText();
+    this._deleteSlashText(query);
     item.action(this.editor);
   }
 
-  _deleteSlashText() {
-    if (!this._triggerRange) return;
-    try {
-      const sel = window.getSelection();
-      const range = sel.getRangeAt(0).cloneRange();
-      const offset = Math.max(0, this._triggerRange.startOffset - 1);
-      range.setStart(this._triggerRange.startContainer, offset);
-      range.deleteContents();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    } catch { /* ignore */ }
+  // Work back from the live caret: it is always just after "/query". A position
+  // saved when the menu opened is no use, because a caret on the block element
+  // rather than in its text doesn't move as text is typed.
+  _deleteSlashText(query) {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return;
+    const { startContainer: node, startOffset: end } = sel.getRangeAt(0);
+    if (node.nodeType !== 3) return;
+    const expected = end - query.length - 1;
+    const start = node.data[expected] === '/' ? expected : node.data.lastIndexOf('/', end - 1);
+    if (start < 0) return;
+    const range = document.createRange();
+    range.setStart(node, start);
+    range.setEnd(node, end);
+    range.deleteContents();
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
   }
 
   // ─── Show / hide ─────────────────────────────────────────────

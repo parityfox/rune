@@ -118,3 +118,18 @@ describe('Toolbar aria-pressed (#56)', () => {
     tb.destroy();
   });
 });
+
+describe('Toolbar roving tabindex after refresh (#157)', () => {
+  it('moves exactly one button per arrow press', async () => {
+    const make = (name) => ({ name, icon: name, title: name, action: name });
+    const toolbar = new Toolbar(mockEditorMulti([make('a'), make('b'), make('c'), make('d')]));
+    document.body.appendChild(toolbar.el);
+    toolbar.refresh();
+    toolbar.refresh();
+    const btns = [...toolbar.el.querySelectorAll('button')];
+    btns[0].focus();
+    btns[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(toolbar.el.querySelectorAll('button')[1]);
+    toolbar.el.remove();
+  });
+});

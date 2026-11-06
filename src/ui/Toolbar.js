@@ -29,6 +29,8 @@ export class Toolbar {
   _setupRovingTabindex() {
     const btns = () => [...this.el.querySelectorAll('button')];
     btns().forEach((b, i) => b.setAttribute('tabindex', i === 0 ? '0' : '-1'));
+    if (this._rovingBound) return;       // refresh() keeps this.el, so bind only once
+    this._rovingBound = true;
     this.el.addEventListener('keydown', (e) => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
       const list = btns();

@@ -114,12 +114,12 @@ Use an **import map** to resolve the bare specifier, served from a CDN that
 exposes ESM (e.g. [esm.sh](https://esm.sh)):
 
 ```html
-<link rel="stylesheet" href="https://esm.sh/@parityfox/rune-editor@1.2.2/styles/rune.css">
+<link rel="stylesheet" href="https://esm.sh/@parityfox/rune-editor@2.0.0/styles/rune.css">
 
 <div id="app"></div>
 
 <script type="importmap">
-{ "imports": { "@parityfox/rune-editor": "https://esm.sh/@parityfox/rune-editor@1.2.2" } }
+{ "imports": { "@parityfox/rune-editor": "https://esm.sh/@parityfox/rune-editor@2.0.0" } }
 </script>
 
 <script type="module">
@@ -133,7 +133,7 @@ exposes ESM (e.g. [esm.sh](https://esm.sh)):
 
 > **Use the full scoped name and pin the version.** The package is
 > `@parityfox/rune-editor` — always reference it in full (both the import-map key
-> and the URL) and include a version (`@1.2.2`). A bare/unscoped name like
+> and the URL) and include a version (`@2.0.0`). A bare/unscoped name like
 > `rune-editor` is a *different* (here, unregistered) package; loading it from a
 > CDN would run someone else's code in your users' browsers if they ever claim
 > that name. Pinning a version also stops a future publish from silently changing
@@ -262,7 +262,7 @@ Framework-agnostic — works in plain HTML, Angular, Vue, Svelte, etc.:
 
 Attributes: `content`, `placeholder`, `readonly`. With a CDN, point the
 `<script src>` at the full scoped, version-pinned URL
-`https://esm.sh/@parityfox/rune-editor@1.2.2/web-component`.
+`https://esm.sh/@parityfox/rune-editor@2.0.0/web-component`.
 
 ---
 

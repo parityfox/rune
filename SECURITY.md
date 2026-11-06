@@ -12,7 +12,8 @@ We actively maintain security fixes for the following versions:
 
 | Version | Supported |
 |---|---|
-| `1.x` (latest) | ✅ Yes |
+| `2.x` (latest) | ✅ Yes |
+| `1.x` | ✅ Yes |
 | `< 1.0` | ❌ No |
 
 We recommend always running the latest published version.

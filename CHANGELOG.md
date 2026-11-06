@@ -6,7 +6,21 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 
 ---
 
-## [Unreleased]
+## [2.0.0] — 2026-11-06
+
+Includes security fixes, so all users should upgrade.
+
+### ⬆️ Upgrading from 1.x
+
+- **Node:** Node 20 or newer is required
+- **`editor.disable()`:** `cmd()` and `chain()` now do nothing while disabled, and `cmd()` returns `false`, except for `focus`. `setHtml()` still works. If you ran commands on a disabled editor, call `enable()` first
+- **Removed exports:** `_isDangerousUrl`, `_safeColor` and `_isAllowedHref` are no longer exported from the package entry point
+- **Removed CSS class:** `.rune-dragging` no longer exists, so any styling of it needs to go
+- **Panel, table and find buttons:** these now act on `click`, not `mousedown`. Anything that fires `mousedown` at them from a script should use `click()`
+- **Collab with existing documents:** a raw newline in shared text now shows as a line break, where it used to show as a space
+- **Collab seeding:** an empty editor no longer seeds a blank paragraph when it binds. Pass `{ provider }` to `bindParagraph` to hold back non-empty local content until the room has synced
+- **Suggestion mode:** dragging text within the editor, and input types that can't be tracked, are now blocked
+- **`authorize()`:** if you are upgrading from before 1.2.2, it only grants access for `true`, `'write'` and `'read'`
 
 ### ⚠️ Changed
 

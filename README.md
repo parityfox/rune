@@ -370,6 +370,8 @@ editor.events.on('paste',           ({ editor }) => { … })
 | `⌘Z` | `Ctrl+Z` | Undo |
 | `⌘⇧Z` | `Ctrl+Shift+Z` | Redo |
 | `⌘F` | `Ctrl+F` | Find & Replace |
+| `⌥F10` | `Alt+F10` | In a table: move to the table toolbar (`Esc` returns) |
+| `⇧F10` | `Shift+F10` or Menu key | In a table: open the table menu |
 | `/` | `/` | Slash command menu |
 
 ---

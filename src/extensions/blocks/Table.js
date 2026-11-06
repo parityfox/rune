@@ -11,9 +11,28 @@ export const Table = {
 
   commands(editor) {
     let _ctxMenu = null;
+    let _uiCell = null;    // cell the focused bar or menu acts on
+    let _uiCaret = null;   // caret to return to when focus leaves them
 
-    // ── Tab navigation ──────────────────────────────────────────
+    // ── Keyboard ────────────────────────────────────────────────
     const _onKeydown = ({ event: e }) => {
+      if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
+        const cell = _getCursorCell();
+        if (!cell || editor._disabled) return;
+        e.preventDefault();
+        const r = cell.getBoundingClientRect();
+        _showCtxMenu(cell, r.left, r.bottom, true);
+        return;
+      }
+      if (e.key === 'F10' && e.altKey) {
+        const cell = _getCursorCell();
+        if (!cell || editor._disabled) return;
+        e.preventDefault();
+        _rememberCaret(cell);
+        _refresh();
+        _barButtons()[0].focus();
+        return;
+      }
       if (e.key !== 'Tab') return;
       const cell = _getCursorCell();
       if (!cell) return;
@@ -39,9 +58,9 @@ export const Table = {
     // ── Context menu ────────────────────────────────────────────
     const _onContextMenu = (e) => {
       const cell = e.target.closest?.('table.rune-table th, table.rune-table td');
-      if (!cell) return;
+      if (!cell || editor._disabled) return;
       e.preventDefault();
-      _showCtxMenu(cell, e.clientX, e.clientY);
+      _showCtxMenu(cell, e.clientX, e.clientY, false);
     };
     editor.content.addEventListener('contextmenu', _onContextMenu);
 
@@ -97,9 +116,11 @@ export const Table = {
     window.addEventListener('resize', _reposition);
 
     function _refresh() {
-      const caretTable = _getCursorCell()?.closest('table.rune-table') || null;
+      // The bar must not vanish from under its own focus, which can lose the selection.
+      const activeCell = _getCursorCell() || (bar.contains(document.activeElement) ? _uiCell : null);
+      const caretTable = editor._disabled ? null : activeCell?.closest('table.rune-table') || null;
       const plusTable = (caretTable && editor.content.contains(caretTable)) ? caretTable
-        : (_hoverTable && editor.content.contains(_hoverTable)) ? _hoverTable
+        : (!editor._disabled && _hoverTable && editor.content.contains(_hoverTable)) ? _hoverTable
         : null;
 
       if (plusTable) {
@@ -160,6 +181,14 @@ export const Table = {
         _focusCell(table.querySelector('th, td'));
         editor._notifyChange();
       },
+
+      insertRowBefore:    () => _actOnCaretCell((c) => _insertRow(c, 'before')),
+      insertRowAfter:     () => _actOnCaretCell((c) => _insertRow(c, 'after')),
+      insertColumnBefore: () => _actOnCaretCell((c) => _insertCol(c, 'before')),
+      insertColumnAfter:  () => _actOnCaretCell((c) => _insertCol(c, 'after')),
+      deleteRow:          () => _actOnCaretCell(_deleteRow),
+      deleteColumn:       () => _actOnCaretCell(_deleteCol),
+      deleteTable:        () => _actOnCaretCell(_deleteTable),
     };
 
     // ── Private helpers (hoisted) ───────────────────────────────
@@ -170,6 +199,48 @@ export const Table = {
       let node = sel.getRangeAt(0).commonAncestorContainer;
       if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
       return node?.closest?.('table.rune-table th, table.rune-table td') || null;
+    }
+
+    function _actOnCaretCell(fn) {
+      const cell = _getCursorCell();
+      if (!cell) return false;
+      _run(fn, cell);
+    }
+
+    function _rememberCaret(cell) {
+      const sel = window.getSelection();
+      _uiCell = cell;
+      _uiCaret = sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    }
+
+    function _returnToCell(cell) {
+      editor.content.focus();
+      if (_uiCaret && cell.contains(_uiCaret.startContainer)) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(_uiCaret);
+      } else {
+        _focusCell(cell);
+      }
+    }
+
+    // Every table action goes through here. fn returns the cell to continue in when
+    // it removes the current one, so the caret is never left on a removed node.
+    function _run(fn, cell) {
+      if (editor._disabled || !cell?.isConnected) return;
+      const fromUi = bar.contains(document.activeElement) || !!_ctxMenu?.contains(document.activeElement);
+      const next = fn(cell);
+      if (cell.isConnected) {
+        if (fromUi) _returnToCell(cell);
+      } else {
+        editor.content.focus();
+        if (next) _focusCell(next);
+      }
+      _refresh();
+    }
+
+    function _barButtons() {
+      return [...bar.querySelectorAll('button')];
     }
 
     function _focusCell(cell) {
@@ -241,12 +312,10 @@ export const Table = {
     function _makeBar() {
       const bar = el('div', { class: 'rune-table-bar', role: 'toolbar', 'aria-label': 'Table controls' });
       const add = (label, title, fn, danger) => {
-        const btn = el('button', { class: 'rune-table-bar-btn' + (danger ? ' is-danger' : ''), type: 'button', title }, label);
-        btn.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          const cell = _getCursorCell();
-          if (cell) { fn(cell); _refresh(); }
-        });
+        const btn = el('button', {
+          class: 'rune-table-bar-btn' + (danger ? ' is-danger' : ''), type: 'button', title, 'aria-label': title, tabindex: '-1',
+        }, label);
+        onActivate(btn, () => _run(fn, _getCursorCell() || _uiCell));
         return btn;
       };
       bar.append(
@@ -258,6 +327,26 @@ export const Table = {
         el('span', { class: 'rune-table-bar-sep' }),
         add('✕', 'Delete table', (c) => _deleteTable(c), true),
       );
+      // WAI-ARIA toolbar pattern: one tab stop, arrow keys between buttons.
+      const buttons = [...bar.querySelectorAll('button')];
+      buttons[0].setAttribute('tabindex', '0');
+      bar.addEventListener('focusin', (e) => {
+        if (e.target.tagName !== 'BUTTON') return;
+        for (const b of buttons) b.setAttribute('tabindex', b === e.target ? '0' : '-1');
+      });
+      bar.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' || e.key === 'Tab') {
+          e.preventDefault();
+          if (_uiCell?.isConnected) _returnToCell(_uiCell);
+          else editor.content.focus();
+          return;
+        }
+        const i = buttons.indexOf(document.activeElement);
+        const to = { ArrowRight: (i + 1) % buttons.length, ArrowLeft: (i - 1 + buttons.length) % buttons.length, Home: 0, End: buttons.length - 1 }[e.key];
+        if (to === undefined) return;
+        e.preventDefault();
+        buttons[to].focus();
+      });
       return bar;
     }
 
@@ -296,10 +385,14 @@ export const Table = {
       _ctxMenu = null;
     }
 
-    function _showCtxMenu(cell, x, y) {
+    function _showCtxMenu(cell, x, y, fromKeyboard) {
       _closeCtxMenu();
+      _rememberCaret(cell);
       const menu = document.createElement('div');
       menu.className = 'rune-table-menu';
+      menu.setAttribute('role', 'menu');
+      menu.setAttribute('aria-label', 'Table actions');
+      menu.tabIndex = -1;
 
       const items = [
         { label: 'Insert row above',   fn: () => _insertRow(cell, 'before') },
@@ -318,6 +411,7 @@ export const Table = {
         if (item === null) {
           const div = document.createElement('div');
           div.className = 'rune-table-menu-divider';
+          div.setAttribute('role', 'separator');
           menu.appendChild(div);
           continue;
         }
@@ -325,13 +419,34 @@ export const Table = {
         btn.className = 'rune-table-menu-item' + (item.danger ? ' is-danger' : '');
         btn.type = 'button';
         btn.textContent = item.label;
-        btn.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          item.fn();
+        btn.setAttribute('role', 'menuitem');
+        btn.tabIndex = -1;
+        onActivate(btn, () => {
+          _run(item.fn, cell);
           _closeCtxMenu();
         });
         menu.appendChild(btn);
       }
+
+      menu.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' || e.key === 'Tab') {
+          e.preventDefault();
+          _closeCtxMenu();
+          if (cell.isConnected) _returnToCell(cell);
+          return;
+        }
+        const list = [...menu.querySelectorAll('button')];
+        const i = list.indexOf(document.activeElement);
+        const to = {
+          ArrowDown: (i + 1) % list.length,
+          ArrowUp: i <= 0 ? list.length - 1 : i - 1,
+          Home: 0,
+          End: list.length - 1,
+        }[e.key];
+        if (to === undefined) return;
+        e.preventDefault();
+        list[to].focus();
+      });
 
       document.body.appendChild(menu);
       _ctxMenu = menu;
@@ -347,6 +462,9 @@ export const Table = {
         menu.style.left = `${left}px`;
         menu.style.top  = `${top}px`;
         menu.classList.add('is-open');
+        if (_ctxMenu !== menu) return;     // already closed
+        // From a right click, focus only the menu, so no item looks chosen until an arrow key.
+        (fromKeyboard ? menu.querySelector('button') : menu).focus();
       });
     }
 
@@ -387,9 +505,11 @@ export const Table = {
     function _deleteRow(cell) {
       const table = cell.closest('table');
       const allRows = [...table.querySelectorAll('tr')];
-      if (allRows.length <= 1) { _deleteTable(cell); return; }
+      if (allRows.length <= 1) return _deleteTable(cell);
       editor.history.saveNow();
       const tr = cell.closest('tr');
+      const rowIdx = allRows.indexOf(tr);
+      const colIdx = [...tr.children].indexOf(cell);
       const inHead = !!tr.closest('thead');
       tr.remove();
       // Removing the header row would leave an empty <thead> and make the first
@@ -414,29 +534,44 @@ export const Table = {
         }
       }
       editor._notifyChange();
+      const rows = [...table.querySelectorAll('tr')];
+      const nextRow = rows[Math.min(rowIdx, rows.length - 1)];
+      return nextRow.children[Math.min(colIdx, nextRow.children.length - 1)];
     }
 
     function _deleteCol(cell) {
       const table    = cell.closest('table');
       const row      = cell.closest('tr');
       const rowCells = [...row.querySelectorAll('th, td')];
-      if (rowCells.length <= 1) { _deleteTable(cell); return; }
+      if (rowCells.length <= 1) return _deleteTable(cell);
       const colIdx = rowCells.indexOf(cell);
       editor.history.saveNow();
       [...table.querySelectorAll('tr')].forEach(tr => {
         [...tr.querySelectorAll('th, td')][colIdx]?.remove();
       });
       editor._notifyChange();
+      return row.children[Math.min(colIdx, row.children.length - 1)];
     }
 
     function _deleteTable(cell) {
       editor.history.saveNow();
-      const table = cell.closest('table');
-      const prev  = table.previousElementSibling;
+      const table  = cell.closest('table');
+      const parent = table.parentNode;
+      const prev   = table.previousElementSibling;
+      const next   = table.nextElementSibling;
       table.remove();
-      if (editor.content.children.length === 0) editor._ensureContent();
+      if (editor.content.children.length === 0) {
+        editor._ensureContent();
+      } else if (parent !== editor.content && parent.children.length === 0) {
+        // A toggle body or column must keep an editable block.
+        const p = document.createElement('p');
+        p.innerHTML = '<br>';
+        parent.appendChild(p);
+      }
       if (prev) editor.selection.setAtEnd(prev);
+      else editor.selection.setAtStart(next || parent.firstElementChild);
       editor._notifyChange();
+      return null;
     }
   },
 

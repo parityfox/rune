@@ -311,6 +311,109 @@ try {
   await page.keyboard.press('Escape');
   await sleep(200);
 
+  // ── Table controls from the keyboard ───────────────────────
+  const tableFresh = async () => {
+    await fresh('<p>before</p>');
+    await page.evaluate(() => {
+      const p = window.ed.content.querySelector('p');
+      const r = document.createRange(); r.selectNodeContents(p); r.collapse(false);
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      window.ed.cmd('insertTable', 3, 3);
+    });
+    await sleep(60);
+    await page.click('#t tbody tr:first-child td:nth-child(2)');
+    await page.keyboard.type('here');
+    await sleep(60);
+  };
+  const tableShape = () => page.evaluate(() => {
+    const rows = [...window.ed.content.querySelectorAll('table tr')];
+    return rows.length ? `${rows.length}x${rows[0].children.length}` : 'none';
+  });
+  const inEditor = () => page.evaluate(() => window.ed.content.contains(document.activeElement));
+  const caretInTable = () => page.evaluate(() => {
+    const n = getSelection().anchorNode;
+    return !!(n?.nodeType === 1 ? n : n?.parentElement)?.closest?.('td, th');
+  });
+  const barFocus = () => page.evaluate(() => document.activeElement?.title || '');
+
+  await tableFresh();
+  await page.keyboard.press('Alt+F10');
+  await sleep(40);
+  ok((await barFocus()) === 'Insert column right', `table: Alt+F10 reaches the bar (got "${await barFocus()}")`);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  ok((await barFocus()) === 'Insert row below', `table: arrow keys move along the bar (got "${await barFocus()}")`);
+  await page.keyboard.press('Enter');
+  await sleep(60);
+  ok((await tableShape()) === '4x3', `table: Enter on Row + adds a row (got ${await tableShape()})`);
+  ok(await inEditor(), 'table: focus returns to the editor after a bar action');
+  await page.keyboard.type('!');
+  ok((await page.evaluate(() => window.ed.content.querySelector('tbody tr:first-child td:nth-child(2)').textContent)).includes('!'), 'table: typing continues in the same cell');
+
+  await tableFresh();
+  await page.keyboard.press('Alt+F10');
+  await page.keyboard.press('Escape');
+  await sleep(40);
+  await page.keyboard.type('Z');
+  ok((await page.evaluate(() => window.ed.content.querySelector('tbody tr:first-child td:nth-child(2)').textContent)) === 'hereZ', 'table: Escape returns to the same caret position');
+
+  await tableFresh();
+  await page.keyboard.press('Alt+F10');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Space');
+  await sleep(60);
+  ok((await tableShape()) === '2x3', `table: Space on Row - deletes a row (got ${await tableShape()})`);
+  ok(await inEditor() && await caretInTable(), 'table: caret stays in the table after deleting a row');
+
+  await tableFresh();
+  await page.keyboard.press('Alt+F10');
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await sleep(60);
+  ok((await tableShape()) === 'none', 'table: Delete table works from the bar');
+  ok(await inEditor(), 'table: focus returns to the editor after deleting the table');
+  await page.keyboard.type('Q');
+  ok((await text()).includes('Q'), 'table: typing continues after deleting the table');
+
+  for (const [label, combo] of [['Shift+F10', 'Shift+F10'], ['the Menu key', 'ContextMenu']]) {
+    await tableFresh();
+    await page.keyboard.press(combo);
+    await sleep(60);
+    ok(await page.evaluate(() => document.activeElement?.textContent === 'Insert row above'), `table: ${label} opens the menu on its first item`);
+    await page.keyboard.press('ArrowDown');
+    ok(await page.evaluate(() => document.activeElement?.textContent === 'Insert row below'), `table: arrow keys move through the menu after ${label}`);
+    await page.keyboard.press('Escape');
+    await sleep(40);
+    ok(await page.evaluate(() => !document.querySelector('.rune-table-menu')) && await inEditor(), `table: Escape closes the menu after ${label}`);
+  }
+
+  await tableFresh();
+  await page.keyboard.press('Shift+F10');
+  await sleep(60);
+  await page.keyboard.press('End');
+  await page.keyboard.press('ArrowUp');       // Delete column
+  await page.keyboard.press('Enter');
+  await sleep(60);
+  ok((await tableShape()) === '3x2', `table: Enter on a menu item acts (got ${await tableShape()})`);
+  ok(await inEditor() && await caretInTable(), 'table: caret stays in the table after a menu delete');
+
+  await tableFresh();
+  await page.click('#t tbody tr:first-child td:nth-child(2)', { button: 'right' });
+  await sleep(60);
+  const rightClick = await page.evaluate(() => {
+    const m = document.querySelector('.rune-table-menu');
+    return { open: !!m, opaque: m && getComputedStyle(m).pointerEvents };
+  });
+  ok(rightClick.open, 'table: a right click still opens the menu');
+  await page.click('.rune-table-menu-item:has-text("Insert row below")');
+  await sleep(60);
+  ok((await tableShape()) === '4x3', `table: a mouse click on a menu item acts once (got ${await tableShape()})`);
+  await page.click('.rune-table-bar-btn[title="Insert row below"]');
+  await sleep(60);
+  ok((await tableShape()) === '5x3', `table: a mouse click on the bar acts once (got ${await tableShape()})`);
+
   // ── Drag and drop ──────────────────────────────────────────
   // Headless Chrome won't start a native text drag (not even on a plain
   // contenteditable), so this drives the events with a real DataTransfer: the token

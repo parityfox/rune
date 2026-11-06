@@ -1103,6 +1103,8 @@ thead .rune-table-cell {
   transition: opacity 120ms ease, transform 120ms ease;
   pointer-events: none;
 }
+.rune-table-menu:focus { outline: none; }
+.rune-table-menu-item:focus-visible { background: var(--rune-color-hover); outline: none; }
 .rune-table-menu.is-open {
   opacity: 1;
   transform: scale(1) translateY(0);
@@ -1178,7 +1180,8 @@ thead .rune-table-cell {
   white-space: nowrap;
   transition: background 80ms;
 }
-.rune-table-bar-btn:hover            { background: var(--rune-color-hover); }
+.rune-table-bar-btn:hover,
+.rune-table-bar-btn:focus-visible    { background: var(--rune-color-hover); }
 .rune-table-bar-btn.is-danger        { color: #e03e3e; }
 .rune-table-bar-btn.is-danger:hover  { background: #fde8e3; }
 .rune-table-bar-sep {

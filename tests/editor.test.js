@@ -841,7 +841,7 @@ describe('Editor', () => {
 
       const bar = document.querySelector('.rune-table-bar');
       const colPlus = [...bar.querySelectorAll('.rune-table-bar-btn')].find(b => b.textContent === 'Col +');
-      colPlus.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      colPlus.click();
       expect(editor.content.querySelectorAll('table.rune-table thead th').length).toBe(4);
     });
   });

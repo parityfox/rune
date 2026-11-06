@@ -214,6 +214,8 @@ editor.setJSON(doc)     // ← replace content from JSON
 editor.print()          // → opens clean print dialog
 ```
 
+`getJSON()` sanitizes table, callout, image and other complex blocks each time it runs, so debounce it if you call it from `onChange` on very large documents. As a guide, 1000 tables take about 27 ms per call on a desktop browser.
+
 Markdown-looking text is also converted automatically on paste (disable with
 `pasteMarkdown: false`). `markdownToHtml(md)` is exported for DOM-free use, and
 `jsonToHtml(doc)` renders a JSON document to HTML with **no DOM** — so you can

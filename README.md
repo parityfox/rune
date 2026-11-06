@@ -587,7 +587,10 @@ rune/
 │   │   ├── Commands.js        ← command registry + chainable API
 │   │   ├── EventBus.js        ← pub/sub
 │   │   ├── History.js         ← undo/redo
-│   │   └── Selection.js       ← caret/selection helpers
+│   │   ├── Selection.js       ← caret/selection helpers
+│   │   ├── InputRules.js      ← input and paste rules
+│   │   ├── Decorations.js     ← overlay decorations
+│   │   └── ExtensionRegistry.js ← dependency and conflict resolution
 │   ├── extensions/
 │   │   ├── blocks/            ← Paragraph, Heading, BulletList, …
 │   │   ├── marks/             ← Bold, Italic, Link, FontSize, …
@@ -601,10 +604,14 @@ rune/
 │   │   ├── dom.js
 │   │   ├── html.js            ← sanitize, normalizeHtml
 │   │   ├── id.js
-│   │   └── markdown.js        ← HTML → Markdown converter
+│   │   ├── markdown.js        ← HTML → Markdown converter
+│   │   ├── markdownToHtml.js  ← Markdown → HTML parser
+│   │   └── json.js            ← HTML ⇄ JSON document model
 │   └── createFromConfig.js    ← factory for rune.config.js
 ├── adapters/
 │   ├── react/                 ← useRune hook + RuneEditor component
+│   ├── vue/                   ← useRune composable + RuneEditor component
+│   ├── svelte/                ← rune action
 │   └── web-component/         ← <rune-editor> custom element
 ├── collab/                    ← collaborative editing (Yjs) — see docs/
 │   ├── provider.js            ← WebSocketProvider (networked transport)
@@ -622,7 +629,8 @@ rune/
 │   └── rune.css
 ├── examples/
 │   ├── index.html
-│   └── collab.html            ← two-pane collaboration demo
+│   ├── collab.html            ← two-pane collaboration demo
+│   └── playground.html        ← config-driven playground
 ├── tests/                     ← Vitest unit + tests/e2e (Playwright)
 ├── rune.config.js             ← feature flags (edit this!)
 └── package.json

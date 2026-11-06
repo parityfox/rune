@@ -6,6 +6,104 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 
 ---
 
+## [Unreleased]
+
+### ⚠️ Changed
+
+- `engines.node` is now `>=20`. Node 18 is end of life and CI only covers 20 and 22
+- The internal helpers `_isDangerousUrl`, `_safeColor` and `_isAllowedHref` are no longer exported from the package entry point
+- `editor.disable()` now blocks commands, not just typing. `cmd()` returns `false` while disabled, except for `focus`. `setHtml()` still works
+- An empty editor no longer seeds a blank paragraph into the shared document when it binds. `bindParagraph(editor, doc, { provider })` also holds back non-empty local content until the provider has synced
+
+### ✨ Added
+
+- `editor.listen(target, type, fn, options)` adds a listener that detaches on destroy
+- The `drop` event now carries `files` from the data transfer
+- `npm run test:e2e` now includes real-browser checks for slash commands, paste, Backspace, formatting and drop
+
+### 🐛 Fixed
+
+- Pasting text with a fence such as ` ```c++ ` no longer hangs the page (#132)
+- Block commands no longer throw inside toggles and columns, and new blocks stay inside them (#133, #145)
+- Backspace in an empty table cell or image caption no longer deletes the table or image (#134)
+- Plain-text paste is inserted literally and keeps its line breaks (#135)
+- Collab: `setHtml`, undo and redo, and direct-DOM commands now reach peers (#136)
+- Collab: IME text commits to the block it was composed in when a peer inserts above it (#137)
+- Collab: joining a room no longer adds a blank paragraph (#138)
+- Collab: suggestions and comments no longer throw when the document contains an image (#150)
+- Collab: a malformed peer cursor or text-less block no longer stops rendering for others (#151, #170)
+- Slash menu: picking an item removes only `/query`, Backspace removes one character, and Enter works when nothing matches (#142)
+- Unwrapping a nested list no longer duplicates items, and nested lists survive `getJSON()`/`setJSON()` (#143, #144)
+- Inline code no longer throws when a selection crosses a bold or link boundary (#146)
+- Undo returns the caret to where it was, including an empty paragraph (#148)
+- External drops land at the drop point, and file-only drops no longer fire `change` (#149)
+- Vue `<RuneEditor>` applies `content` prop changes (#152)
+- `_safeColor` accepts angle units and `oklch`, `oklab`, `lab`, `lch` and `hwb` colors (#155)
+- Markdown: h4 to h6 export, longer fences, multi-backtick code spans and backslash escapes round trip. Emphasis no longer applies inside code spans (#156)
+- Toolbar arrow keys no longer skip buttons after a refresh (#157)
+- Text color and font "Default" change only the selection and keep other formatting (#158, #159)
+- `createFromConfig` keeps toolbar items for extensions enabled by default, and honours `clearFormat: false` (#160)
+- Formatting, paste and indent fire one `change` per edit, and paste no longer triggers input rules (#161)
+- `chain()` calls can be chained past the first command and no longer hang when awaited (#162)
+- `setHtml(undefined)` no longer renders the word "undefined" (#163)
+- `decorations.add()` rejects malformed points up front (#164)
+- Extensions detach their listeners and timers on destroy (#165)
+- `htmlToJson` no longer emits empty nodes for stripped elements (#167)
+- `persistLocally` no longer causes an unhandled rejection when IndexedDB is blocked (#168)
+- `<rune-editor>` no longer shows its light DOM next to the editor (#171)
+
+### 🔒 Security
+
+- The shared sanitizer now applies the link scheme allowlist, so `file:`, `ms-msdt:` and `data:` links no longer survive paste or `setHtml` (#140)
+- A drag that never received `dragend` can no longer route a hostile drop around the sanitizer (#141)
+- Collab server: a connection reset during an async `authorize()` no longer crashes the process (#139)
+- Collab: a peer's callout color can no longer inject class names (#153)
+- Inline styles: CSS escapes, `image-set()`, `image()` and `src()` can no longer carry tracking-pixel requests (#166)
+- Bumped dev dependencies to clear Dependabot alerts: `happy-dom`, `vitest`, `vite`, `postcss` and `source-map-js`. These are not shipped
+
+---
+
+## [1.2.2] — 2026-07-07
+
+Security release. All 1.x users should upgrade.
+
+### ⚠️ Changed
+
+- Collab server `authorize()` now fails closed. Only `true`, `'write'` and `'read'` grant access, so a hook returning a truthy object such as decoded JWT claims now gets `401`. See [the server docs](docs/collaboration-server.md#authentication) (#124)
+
+### 🔒 Security
+
+- Sanitized dropped content through the paste pipeline (XSS) (#122)
+- Sanitized the `jsonToHtml` HTML passthrough (XSS), and made `jsonToHtml` and `markdownToHtml` output safe standalone (#100)
+- Re-sanitized paste-rule output so rules can't bypass the sanitizer (#106)
+- Validated link hrefs with a scheme allowlist across render sinks (#108)
+- Sanitized peer colors before they reach styles, the presence roster and suggestion marks (#99)
+- Added a WebSocket Origin allowlist against cross-site hijacking (#101)
+- Added a read-only capability to `authorize()` (#102)
+- Added a heartbeat for half-open connections, connection caps, and bounds on broadcast field sizes (#103, #104)
+- Handled socket errors so a reset can't crash the server (#105)
+- Rejected `..` room names and re-validated rooms in `setupWSConnection` (#109)
+
+### 🐛 Fixed
+
+- Native drag-to-move inside the editor works again (#129)
+- `<rune-editor>` no longer leaks mount divs or loses edits on DOM moves
+- The content binding is live in the React, Vue and Svelte adapters (#117)
+- Table, Callout and TaskList insert relative to the caret block's parent
+- Selection restore clamps stale offsets, and decorations whose anchor is gone are pruned
+- Input rules skip `pre` and `code`
+- Table detaches its listeners on destroy
+
+---
+
+## [1.2.1] — 2026-06-17
+
+### 📝 Docs
+
+- Updated the homepage URL to `https://runeditor.com`
+
+---
+
 ## [1.2.0] — 2026-06-15
 
 ### ✨ Added

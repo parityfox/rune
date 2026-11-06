@@ -22,7 +22,7 @@ for enabling [collaborative editing](./collaboration.md).
 
 - **A modern browser** with `contenteditable` (all evergreen browsers).
 - **ES Modules.** Rune is ESM-only (`"type": "module"`). Use it with a bundler,
-  native browser modules, or Node ≥ 18 ESM.
+  native browser modules, or Node ≥ 20 ESM.
 - **No runtime dependencies** for the core editor — it's dependency-free.
 - A **bundler is recommended** but not required (see [no-bundler](#plain-html--no-bundler)).
 
@@ -114,12 +114,12 @@ Use an **import map** to resolve the bare specifier, served from a CDN that
 exposes ESM (e.g. [esm.sh](https://esm.sh)):
 
 ```html
-<link rel="stylesheet" href="https://esm.sh/@parityfox/rune-editor@1.1.0/styles/rune.css">
+<link rel="stylesheet" href="https://esm.sh/@parityfox/rune-editor@1.2.2/styles/rune.css">
 
 <div id="app"></div>
 
 <script type="importmap">
-{ "imports": { "@parityfox/rune-editor": "https://esm.sh/@parityfox/rune-editor@1.1.0" } }
+{ "imports": { "@parityfox/rune-editor": "https://esm.sh/@parityfox/rune-editor@1.2.2" } }
 </script>
 
 <script type="module">
@@ -133,7 +133,7 @@ exposes ESM (e.g. [esm.sh](https://esm.sh)):
 
 > **Use the full scoped name and pin the version.** The package is
 > `@parityfox/rune-editor` — always reference it in full (both the import-map key
-> and the URL) and include a version (`@1.1.0`). A bare/unscoped name like
+> and the URL) and include a version (`@1.2.2`). A bare/unscoped name like
 > `rune-editor` is a *different* (here, unregistered) package; loading it from a
 > CDN would run someone else's code in your users' browsers if they ever claim
 > that name. Pinning a version also stops a future publish from silently changing
@@ -262,7 +262,7 @@ Framework-agnostic — works in plain HTML, Angular, Vue, Svelte, etc.:
 
 Attributes: `content`, `placeholder`, `readonly`. With a CDN, point the
 `<script src>` at the full scoped, version-pinned URL
-`https://esm.sh/@parityfox/rune-editor@1.1.0/web-component`.
+`https://esm.sh/@parityfox/rune-editor@1.2.2/web-component`.
 
 ---
 
@@ -308,7 +308,7 @@ import { bindPresence }       from '@parityfox/rune-editor/collab/presence.js';
 
 const doc = new Y.Doc();
 const provider = new WebSocketProvider('ws://localhost:1234', 'my-doc', doc);
-bindParagraphSpike(editor, doc);
+bindParagraphSpike(editor, doc, { provider });
 bindPresence(editor, doc, provider.awareness, { name: 'Alice', color: '#2563eb' });
 ```
 

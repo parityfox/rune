@@ -86,15 +86,99 @@ describe('DragReorder', () => {
     expect(document.body.style.cursor).toBe('');
   });
 
-  it('marks the dragged block only during the drag', async () => {
+  describe('the drag class stays out of the document (#190)', () => {
+    const dirty = (html) => /rune-dragging|class=""/.test(html);
+
+    it('is not in the onChange value', async () => {
+      const seen = [];
+      editor.options.onChange = (html) => seen.push(html);
+      await drag(0, 180);
+      expect(seen.length).toBe(1);
+      expect(dirty(seen[0])).toBe(false);
+    });
+
+    it('is not in the change event', async () => {
+      const seen = [];
+      editor.events.on('change', ({ html }) => seen.push(html));
+      await drag(0, 180);
+      expect(dirty(seen[0])).toBe(false);
+    });
+
+    it('is not in getHtml after the drag', async () => {
+      await drag(0, 180);
+      expect(dirty(editor.getHtml())).toBe(false);
+    });
+
+    it('does not come back with undo or redo', async () => {
+      await drag(0, 180);
+      editor.history.undo();
+      expect(order()).toBe('one,two,three');
+      expect(dirty(editor.getHtml())).toBe(false);
+      editor.history.redo();
+      expect(order()).toBe('two,one,three');
+      expect(dirty(editor.getHtml())).toBe(false);
+    });
+
+    it('leaves a cancelled drag clean', async () => {
+      await drag(0, 180, 'pointercancel');
+      expect(dirty(editor.getHtml())).toBe(false);
+    });
+
+    it('leaves a drag dropped back in place clean', async () => {
+      await drag(0, 27);
+      hover(0);
+      pointer(handle, 'pointerdown', { clientY: 25 });
+      pointer(handle, 'pointermove', { clientY: 40 });
+      await frame();
+      pointer(handle, 'pointerup', { clientY: 40 });
+      expect(dirty(editor.getHtml())).toBe(false);
+    });
+
+    it('keeps a class the block already had', async () => {
+      const block = editor.content.children[0];
+      block.className = 'mine';
+      await drag(0, 180);
+      expect(block.className).toBe('mine');
+    });
+  });
+
+  it('a change that lands during a drag does not save the class', async () => {
+    const seen = [];
+    editor.options.onChange = (html) => seen.push(html);
     hover(0);
-    const block = editor.content.children[0];
     pointer(handle, 'pointerdown', { clientY: 25 });
     pointer(handle, 'pointermove', { clientY: 180 });
     await frame();
-    expect(block.classList.contains('rune-dragging')).toBe(true);
+    editor._notifyChange();
     pointer(handle, 'pointerup', { clientY: 180 });
-    expect(block.classList.contains('rune-dragging')).toBe(false);
+    expect(seen.every((h) => !/rune-dragging/.test(h))).toBe(true);
+  });
+
+  it('dims the dragged block only during the drag, without touching its attributes', async () => {
+    hover(0);
+    const block = editor.content.children[0];
+    let cancelled = 0;
+    block.animate = () => ({ cancel: () => { cancelled++; } });
+    const before = block.outerHTML;
+    pointer(handle, 'pointerdown', { clientY: 25 });
+    pointer(handle, 'pointermove', { clientY: 180 });
+    await frame();
+    expect(block.outerHTML).toBe(before);
+    expect(cancelled).toBe(0);
+    pointer(handle, 'pointerup', { clientY: 180 });
+    expect(cancelled).toBe(1);
+  });
+
+  it('stops dimming if destroyed mid-drag', async () => {
+    hover(0);
+    const block = editor.content.children[0];
+    let cancelled = 0;
+    block.animate = () => ({ cancel: () => { cancelled++; } });
+    pointer(handle, 'pointerdown', { clientY: 25 });
+    pointer(handle, 'pointermove', { clientY: 180 });
+    await frame();
+    editor.destroy();
+    expect(cancelled).toBe(1);
   });
 
   it('restores page styles if destroyed mid-drag', () => {

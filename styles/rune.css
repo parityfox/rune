@@ -1354,10 +1354,6 @@ thead .rune-table-cell {
   background: var(--rune-color-accent);
 }
 
-.rune-dragging {
-  opacity: 0.35 !important;
-}
-
 /* ── Format Painter ────────────────────────────────────────── */
 
 .rune-content.rune-painter-active,

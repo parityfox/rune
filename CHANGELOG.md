@@ -57,6 +57,7 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 - `<rune-editor>` no longer shows its light DOM next to the editor (#171)
 - Background color "Default" and `clearFontSize` work when the selection is inside a styled span, and clearing one style no longer drops a span's other styles (#183)
 - Drag-to-reorder no longer moves blocks on a disabled editor or a cancelled gesture, and destroying mid-drag restores page styles
+- Dragging a block no longer puts a `rune-dragging` class or empty `class` attribute into `onChange` HTML, history or `getHtml()`. The `.rune-dragging` CSS class is gone, since the dimming no longer uses it (#190)
 - The bubble menu stays hidden on a disabled editor and stops reacting after destroy
 - Find and replace buttons work from the keyboard, Escape closes from anywhere in the panel, focus returns to the editor on close, and destroying the editor removes the panel (#185)
 - Replace and Replace all no longer change a disabled editor

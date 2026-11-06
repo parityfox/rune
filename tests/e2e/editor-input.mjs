@@ -414,6 +414,44 @@ try {
   await sleep(60);
   ok((await tableShape()) === '5x3', `table: a mouse click on the bar acts once (got ${await tableShape()})`);
 
+  // ── Dragging a block by its handle (#190): pointer events do run in headless ──
+  await fresh('<p>first</p><p>second</p><p>third</p>');
+  await page.evaluate(() => {
+    window.seen = [];
+    window.ed.options.onChange = (html) => window.seen.push(html);
+  });
+  const firstBlock = await page.locator('#t .rune-content p').first().boundingBox();
+  const lastBlock = await page.locator('#t .rune-content p').last().boundingBox();
+  await page.mouse.move(firstBlock.x + 40, firstBlock.y + firstBlock.height / 2);
+  await sleep(60);
+  const grip = await page.locator('.rune-drag-handle').last().boundingBox();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + 5, lastBlock.y + lastBlock.height, { steps: 6 });
+  await sleep(80);
+  const during = await page.evaluate(() => {
+    const p = [...window.ed.content.querySelectorAll('p')].find((x) => x.textContent === 'first');
+    return { opacity: +getComputedStyle(p).opacity, attrs: p.getAttributeNames().filter((n) => n !== 'data-id') };
+  });
+  ok(Math.abs(during.opacity - 0.35) < 0.01, `block drag: the block is steadily dimmed during the drag (opacity ${during.opacity})`);
+  ok(during.attrs.length === 0, `block drag: no attributes are added during the drag (got ${during.attrs.join(',')})`);
+  await page.mouse.up();
+  await sleep(100);
+  const afterDrag = await page.evaluate(() => ({
+    order: [...window.ed.content.querySelectorAll('p')].map((p) => p.textContent).join(','),
+    seen: window.seen.join(''),
+    live: window.ed.getHtml(),
+    opacity: +getComputedStyle([...window.ed.content.querySelectorAll('p')].find((x) => x.textContent === 'first')).opacity,
+    count: window.seen.length,
+  }));
+  ok(afterDrag.order === 'second,third,first', `block drag: the block moved (got ${afterDrag.order})`);
+  ok(afterDrag.count === 1 && !/rune-dragging|class=/.test(afterDrag.seen), `block drag: onChange HTML is clean (got ${afterDrag.seen.slice(0, 80)})`);
+  ok(!/rune-dragging|class=/.test(afterDrag.live), 'block drag: getHtml is clean');
+  ok(afterDrag.opacity === 1, `block drag: the dimming ends (opacity ${afterDrag.opacity})`);
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+  await sleep(60);
+  ok(!/rune-dragging|class=/.test(await page.evaluate(() => window.ed.getHtml())), 'block drag: undo stays clean');
+
   // ── Drag and drop ──────────────────────────────────────────
   // Headless Chrome won't start a native text drag (not even on a plain
   // contenteditable), so this drives the events with a real DataTransfer: the token

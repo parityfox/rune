@@ -13,6 +13,7 @@ export const DragReorder = {
     let _moveRaf     = null;   // throttle move processing to one per frame
     let _lastMove    = null;
     let _pointerId   = null;
+    let _dimming     = null;   // Animation dimming the dragged block
 
     // ── Floating elements ───────────────────────────────────────
 
@@ -101,7 +102,11 @@ export const DragReorder = {
       if (!_active) {
         if (Math.abs(e.clientY - _startY) < 4) return;
         _active = true;
-        _dragging.classList.add('rune-dragging');
+        // Dim with an animation, not a class or style: the block is in the document,
+        // so an attribute would reach onChange, history and peers if anything read it now.
+        // Two equal keyframes: with one, it would pulse from the block's own opacity.
+        _dimming = _dragging.animate?.([{ opacity: 0.35 }, { opacity: 0.35 }], { duration: 1000, iterations: Infinity });
+        _dimming?.finished?.catch(() => {});   // cancelling rejects this promise
         _hideHandle();
       }
 
@@ -147,7 +152,8 @@ export const DragReorder = {
       document.body.style.userSelect = '';
       document.body.style.cursor     = '';
 
-      _dragging?.classList.remove('rune-dragging');
+      _dimming?.cancel();
+      _dimming = null;
       _dragging  = null;
       _dropBlock = null;
       _active    = false;

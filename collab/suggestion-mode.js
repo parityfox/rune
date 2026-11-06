@@ -12,6 +12,10 @@ import { blockHostAt, modelForHost, textIndexInHost, flattenHosts, domPointInHos
  *    it; otherwise MARK the char `suggestion:{delete}` (struck-through, kept
  *    until accepted) and move the caret left.
  *  - deleteContentForward -> the same for the character after the caret.
+ *  - word and line deletes -> the same for the range the browser reports.
+ *
+ * Enter and Shift+Enter are not tracked: suggestions live on text, and the model
+ * has no representation of a tracked block split.
  *
  * Selections (#19): typing over a selection marks it deleted + inserts the new
  * text; Delete/Backspace on a selection marks the range deleted. Single-block
@@ -20,6 +24,13 @@ import { blockHostAt, modelForHost, textIndexInHost, flattenHosts, domPointInHos
  * The marks render + round-trip via the schema; accept/reject live in
  * SuggestionStore (collab/suggestions.js). Paste is handled below (#20).
  */
+const RANGE_DELETES = new Set([
+  'deleteWordBackward', 'deleteWordForward',
+  'deleteSoftLineBackward', 'deleteSoftLineForward',
+  'deleteHardLineBackward', 'deleteHardLineForward',
+  'deleteEntireSoftLine',
+]);
+
 export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null, isEnabled = () => false } = {}) {
   const content = editor.content;
   const cdoc = content.ownerDocument;
@@ -62,11 +73,8 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
     const sel = getSel(); sel.removeAllRanges(); sel.addRange(r);
   }
 
-  // A non-collapsed selection within a single block -> { block, id, from, to }.
-  function selectionRange() {
-    const sel = getSel();
-    if (!sel || !sel.rangeCount || sel.isCollapsed) return null;
-    const r = sel.getRangeAt(0);
+  // A DOM range within a single block -> { block, id, from, to }, or null.
+  function modelRange(r) {
     if (!content.contains(r.startContainer) || !content.contains(r.endContainer)) return null;
     const b1 = blockHostAt(content, r.startContainer);
     const b2 = blockHostAt(content, r.endContainer);
@@ -77,6 +85,38 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
     const z = textIndexInHost(b1.host, r.endContainer, r.endOffset);
     if (a < 0 || z < 0 || a === z) return null;
     return { block, id: block.get('id'), from: Math.min(a, z), to: Math.max(a, z) };
+  }
+
+  function selectionRange() {
+    const sel = getSel();
+    if (!sel || !sel.rangeCount || sel.isCollapsed) return null;
+    return modelRange(sel.getRangeAt(0));
+  }
+
+  // Word and line deletes: remove your own pending insertions in the range and
+  // mark everything else deleted, as Backspace does one character at a time.
+  function trackDeletion({ block, id, from, to }, forward) {
+    const yt = block.get('text');
+    const adjacent = [from > 0 ? sugAt(yt, from - 1) : null, sugAt(yt, to)]
+      .find((s) => s && s.type === 'delete' && s.author === author);
+    const sug = adjacent || { id: uid(), type: 'delete', author, ...(color ? { color } : {}) };
+    const runs = [];
+    let at = 0;
+    for (const op of yt.toDelta()) {
+      const end = at + op.insert.length;
+      const a = Math.max(at, from), z = Math.min(end, to);
+      if (a < z) runs.push({ a, z, s: op.attributes?.suggestion });
+      at = end;
+    }
+    let removed = 0;
+    doc.transact(() => {
+      for (const { a, z, s } of runs.reverse()) {           // back to front, so offsets stay valid
+        if (s && s.type === 'insert' && s.author === author) { yt.delete(a, z - a); removed += z - a; }
+        else yt.format(a, z - a, { suggestion: sug });
+      }
+    }, LOCAL);
+    renderBlock(block);
+    setCaret(id, forward ? to - removed : from);
   }
 
   const onBeforeInput = (e) => {
@@ -94,6 +134,15 @@ export function bindSuggestionMode(editor, doc, { author = 'Anon', color = null,
       }, LOCAL);
       renderBlock(rng.block);
       setCaret(rng.id, adding ? rng.to + e.data.length : rng.from);   // replace: caret after new text; delete: caret at start
+      return;
+    }
+
+    if (RANGE_DELETES.has(e.inputType)) {
+      // Blocked unless it can be tracked: a range crossing blocks would merge them.
+      e.preventDefault();
+      const target = e.getTargetRanges?.()[0];
+      const range = target && modelRange(target);
+      if (range) trackDeletion(range, e.inputType.endsWith('Forward'));
       return;
     }
 

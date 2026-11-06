@@ -262,7 +262,9 @@ These are intentional v1 boundaries, not bugs:
 - **Tables** — no nested tables; `colspan`/`rowspan` and *concurrent* row/column
   add-remove are best-effort (cells are keyed by coordinates).
 - **Suggestion mode** — range ops and paste are single-block; multi-block range
-  operations fall back to normal editing.
+  operations fall back to normal editing. Enter and Shift+Enter are not tracked,
+  because suggestions live on text and the model can't represent a tracked block
+  split. A word or line delete that would cross into another block does nothing.
 - **Undo** is the editor's snapshot history, not per-user. Undoing restores your
   earlier snapshot of the whole document and syncs it, so it can also revert
   edits a peer made since then. Swap in a Yjs `UndoManager` via

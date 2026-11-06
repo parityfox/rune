@@ -129,6 +129,60 @@ try {
   await sleep(100);
   const pasted = await html(A);
   ok(/rune-suggestion--delete/.test(pasted) && /rune-suggestion--insert/.test(pasted) && (await text(A)).includes('hello') && (await text(A)).includes('PASTED'), 'suggest: paste over a selection is tracked');
+
+  // Word and line deletes with the real keys: the input type and range come from the browser.
+  const mac = process.platform === 'darwin';
+  const caretAt = (off, block = 0) => page.evaluate(({ off, block }) => {
+    const c = document.querySelector('#editorA .rune-content');
+    const t = c.querySelectorAll('p')[block].firstChild;
+    const r = document.createRange(); r.setStart(t, off); r.collapse(true);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r); c.focus();
+  }, { off, block });
+  const delText = () => page.evaluate(() => [...document.querySelectorAll('#editorA .rune-suggestion--delete')].map((e) => e.textContent).join('|'));
+
+  await reset('<p>hello big world</p>'); await sleep(150);
+  await caretAt(9);
+  await page.keyboard.press(mac ? 'Alt+Backspace' : 'Control+Backspace');
+  await sleep(100);
+  ok((await delText()) === 'big' && (await text(A)).includes('hello big world'), `suggest: word delete backward is tracked (marked "${await delText()}")`);
+
+  if (mac) {                                   // Linux has no default binding for these
+    await reset('<p>hello big world</p>'); await sleep(150);
+    await caretAt(6);
+    await page.keyboard.press('Alt+Delete');
+    await sleep(100);
+    ok((await delText()).trim() === 'big', `suggest: word delete forward is tracked (marked "${await delText()}")`);
+
+    await reset('<p>hello big world</p>'); await sleep(150);
+    await caretAt(9);
+    await page.keyboard.press('Meta+Backspace');
+    await sleep(100);
+    ok((await delText()) === 'hello big' && (await text(A)).includes('hello big world'), `suggest: line delete is tracked (marked "${await delText()}")`);
+  }
+
+  await reset('<p>one</p><p>two</p>'); await sleep(150);
+  await caretAt(0, 1);
+  await page.keyboard.press(mac ? 'Alt+Backspace' : 'Control+Backspace');
+  await sleep(100);
+  const merged = await page.evaluate(() => document.querySelectorAll('#editorA .rune-content p').length);
+  ok(merged === 2, `suggest: a word delete at a block's start does not merge blocks (got ${merged} blocks)`);
+
+  // Enter is untracked by design, but must not lose text or existing suggestions.
+  await reset('<p>hello</p>'); await sleep(150);
+  await caretAt(5);
+  await page.keyboard.type('X');
+  await sleep(60);
+  await caretAt(2);
+  await page.keyboard.press('Enter');
+  await sleep(150);
+  const afterEnter = await page.evaluate(() => {
+    const ps = [...document.querySelectorAll('#editorA .rune-content p')].map((p) => p.textContent);
+    const peer = [...document.querySelectorAll('#editorB .rune-content p')].map((p) => p.textContent);
+    return { ps, peer, marked: !!document.querySelector('#editorA .rune-suggestion--insert') };
+  });
+  ok(afterEnter.ps.join('|') === 'he|lloX', `suggest: Enter splits the block without losing text (got ${afterEnter.ps.join('|')})`);
+  ok(afterEnter.marked, 'suggest: Enter keeps an existing suggestion');
+  ok(afterEnter.peer.join('|') === 'he|lloX', `suggest: the split reaches the other peer (got ${afterEnter.peer.join('|')})`);
 } catch (e) {
   fails.push('exception: ' + e.message);
 } finally {

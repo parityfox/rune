@@ -54,6 +54,14 @@ describe('bindSuggestionMode', () => {
     return { e, direct };
   }
   const caretOffset = () => window.getSelection().anchorOffset;
+  // Caret position in the block's text, however the marks split up its nodes.
+  const caretPosition = () => {
+    const sel = window.getSelection();
+    const r = document.createRange();
+    r.setStart(para(), 0);
+    r.setEnd(sel.anchorNode, sel.anchorOffset);
+    return r.toString().length;
+  };
 
   describe('typing', () => {
     it('becomes a tracked insertion, and the caret follows', () => {
@@ -169,6 +177,135 @@ describe('bindSuggestionMode', () => {
       expect(input('deleteContentForward').defaultPrevented).toBe(true);
       expect(list()).toEqual([]);
       expect(doc.getArray('blocks').length).toBe(2);
+    });
+  });
+
+  describe('word and line deletes (#186)', () => {
+    // The browser reports what it would delete through getTargetRanges().
+    function longDelete(inputType, from, to) {
+      const e = new Event('beforeinput', { bubbles: true, cancelable: true });
+      const n = para().firstChild;
+      e.inputType = inputType;
+      e.data = null;
+      e.getTargetRanges = () => [{ startContainer: n, startOffset: from, endContainer: n, endOffset: to }];
+      editor.content.dispatchEvent(e);
+      return e;
+    }
+
+    for (const type of ['deleteWordBackward', 'deleteSoftLineBackward', 'deleteHardLineBackward']) {
+      it(`${type} marks the range deleted and moves the caret to its start`, () => {
+        caret(5);
+        expect(longDelete(type, 1, 5).defaultPrevented).toBe(true);
+        expect(textOf()).toBe('hello');
+        expect(list()).toMatchObject([{ type: 'delete', author: 'Ada', from: 1, to: 5 }]);
+        expect(caretPosition()).toBe(1);
+      });
+    }
+
+    for (const type of ['deleteWordForward', 'deleteSoftLineForward', 'deleteHardLineForward', 'deleteEntireSoftLine']) {
+      it(`${type} marks the range deleted and moves the caret past it`, () => {
+        caret(0);
+        expect(longDelete(type, 0, 3).defaultPrevented).toBe(true);
+        expect(textOf()).toBe('hello');
+        expect(list()).toMatchObject([{ type: 'delete', from: 0, to: 3 }]);
+        expect(caretPosition()).toBe(type === 'deleteEntireSoftLine' ? 0 : 3);
+      });
+    }
+
+    it('un-types your own pending insertion inside the range and marks the rest', () => {
+      caret(5);
+      input('insertText', 'XY');
+      const e = new Event('beforeinput', { bubbles: true, cancelable: true });
+      const first = para().firstChild;
+      const own = para().lastChild.nodeType === 3 ? para().lastChild : para().lastChild.firstChild;
+      e.inputType = 'deleteWordBackward';
+      e.data = null;
+      e.getTargetRanges = () => [{ startContainer: first, startOffset: 3, endContainer: own, endOffset: own.length }];
+      editor.content.dispatchEvent(e);
+      expect(textOf()).toBe('hello');
+      expect(list()).toMatchObject([{ type: 'delete', from: 3, to: 5 }]);
+      expect(caretPosition()).toBe(3);
+    });
+
+    it('keeps another author\'s insertion in the text, marked deleted', () => {
+      ytext().insert(5, 'B', { suggestion: { id: 'other', type: 'insert', author: 'Bob' } });
+      const e = new Event('beforeinput', { bubbles: true, cancelable: true });
+      const first = para().firstChild;
+      const last = para().lastChild.nodeType === 3 ? para().lastChild : para().lastChild.firstChild;
+      e.inputType = 'deleteWordBackward';
+      e.data = null;
+      e.getTargetRanges = () => [{ startContainer: first, startOffset: 3, endContainer: last, endOffset: last.length }];
+      editor.content.dispatchEvent(e);
+      expect(textOf()).toBe('helloB');
+      expect(list().filter((s) => s.author === 'Ada')).toMatchObject([{ type: 'delete', from: 3, to: 6 }]);
+    });
+
+    it('merges with a neighbouring deletion', () => {
+      caret(5);
+      longDelete('deleteWordBackward', 4, 5);
+      longDelete('deleteWordBackward', 1, 4);
+      expect(list()).toMatchObject([{ type: 'delete', from: 1, to: 5 }]);
+    });
+
+    it('can be accepted and rejected', () => {
+      caret(5);
+      longDelete('deleteWordBackward', 1, 5);
+      store.reject(list()[0].id);
+      expect(textOf()).toBe('hello');
+      expect(list()).toEqual([]);
+      caret(5);
+      longDelete('deleteWordBackward', 1, 5);
+      store.accept(list()[0].id);
+      expect(textOf()).toBe('h');
+    });
+
+    it('blocks a range that crosses blocks, rather than merging them untracked', () => {
+      caret(0, 1);
+      const e = new Event('beforeinput', { bubbles: true, cancelable: true });
+      e.inputType = 'deleteWordBackward';
+      e.data = null;
+      e.getTargetRanges = () => [{ startContainer: para(0).firstChild, startOffset: 5, endContainer: para(1), endOffset: 0 }];
+      editor.content.dispatchEvent(e);
+      expect(e.defaultPrevented).toBe(true);
+      expect(list()).toEqual([]);
+      expect(doc.getArray('blocks').length).toBe(2);
+    });
+
+    it('blocks the edit when the browser reports no range', () => {
+      caret(5);
+      const e = new Event('beforeinput', { bubbles: true, cancelable: true });
+      e.inputType = 'deleteWordBackward';
+      e.data = null;
+      e.getTargetRanges = () => [];
+      editor.content.dispatchEvent(e);
+      expect(e.defaultPrevented).toBe(true);
+      expect(list()).toEqual([]);
+    });
+
+    it('leaves the browser alone when the mode is off', () => {
+      enabled = false;
+      caret(5);
+      expect(longDelete('deleteWordBackward', 1, 5).defaultPrevented).toBe(false);
+    });
+  });
+
+  describe('a line break in the shared document', () => {
+    // Known bug: serializeInline ignores <br>, so a peer receives "onetwo". it.fails
+    // goes red once this is fixed, so the marker can't outlive the bug.
+    it.fails('reaches a peer', () => {
+      enabled = false;
+      const hub = new MemoryHub();
+      const peerDoc = new Y.Doc();
+      hub.connect(doc); hub.connect(peerDoc);
+      hub.resume();
+      const t2 = document.createElement('div'); document.body.appendChild(t2);
+      const peer = new Editor(t2, { extensions: [Paragraph, Bold], toolbar: false, bubbleMenu: false, slashMenu: false, content: '' });
+      bindParagraph(peer, peerDoc);
+      para().innerHTML = 'one<br>two';
+      editor.content.dispatchEvent(new Event('input', { bubbles: true }));
+      const html = peer.content.querySelector('p').innerHTML;
+      peer.destroy(); t2.remove();
+      expect(html).toBe('one<br>two');
     });
   });
 

@@ -25,9 +25,7 @@ function _blocks(container) {
 function _block(node) {
   const tag = node.tagName.toLowerCase();
 
-  if (tag === 'h1') return `# ${_inline(node)}`;
-  if (tag === 'h2') return `## ${_inline(node)}`;
-  if (tag === 'h3') return `### ${_inline(node)}`;
+  if (/^h[1-6]$/.test(tag)) return `${'#'.repeat(+tag[1])} ${_inline(node)}`;
 
   if (tag === 'p') return _inline(node);
 

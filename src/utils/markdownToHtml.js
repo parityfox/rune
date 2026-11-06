@@ -23,6 +23,12 @@ function _safeHref(url) {
   return _isAllowedHref(url) ? url : '';
 }
 
+// Opening fence. CommonMark: the info string may hold anything, except that a
+// backtick fence's info can't contain a backtick (that line is an inline span).
+// isBlockStart shares this, so the two can never disagree about what opens a
+// block (a mismatch used to leave the paragraph loop unable to advance).
+const FENCE_RE = /^(\s*)(?:(`{3,})\s*([^`]*?)|(~{3,})\s*(.*?))\s*$/;
+
 export function markdownToHtml(md) {
   const lines = String(md == null ? '' : md).replace(/\r\n?/g, '\n').split('\n');
   const out = [];
@@ -34,13 +40,14 @@ export function markdownToHtml(md) {
     if (!line.trim()) { i++; continue; }                          // blank
 
     // Fenced code
-    const fence = line.match(/^(\s*)(`{3,}|~{3,})\s*([\w-]*)\s*$/);
+    const fence = line.match(FENCE_RE);
     if (fence) {
-      const marker = fence[2][0];
-      const lang = fence[3];
+      const open = fence[2] || fence[4];
+      const close = new RegExp(`^\\s*${open[0]}{${open.length},}\\s*$`);   // same marker, at least as long
+      const lang = (fence[3] ?? fence[5]).split(/\s+/)[0];
       const code = [];
       i++;
-      while (i < lines.length && !new RegExp(`^\\s*${marker}{3,}\\s*$`).test(lines[i])) { code.push(lines[i]); i++; }
+      while (i < lines.length && !close.test(lines[i])) { code.push(lines[i]); i++; }
       i++; // closing fence
       out.push(`<pre><code${lang ? ` class="language-${escapeHtml(lang)}"` : ''}>${escapeHtml(code.join('\n'))}</code></pre>`);
       continue;
@@ -80,7 +87,10 @@ export function markdownToHtml(md) {
     }
 
     // Paragraph — gather consecutive lines until a blank line or a new block
-    const para = [];
+    // The first line always belongs to the paragraph: every branch above declined
+    // it, so stopping here would loop forever without consuming input.
+    const para = [line.trim()];
+    i++;
     while (i < lines.length && lines[i].trim() && !isBlockStart(lines, i)) { para.push(lines[i].trim()); i++; }
     out.push(`<p>${inline(para.join('\n')).replace(/\n/g, '<br>')}</p>`);
   }
@@ -92,7 +102,7 @@ function isBlockStart(lines, i) {
   const l = lines[i];
   return /^(#{1,6})\s/.test(l) ||
          /^\s*>\s?/.test(l) ||
-         /^(\s*)(`{3,}|~{3,})/.test(l) ||
+         FENCE_RE.test(l) ||
          /^(\s*)([-*+]|\d+[.)])\s+/.test(l) ||
          /^\s*([-*_])(\s*\1){2,}\s*$/.test(l) ||
          (/^\s*\|.*\|?\s*$/.test(l) && i + 1 < lines.length && /^\s*\|?[\s:|-]*-[-:\s|]*$/.test(lines[i + 1]));
@@ -146,14 +156,25 @@ function escapeHtml(s) {
 }
 
 function inline(text) {
-  let s = escapeHtml(text);
-  s = s.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
-  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, alt, src) => `<img src="${_safeSrc(src)}" alt="${alt}">`);
-  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, t, url) => `<a href="${_safeHref(url)}">${t}</a>`);
+  // Code spans and backslash escapes are literal, so they sit behind placeholders
+  // while the emphasis and link patterns run. A URL or alt text gets the plain
+  // value back, so scheme checks see what the browser would see.
+  const held = [];
+  const hold = (html, raw) => `\uE000${held.push({ html, raw }) - 1}\uE001`;
+  const unhold = (str, key) => str.replace(/\uE000(\d+)\uE001/g, (_, n) => held[n][key]);
+
+  let s = escapeHtml(String(text).replace(/[\uE000\uE001]/g, ''));
+  s = s.replace(/\\(&(?:lt|gt|amp|quot|#39);|[!#$%()*+,\-./:;=?@[\]^_`{|}~\\])|(?<!`)(`+)(?!`)([\s\S]*?[^`])\2(?!`)/g, (_, esc, ticks, code) => {
+    if (esc) return hold(esc, esc);
+    const body = /^ .* $/.test(code) ? code.slice(1, -1) : code;
+    return hold(`<code>${body}</code>`, body);
+  });
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, alt, src) => `<img src="${_safeSrc(unhold(src, 'raw'))}" alt="${unhold(alt, 'raw')}">`);
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, t, url) => `<a href="${_safeHref(unhold(url, 'raw'))}">${t}</a>`);
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
   s = s.replace(/(^|[^*])\*([^*\s][^*]*?)\*/g, '$1<em>$2</em>');
   s = s.replace(/(^|[\s(])_([^_\s][^_]*?)_/g, '$1<em>$2</em>');
   s = s.replace(/~~([^~]+)~~/g, '<s>$1</s>');
-  return s;
+  return unhold(s, 'html');
 }

@@ -106,3 +106,27 @@ describe('JSON document model (#83)', () => {
     });
   });
 });
+
+describe('nested lists survive the JSON round trip (#144)', () => {
+  it('keeps a nested list', () => {
+    const html = '<ul><li>a<ul><li>b</li></ul></li><li>c</li></ul>';
+    expect(jsonToHtml(htmlToJson(html))).toBe(html);
+  });
+
+  it('keeps mixed list types and depth', () => {
+    const html = '<ol><li>a<ul><li>b<ol><li>c</li></ol></li></ul></li></ol>';
+    expect(jsonToHtml(htmlToJson(html))).toBe(html);
+  });
+
+  it('keeps list item inline content flat', () => {
+    const li = htmlToJson('<ul><li>a<ul><li>b</li></ul></li></ul>').content[0].content[0];
+    expect(li.content[0]).toEqual({ type: 'text', text: 'a' });
+    expect(li.content[1].type).toBe('bulletList');
+  });
+});
+
+describe('stripped top-level elements (#167)', () => {
+  it('produce no node', () => {
+    expect(htmlToJson('<p>a</p><script>x</script>').content.map((n) => n.type)).toEqual(['paragraph']);
+  });
+});

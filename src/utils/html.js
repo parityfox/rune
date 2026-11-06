@@ -98,7 +98,11 @@ function _stripAttrs(el, opts) {
   // Reject javascript: and data: URIs in href / src
   for (const attr of ['href', 'src']) {
     const val = el.getAttribute(attr);
-    if (val && _isDangerousUrl(val)) el.removeAttribute(attr);
+    if (!val) continue;
+    // A link needs the positive scheme allowlist; the denylist is tuned for media
+    // src values, where data:image/* is legitimate.
+    const bad = el.tagName === 'A' && attr === 'href' ? !_isAllowedHref(val) : _isDangerousUrl(val);
+    if (bad) el.removeAttribute(attr);
   }
 
   // Strip dangerous patterns from inline style
@@ -112,13 +116,22 @@ function _stripAttrs(el, opts) {
 }
 
 function _isDangerousStyle(css) {
-  const normalized = css.toLowerCase().replace(/\s/g, '');
+  // Browsers decode CSS escapes in function names (\\75rl( is url(), so match on
+  // the decoded text. A hex escape swallows one following whitespace character.
+  const normalized = css.toLowerCase()
+    .replace(/\\([0-9a-f]{1,6})\s?/g, (_, hex) => String.fromCodePoint(Math.min(parseInt(hex, 16), 0x10ffff) || 0xfffd))
+    .replace(/\\(.)/g, '$1')
+    .replace(/\s/g, '');
   return normalized.includes('javascript:') ||
     normalized.includes('expression(') ||
     normalized.includes('-moz-binding') ||
     // Block any url() in inline styles — the editor never needs it, and this
     // prevents tracking pixels plus CSS hex-escape bypasses (e.g. url(\\64 ata:)).
-    normalized.includes('url(');
+    normalized.includes('url(') ||
+    // These fetch images from a plain string, with no url() in sight.
+    normalized.includes('image-set(') ||
+    normalized.includes('image(') ||
+    normalized.includes('src(');
 }
 
 export function _isDangerousUrl(url) {
@@ -132,15 +145,16 @@ export function _isDangerousUrl(url) {
 
 // A peer-controlled color can land in an element's style (cssText, a shorthand
 // like `background` that accepts url(), or text-decoration-color). Restrict it to
-// a strict <color> allowlist — hex, a bare keyword, or an rgb/hsl(a) function
-// whose contents can't hold a ';', '(' or letters — so a payload like
+// a strict <color> allowlist — hex, a bare keyword, or a color function whose
+// contents are numbers, separators, angle units or `none` (so never ';', '(' or
+// other letters) — so a payload like
 // "red;position:fixed;inset:0" or a "url(…)" beacon can't ride the color field
 // into a peer's DOM. Deliberately not CSS.supports(): some engines (and
 // happy-dom) accept the injection verbatim.
 export function _safeColor(input) {
   const col = typeof input === 'string' ? input.trim() : '';
   if (!col) return '#888';
-  return /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$|^(?:rgb|hsl)a?\([\d\s.,%/]+\)$/.test(col) ? col : '#888';
+  return /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$|^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\((?:[\d\s.,%/+-]|deg|grad|rad|turn|none)+\)$/.test(col) ? col : '#888';
 }
 
 /**

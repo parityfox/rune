@@ -47,7 +47,13 @@ export function htmlToJson(html) {
 }
 
 function _listItems(el) {
-  return [...el.querySelectorAll(':scope > li')].map((li) => ({ type: 'listItem', content: _inlineToJson(li) }));
+  return [...el.children].filter((c) => c.tagName === 'LI').map((li) => {
+    // Inline content first, then any nested lists as block nodes.
+    const inline = li.cloneNode(true);
+    for (const c of [...inline.children]) if (c.tagName === 'UL' || c.tagName === 'OL') c.remove();
+    const nested = [...li.children].filter((c) => c.tagName === 'UL' || c.tagName === 'OL').map(_blockToJson);
+    return { type: 'listItem', content: [..._inlineToJson(inline), ...nested] };
+  });
 }
 
 function _blockToJson(el) {
@@ -63,7 +69,8 @@ function _blockToJson(el) {
   }
   if (tag === 'ul' && !el.classList.contains('rune-task-list')) return { type: 'bulletList', content: _listItems(el) };
   if (tag === 'ol') return { type: 'orderedList', content: _listItems(el) };
-  return { type: 'html', html: sanitizeContent(el.outerHTML) };   // passthrough — sanitized, nothing lost
+  const html = sanitizeContent(el.outerHTML);                    // passthrough — sanitized, nothing lost
+  return html ? { type: 'html', html } : null;                   // a stripped element leaves no node
 }
 
 function _inlineToJson(el) {
@@ -109,11 +116,16 @@ function _blockToHtml(node) {
     case 'blockquote':     return `<blockquote>${_inlineToHtml(node.content)}</blockquote>`;
     case 'horizontalRule': return '<hr>';
     case 'codeBlock':      { const lang = node.attrs?.language; const text = (node.content || []).map((n) => n.text || '').join(''); return `<pre><code${lang ? ` class="language-${_esc(lang)}"` : ''}>${_esc(text)}</code></pre>`; }
-    case 'bulletList':     return `<ul>${(node.content || []).map((li) => `<li>${_inlineToHtml(li.content)}</li>`).join('')}</ul>`;
-    case 'orderedList':    return `<ol>${(node.content || []).map((li) => `<li>${_inlineToHtml(li.content)}</li>`).join('')}</ol>`;
+    case 'bulletList':     return `<ul>${(node.content || []).map(_listItemToHtml).join('')}</ul>`;
+    case 'orderedList':    return `<ol>${(node.content || []).map(_listItemToHtml).join('')}</ol>`;
     case 'html':           return _safePassthrough(node.html);
     default:               return '';
   }
+}
+
+function _listItemToHtml(li) {
+  const nested = (li.content || []).filter((n) => n.type !== 'text' && n.type !== 'hardBreak');
+  return `<li>${_inlineToHtml(li.content)}${nested.map(_blockToHtml).join('')}</li>`;
 }
 
 function _inlineToHtml(content) {

@@ -81,3 +81,60 @@ describe('markdownToHtml (#85)', () => {
     });
   });
 });
+
+describe('markdownToHtml fence info strings (#132)', () => {
+  it('accepts punctuation in the language', () => {
+    expect(markdownToHtml('```c++\nint x;\n```')).toBe('<pre><code class="language-c++">int x;</code></pre>');
+  });
+
+  it('uses only the first word of the info string as the language', () => {
+    expect(markdownToHtml('``` js title=x\na\n```')).toBe('<pre><code class="language-js">a</code></pre>');
+    expect(markdownToHtml('~~~ python 3\na\n~~~')).toBe('<pre><code class="language-python">a</code></pre>');
+  });
+
+  it('treats a backtick line with a backtick in its info as a paragraph, without hanging', () => {
+    expect(markdownToHtml('```a``` b')).toContain('<p>');
+  });
+
+  it('escapes the language', () => {
+    expect(markdownToHtml('```"><img\nx\n```')).not.toContain('<img');
+  });
+});
+
+describe('Markdown round trip (#156)', () => {
+  it('exports h4 to h6', () => {
+    expect(htmlToMarkdown('<h4>a</h4>')).toBe('#### a');
+    expect(htmlToMarkdown('<h6>a</h6>')).toBe('###### a');
+  });
+
+  it('closes a fence only with one at least as long', () => {
+    expect(markdownToHtml('````\ncode\n```\nmore\n````')).toBe('<pre><code>code\n```\nmore</code></pre>');
+  });
+
+  it('does not close a backtick fence with tildes', () => {
+    expect(markdownToHtml('```\na\n~~~\nb\n```')).toBe('<pre><code>a\n~~~\nb</code></pre>');
+  });
+
+  it('parses multi-backtick code spans', () => {
+    expect(markdownToHtml('`` a`b ``')).toBe('<p><code>a`b</code></p>');
+  });
+
+  it('does not apply emphasis inside a code span', () => {
+    expect(markdownToHtml('`a*b*c`')).toBe('<p><code>a*b*c</code></p>');
+  });
+
+  it('honours backslash escapes', () => {
+    expect(markdownToHtml('[\\[foo\\]](x)')).toBe('<p><a href="x">[foo]</a></p>');
+    expect(markdownToHtml('\\*not em\\*')).toBe('<p>*not em*</p>');
+  });
+
+  it('validates a link URL with its escapes resolved', () => {
+    expect(markdownToHtml('[a](javascript\\:alert)')).not.toContain('javascript:');
+    expect(markdownToHtml('[a](`javascript:alert`)')).not.toContain('<code>');
+  });
+
+  it('round trips code containing a fence', () => {
+    const html = '<pre><code>a\n```\nb</code></pre>';
+    expect(markdownToHtml(htmlToMarkdown(html))).toBe(html);
+  });
+});

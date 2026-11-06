@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitize, _isDangerousUrl, _isAllowedHref, normalizeHtml } from '../../src/utils/html.js';
+import { sanitize, sanitizeContent, _isDangerousUrl, _isAllowedHref, normalizeHtml } from '../../src/utils/html.js';
 
 describe('_isDangerousUrl', () => {
   it('blocks javascript: URIs', () => {
@@ -206,5 +206,45 @@ describe('normalizeHtml', () => {
     expect(result).toContain('<p>text</p>');
     expect(result).toContain('<h1>heading</h1>');
     expect(result).toContain('<p>more text</p>');
+  });
+});
+
+describe('link href scheme allowlist in the shared sanitizer (#140)', () => {
+  const hostile = ['file:///etc/passwd', 'ms-msdt:/id PCWDiagnostic', 'data:image/png;base64,AAAA', 'javascript:alert(1)'];
+  for (const fn of [sanitize, sanitizeContent]) {
+    it(`${fn.name} strips non-web schemes from <a href>`, () => {
+      for (const url of hostile) expect(fn(`<a href="${url}">x</a>`)).not.toContain('href');
+    });
+    it(`${fn.name} keeps web, mail and relative links`, () => {
+      for (const url of ['https://a.com/', 'mailto:a@b.c', 'tel:+1', '/p', '#h', 'rel/x']) {
+        expect(fn(`<a href="${url}">x</a>`)).toContain(`href="${url}"`);
+      }
+    });
+    it(`${fn.name} still allows data:image on <img src>`, () => {
+      expect(fn('<img src="data:image/png;base64,AAAA">')).toContain('data:image/png');
+    });
+  }
+});
+
+describe('inline style beacons (#166)', () => {
+  const beacons = [
+    'background:\\75rl(https://a/p.gif)',
+    'background:\\000075 rl(https://a/p.gif)',
+    'background:u\\72 l(https://a/p.gif)',
+    "background-image:image-set('https://a/p.gif' 1x)",
+    "background-image:-webkit-image-set('https://a/p.gif' 1x)",
+    "background-image:image('https://a/p.gif')",
+    "background:src('https://a/p.gif')",
+    'background:\\69mage-set("https://a/p.gif" 1x)',
+  ];
+  for (const css of beacons) {
+    it(`strips ${css}`, () => {
+      const p = document.createElement('p');
+      p.setAttribute('style', css);
+      expect(sanitize(p.outerHTML)).not.toContain('style=');
+    });
+  }
+  it('keeps ordinary styles', () => {
+    expect(sanitize('<p style="color: red; text-align: center;">x</p>')).toContain('style=');
   });
 });

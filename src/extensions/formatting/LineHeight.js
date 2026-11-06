@@ -54,8 +54,9 @@ export const LineHeight = {
         btn.appendChild(nameEl);
         btn.appendChild(valEl);
 
-        btn.addEventListener('mousedown', (e) => {
-          e.preventDefault();
+        // mousedown keeps the selection; click also covers Enter and Space.
+        btn.addEventListener('mousedown', (e) => e.preventDefault());
+        btn.addEventListener('click', () => {
           editor.cmd('setLineHeight', lh.value);
           close();
         });

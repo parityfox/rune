@@ -51,6 +51,10 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 - `htmlToJson` no longer emits empty nodes for stripped elements (#167)
 - `persistLocally` no longer causes an unhandled rejection when IndexedDB is blocked (#168)
 - `<rune-editor>` no longer shows its light DOM next to the editor (#171)
+- Background color "Default" and `clearFontSize` work when the selection is inside a styled span, and clearing one style no longer drops a span's other styles (#183)
+- Drag-to-reorder no longer moves blocks on a disabled editor or a cancelled gesture, and destroying mid-drag restores page styles
+- The bubble menu stays hidden on a disabled editor and stops reacting after destroy
+- Line height options can be chosen from the keyboard
 
 ### 🔒 Security
 

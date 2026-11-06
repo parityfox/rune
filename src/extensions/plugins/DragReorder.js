@@ -69,7 +69,7 @@ export const DragReorder = {
 
     _handle.style.touchAction = 'none';   // let us own touch gestures on the handle
     _handle.addEventListener('pointerdown', (e) => {
-      if ((e.pointerType === 'mouse' && e.button !== 0) || !_targetBlock) return;
+      if ((e.pointerType === 'mouse' && e.button !== 0) || !_targetBlock || editor._disabled) return;
       e.preventDefault(); // prevent text selection / scrolling
 
       _dragging  = _targetBlock;
@@ -81,7 +81,7 @@ export const DragReorder = {
 
       _handle.addEventListener('pointermove',   _onMove);
       _handle.addEventListener('pointerup',     _onUp);
-      _handle.addEventListener('pointercancel', _onUp);
+      _handle.addEventListener('pointercancel', _endDrag);
       document.body.style.userSelect = 'none';
       document.body.style.cursor     = 'grabbing';
     });
@@ -125,15 +125,6 @@ export const DragReorder = {
     }
 
     function _onUp() {
-      cancelAnimationFrame(_moveRaf);
-      _moveRaf = null;
-      _handle.removeEventListener('pointermove',   _onMove);
-      _handle.removeEventListener('pointerup',     _onUp);
-      _handle.removeEventListener('pointercancel', _onUp);
-      try { _handle.releasePointerCapture(_pointerId); } catch { /* already released */ }
-      document.body.style.userSelect = '';
-      document.body.style.cursor     = '';
-
       if (_active && _dropBlock && _dropBlock !== _dragging) {
         editor.history.saveNow();
         editor.content.insertBefore(
@@ -142,6 +133,19 @@ export const DragReorder = {
         );
         editor._notifyChange();
       }
+      _endDrag();
+    }
+
+    // Also the whole of a cancelled gesture, which must not move anything.
+    function _endDrag() {
+      cancelAnimationFrame(_moveRaf);
+      _moveRaf = null;
+      _handle.removeEventListener('pointermove',   _onMove);
+      _handle.removeEventListener('pointerup',     _onUp);
+      _handle.removeEventListener('pointercancel', _endDrag);
+      try { _handle.releasePointerCapture(_pointerId); } catch { /* already released */ }
+      document.body.style.userSelect = '';
+      document.body.style.cursor     = '';
 
       _dragging?.classList.remove('rune-dragging');
       _dragging  = null;
@@ -195,6 +199,7 @@ export const DragReorder = {
 
     // Clean up on editor destroy
     editor.events.on('destroy', () => {
+      if (_dragging) _endDrag();     // body styles would otherwise stay set
       clearTimeout(_hideTimer);
       _handle.remove();
       _indicator.remove();

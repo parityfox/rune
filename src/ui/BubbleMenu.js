@@ -162,8 +162,10 @@ export class BubbleMenu {
   // ─── Events ────────────────────────────────────────────────
 
   _bindEvents() {
-    this.editor.events.on('selectionchange', () => this._onSelectionChange());
-    this.editor.events.on('change', () => this._updateActive());
+    this._onSelection = () => this._onSelectionChange();
+    this._onChange = () => this._updateActive();
+    this.editor.events.on('selectionchange', this._onSelection);
+    this.editor.events.on('change', this._onChange);
 
     this._outsideClick = (e) => {
       if (this._popup && !this._popup.contains(e.target) && !this._openBtn?.contains(e.target)) {
@@ -175,7 +177,7 @@ export class BubbleMenu {
 
   _onSelectionChange() {
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !sel.rangeCount) {
+    if (!sel || sel.isCollapsed || !sel.rangeCount || this.editor._disabled) {
       this._hide();
       return;
     }
@@ -243,6 +245,8 @@ export class BubbleMenu {
 
   destroy() {
     this._closePopup();
+    this.editor.events.off('selectionchange', this._onSelection);
+    this.editor.events.off('change', this._onChange);
     document.removeEventListener('mousedown', this._outsideClick);
     this.el.remove();
   }

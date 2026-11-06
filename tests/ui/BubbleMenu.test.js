@@ -143,6 +143,15 @@ describe('BubbleMenu', () => {
       expect(menu._popup).toBeNull();
     });
 
+    it('choosing an option returns focus to the editor', () => {
+      const { editor, menu } = make({ items: ['textColor'] });
+      selectText(editor);
+      const popup = open(menu);
+      popup.querySelector('.rune-color-swatch').click();
+      expect(menu._popup).toBeNull();
+      expect(document.activeElement).toBe(editor.content);
+    });
+
     it('hiding the menu closes it', () => {
       const { editor, menu } = make({ items: ['textColor'] });
       selectText(editor);

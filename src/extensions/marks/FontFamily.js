@@ -1,3 +1,4 @@
+import { onActivate } from '../_onActivate.js';
 import { clearSelectedStyle } from './_clearStyle.js';
 import { el } from '../../utils/dom.js';
 
@@ -77,8 +78,7 @@ export const FontFamily = {
         if (font.value !== 'inherit') preview.style.fontFamily = font.value;
         btn.appendChild(name);
         btn.appendChild(preview);
-        btn.addEventListener('mousedown', (e) => {
-          e.preventDefault();
+        onActivate(btn, () => {
           restoreSelection();
           editor.cmd('setFontFamily', font.value);
           close();

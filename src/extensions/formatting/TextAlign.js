@@ -1,3 +1,4 @@
+import { onActivate } from '../_onActivate.js';
 import { el } from '../../utils/dom.js';
 
 const ALIGNMENTS = [
@@ -86,8 +87,7 @@ export const TextAlign = {
         const isSelected = (cur === a.value) || (cur === '' && a.value === 'left');
         if (isSelected) btn.classList.add('is-active');
 
-        btn.addEventListener('mousedown', (e) => {
-          e.preventDefault();
+        onActivate(btn, () => {
           editor.cmd('setTextAlign', a.value);
           close();
         });

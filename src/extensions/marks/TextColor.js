@@ -1,3 +1,4 @@
+import { onActivate } from '../_onActivate.js';
 import { clearSelectedStyle } from './_clearStyle.js';
 import { el } from '../../utils/dom.js';
 
@@ -71,8 +72,7 @@ export const TextColor = {
           swatch.textContent = 'A';
           swatch.style.background = '';
         }
-        swatch.addEventListener('mousedown', (e) => {
-          e.preventDefault();
+        onActivate(swatch, () => {
           restoreSelection();
           editor.cmd('setTextColor', c.value);
           const color = c.value === 'inherit' ? '#1a1a1a' : c.swatch;

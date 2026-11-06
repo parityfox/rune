@@ -1,3 +1,4 @@
+import { onActivate } from '../_onActivate.js';
 import { el } from '../../utils/dom.js';
 import { uid } from '../../utils/id.js';
 import { _isDangerousUrl } from '../../utils/html.js';
@@ -125,8 +126,7 @@ export const Image = {
         placeholder: 'Paste image URL…',
       });
       const urlBtn = el('button', { class: 'rune-panel-btn-primary', type: 'button' }, 'Insert');
-      urlBtn.addEventListener('mousedown', (e) => {
-        e.preventDefault();
+      onActivate(urlBtn, () => {
         const src = urlInput.value.trim();
         if (src) { editor.cmd('insertImage', src); close(); }
       });

@@ -817,8 +817,7 @@ describe('Editor', () => {
       const panel = Table.toolbarItem.renderPanel(editor, () => {});
       document.body.appendChild(panel);
       // data-r=1, data-c=4 → 5 columns × 2 rows
-      panel.querySelector('.rune-table-grid-cell[data-r="1"][data-c="4"]')
-        .dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      panel.querySelector('.rune-table-grid-cell[data-r="1"][data-c="4"]').click();
       expect(editor.content.querySelectorAll('table.rune-table thead th').length).toBe(5);
       expect(editor.content.querySelectorAll('table.rune-table tr').length).toBe(2);
       panel.remove();

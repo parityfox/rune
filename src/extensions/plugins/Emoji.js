@@ -1,3 +1,4 @@
+import { onActivate } from '../_onActivate.js';
 import { el } from '../../utils/dom.js';
 
 /**
@@ -85,8 +86,7 @@ export const Emoji = {
         const grid = el('div', { class: 'rune-panel-emoji-grid' });
         for (const emoji of group.emojis) {
           const btn = el('button', { class: 'rune-panel-emoji-btn', type: 'button' }, emoji);
-          btn.addEventListener('mousedown', (e) => {
-            e.preventDefault();
+          onActivate(btn, () => {
             restoreSelection();
             editor.cmd('insertEmoji', emoji);
             close();

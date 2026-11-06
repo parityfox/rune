@@ -1,3 +1,4 @@
+import { onActivate } from '../_onActivate.js';
 import { el } from '../../utils/dom.js';
 import { uid } from '../../utils/id.js';
 
@@ -182,7 +183,7 @@ export const VideoEmbed = {
         close();
       };
 
-      btn.addEventListener('mousedown', (e) => { e.preventDefault(); submit(); });
+      onActivate(btn, submit);
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
 
       const hint = el('div', { class: 'rune-panel-hint' }, 'Supports YouTube and Vimeo links');

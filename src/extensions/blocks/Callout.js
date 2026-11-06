@@ -1,3 +1,4 @@
+import { onActivate } from '../_onActivate.js';
 import { el } from '../../utils/dom.js';
 import { uid } from '../../utils/id.js';
 
@@ -123,8 +124,7 @@ export const Callout = {
       for (const emoji of EMOJIS) {
         const btn = el('button', { class: 'rune-panel-emoji-btn', type: 'button' }, emoji);
         if (emoji === selectedEmoji) { btn.classList.add('is-active'); activeEmojiBtn = btn; }
-        btn.addEventListener('mousedown', (e) => {
-          e.preventDefault();
+        onActivate(btn, () => {
           selectedEmoji = emoji;
           activeEmojiBtn?.classList.remove('is-active');
           btn.classList.add('is-active');
@@ -143,8 +143,7 @@ export const Callout = {
         btn.style.background   = c.bg;
         btn.style.borderColor  = c.border;
         if (c.value === selectedColor) { btn.classList.add('is-active'); activeColorBtn = btn; }
-        btn.addEventListener('mousedown', (e) => {
-          e.preventDefault();
+        onActivate(btn, () => {
           selectedColor = c.value;
           activeColorBtn?.classList.remove('is-active');
           btn.classList.add('is-active');
@@ -155,8 +154,7 @@ export const Callout = {
 
       // Insert button
       const insertBtn = el('button', { class: 'rune-panel-btn-primary', type: 'button', style: 'width:100%;margin-top:10px' }, 'Insert Callout');
-      insertBtn.addEventListener('mousedown', (e) => {
-        e.preventDefault();
+      onActivate(insertBtn, () => {
         editor.cmd('insertCallout', selectedEmoji, selectedColor);
         close();
       });

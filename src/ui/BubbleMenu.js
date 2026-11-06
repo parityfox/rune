@@ -94,7 +94,7 @@ export class BubbleMenu {
       this._closePopup();
 
       const popup = el('div', { class: 'rune-toolbar-popup rune-popup-panel' });
-      popup.appendChild(item.renderPanel(this.editor, () => this._closePopup(), item));
+      popup.appendChild(item.renderPanel(this.editor, () => this._closeAfterChoice(), item));
       this._openPopup(btn, popup);
     });
 
@@ -139,6 +139,12 @@ export class BubbleMenu {
     this._openBtn?.setAttribute('aria-expanded', 'false');
     this._openBtn = null;
     setTimeout(() => popup.remove(), 150);
+  }
+
+  // An option was chosen: back to the editor, since the focused option is going away.
+  _closeAfterChoice() {
+    this._closePopup();
+    this.editor.content.focus();
   }
 
   _positionPopup(btn, popup) {

@@ -1,3 +1,4 @@
+import { onActivate } from '../_onActivate.js';
 import { clearSelectedStyle } from './_clearStyle.js';
 import { el } from '../../utils/dom.js';
 
@@ -87,8 +88,7 @@ export const FontSize = {
         right.appendChild(preview);
         row.appendChild(label);
         row.appendChild(right);
-        row.addEventListener('mousedown', (e) => {
-          e.preventDefault();
+        onActivate(row, () => {
           restoreSelection();
           editor.cmd('setFontSize', size.value);
           close();
@@ -116,7 +116,7 @@ export const FontSize = {
           close();
         }
       };
-      applyBtn.addEventListener('mousedown', (e) => { e.preventDefault(); applyPx(); });
+      onActivate(applyBtn, applyPx);
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); applyPx(); } });
 
       customRow.appendChild(input);

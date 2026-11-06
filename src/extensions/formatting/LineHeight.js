@@ -1,3 +1,4 @@
+import { onActivate } from '../_onActivate.js';
 import { el } from '../../utils/dom.js';
 
 const LINE_HEIGHTS = [
@@ -54,9 +55,7 @@ export const LineHeight = {
         btn.appendChild(nameEl);
         btn.appendChild(valEl);
 
-        // mousedown keeps the selection; click also covers Enter and Space.
-        btn.addEventListener('mousedown', (e) => e.preventDefault());
-        btn.addEventListener('click', () => {
+        onActivate(btn, () => {
           editor.cmd('setLineHeight', lh.value);
           close();
         });

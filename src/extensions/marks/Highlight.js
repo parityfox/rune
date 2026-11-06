@@ -1,3 +1,4 @@
+import { onActivate } from '../_onActivate.js';
 import { el } from '../../utils/dom.js';
 
 export const HIGHLIGHT_COLORS = [
@@ -55,13 +56,13 @@ export const Highlight = {
       const grid = el('div', { class: 'rune-panel-color-grid' });
 
       const none = el('button', { class: 'rune-color-swatch is-default', type: 'button', title: 'None' }, '✕');
-      none.addEventListener('mousedown', (e) => { e.preventDefault(); restore(); editor.cmd('unsetHighlight'); close(); });
+      onActivate(none, () => { restore(); editor.cmd('unsetHighlight'); close(); });
       grid.appendChild(none);
 
       for (const c of HIGHLIGHT_COLORS) {
         const sw = el('button', { class: 'rune-color-swatch', type: 'button', title: c.label });
         sw.style.background = c.swatch;
-        sw.addEventListener('mousedown', (e) => { e.preventDefault(); restore(); editor.cmd('toggleHighlight', c.value); close(); });
+        onActivate(sw, () => { restore(); editor.cmd('toggleHighlight', c.value); close(); });
         grid.appendChild(sw);
       }
       wrap.appendChild(grid);

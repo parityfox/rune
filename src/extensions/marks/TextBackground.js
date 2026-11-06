@@ -1,3 +1,4 @@
+import { onActivate } from '../_onActivate.js';
 import { clearSelectedStyle } from './_clearStyle.js';
 import { el } from '../../utils/dom.js';
 
@@ -75,8 +76,7 @@ export const TextBackground = {
           swatch.style.background = c.swatch;
           swatch.style.border = '1px solid rgba(0,0,0,0.06)';
         }
-        swatch.addEventListener('mousedown', (e) => {
-          e.preventDefault();
+        onActivate(swatch, () => {
           restoreSelection();
           editor.cmd('setTextBackground', c.value);
           const bg = c.swatch || 'transparent';

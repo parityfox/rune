@@ -1197,6 +1197,7 @@ thead .rune-table-cell {
   gap: 3px;
 }
 .rune-table-grid-cell {
+  padding: 0;
   border: 1px solid var(--rune-color-border);
   border-radius: 2px;
   background: var(--rune-color-bg);

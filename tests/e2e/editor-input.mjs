@@ -153,6 +153,105 @@ try {
   });
   ok((await html()) === '<p><span style="color: red;">a</span>bc<span style="color: red;">d</span></p>', 'color: Default clears only the selection');
 
+  // ── Toolbar panels from the keyboard ───────────────────────
+  // Tab to an option and press Enter, with focus really inside the popup. Commands
+  // that use execCommand need the selection and focus back in the editor by then.
+  const toolbarFresh = async (content) => {
+    await page.evaluate(async (content) => {
+      const { Editor, StarterKit } = await import('/src/index.js');
+      window.ed?.destroy();
+      document.querySelectorAll('.rune-toolbar-popup').forEach((p) => p.remove());
+      document.body.innerHTML = '<link rel="stylesheet" href="/styles/rune.css"><div id="t"></div>';
+      await new Promise((resolve) => { document.querySelector('link').onload = resolve; });
+      window.ed = new Editor('#t', {
+        extensions: StarterKit, content, bubbleMenu: false, slashMenu: false,
+        toolbar: { items: ['textColor', 'textBackground', 'highlight', 'fontFamily', 'fontSize', 'textAlign', 'lineHeight', 'emoji', 'callout', 'table'] },
+      });
+    }, content);
+    await sleep(100);
+    await page.evaluate(() => {
+      const t = window.ed.content.querySelector('p').firstChild;
+      window.ed.content.focus();
+      const r = document.createRange(); r.setStart(t, 0); r.setEnd(t, 5);
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    });
+    await sleep(50);
+  };
+  // Opens a toolbar panel by keyboard and presses Enter on the option at `tabs`.
+  const viaKeyboard = async (title, tabs) => {
+    await page.evaluate((title) => document.querySelector(`.rune-toolbar button[aria-label="${title}"]`).focus(), title);
+    await page.keyboard.press('Enter');
+    await sleep(60);
+    for (let i = 0; i < tabs; i++) await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await sleep(220);
+    return page.evaluate(() => ({
+      html: window.ed.content.innerHTML.replace(/ data-id="[^"]*"/g, ''),
+      focus: document.activeElement === document.body ? 'body' : (window.ed.content.contains(document.activeElement) ? 'editor' : document.activeElement.className),
+      selected: getSelection().toString(),
+    }));
+  };
+  const panels = [
+    ['Text Color', 2, (r) => /color/i.test(r.html) && /<(span|font)/.test(r.html)],
+    ['Highlight / Background', 2, (r) => /background/i.test(r.html)],
+    ['Highlight', 1, (r) => /<mark/.test(r.html)],
+    ['Font Family', 1, (r) => /font-family/i.test(r.html)],
+    ['Font Size', 1, (r) => /font-size/i.test(r.html)],
+    ['Text Align', 1, (r) => /text-align/i.test(r.html)],
+    ['Line Height', 1, (r) => /line-height/i.test(r.html)],
+    ['Emoji', 0, (r) => r.html.replace(/<[^>]+>/g, '') !== 'hello world'],
+  ];
+  for (const [title, tabs, applied] of panels) {
+    await toolbarFresh('<p>hello world</p>');
+    const r = await viaKeyboard(title, tabs);
+    ok(applied(r), `panel keyboard: ${title} applies (${r.html.slice(0, 70)})`);
+    ok(r.focus === 'editor', `panel keyboard: ${title} returns focus to the editor (got ${r.focus})`);
+  }
+
+  await toolbarFresh('<p>hello world</p>');
+  await page.evaluate(() => document.querySelector('.rune-toolbar button[aria-label="Insert Table"]')?.focus());
+  if (await page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Insert Table')) {
+    await page.keyboard.press('Enter');
+    await sleep(60);
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await sleep(220);
+    const size = await page.evaluate(() => {
+      const t = window.ed.content.querySelector('table');
+      return t ? `${t.rows.length}x${t.rows[0].cells.length}` : 'none';
+    });
+    ok(size === '2x2', `panel keyboard: table grid inserts the size reached with arrows (got ${size})`);
+  } else {
+    ok(false, 'panel keyboard: table toolbar button found');
+  }
+
+  await toolbarFresh('<p>hello world</p>');
+  await viaKeyboard('Text Color', 2);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.type('!');
+  ok((await page.evaluate(() => window.ed.content.textContent)).includes('!'), 'panel keyboard: typing continues after choosing an option');
+
+  await toolbarFresh('<p>hello world</p>');
+  await page.evaluate(() => document.querySelector('.rune-toolbar button[aria-label="Text Color"]').focus());
+  await page.keyboard.press('Enter');
+  await sleep(60);
+  await page.keyboard.press('Escape');
+  await sleep(200);
+  ok(await page.evaluate(() => document.activeElement.getAttribute('aria-label') === 'Text Color'), 'panel keyboard: Escape still returns to the toolbar button');
+
+  // The same panel with a real mouse must apply exactly once.
+  await toolbarFresh('<p>hello world</p>');
+  let changes = 0;
+  await page.evaluate(() => { window.changes = 0; window.ed.events.on('change', () => { window.changes++; }); });
+  await page.click('.rune-toolbar button[aria-label="Line Height"]');
+  await sleep(60);
+  await page.click('.rune-panel-lh-item:nth-of-type(2)');
+  await sleep(220);
+  changes = await page.evaluate(() => window.changes);
+  ok(changes === 1, `panel mouse: applies once (got ${changes} changes)`);
+  ok(await page.evaluate(() => window.ed.content.contains(document.activeElement)), 'panel mouse: focus returns to the editor');
+
   // ── Drag and drop ──────────────────────────────────────────
   // Headless Chrome won't start a native text drag (not even on a plain
   // contenteditable), so this drives the events with a real DataTransfer: the token

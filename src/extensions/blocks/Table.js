@@ -1,3 +1,4 @@
+import { onActivate } from '../_onActivate.js';
 import { uid } from '../../utils/id.js';
 import { el } from '../../utils/dom.js';
 
@@ -462,7 +463,14 @@ export const Table = {
       const cells = [];
       for (let r = 0; r < MAX_R; r++) {
         for (let c = 0; c < MAX_C; c++) {
-          const cell = el('div', { class: 'rune-table-grid-cell', 'data-r': String(r), 'data-c': String(c) });
+          const cell = el('button', {
+            class: 'rune-table-grid-cell', type: 'button', 'data-r': String(r), 'data-c': String(c),
+            'aria-label': `${c + 1} ${c ? 'columns' : 'column'} by ${r + 1} ${r ? 'rows' : 'row'}`,
+          });
+          onActivate(cell, () => {
+            editor.cmd('insertTable', r + 1, c + 1);
+            close();
+          });
           grid.appendChild(cell);
           cells.push(cell);
         }
@@ -480,12 +488,17 @@ export const Table = {
         const cell = e.target.closest('.rune-table-grid-cell');
         if (cell) highlight(+cell.dataset.r, +cell.dataset.c);
       });
-      grid.addEventListener('mousedown', (e) => {
+      grid.addEventListener('focusin', (e) => {
         const cell = e.target.closest('.rune-table-grid-cell');
-        if (!cell) return;
+        if (cell) highlight(+cell.dataset.r, +cell.dataset.c);
+      });
+      grid.addEventListener('keydown', (e) => {
+        const step = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.key];
+        const cell = e.target.closest('.rune-table-grid-cell');
+        if (!step || !cell) return;
         e.preventDefault();
-        editor.cmd('insertTable', +cell.dataset.r + 1, +cell.dataset.c + 1);
-        close();
+        const r = +cell.dataset.r + step[0], c = +cell.dataset.c + step[1];
+        if (r >= 0 && r < MAX_R && c >= 0 && c < MAX_C) cells[r * MAX_C + c].focus();
       });
 
       wrap.append(grid, label);

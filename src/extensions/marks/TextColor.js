@@ -26,7 +26,7 @@ export const TextColor = {
         if (color === 'inherit' || !color) {
           const sel = window.getSelection();
           if (!sel || sel.isCollapsed) return;
-          clearSelectedStyle(sel, 'color');
+          clearSelectedStyle(sel, ['color']);
           editor._notifyChange();
         } else {
           // Spans are normalized inside the input event's change handler too, so

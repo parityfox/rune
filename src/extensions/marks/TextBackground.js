@@ -1,3 +1,4 @@
+import { clearSelectedStyle } from './_clearStyle.js';
 import { el } from '../../utils/dom.js';
 
 export const BG_COLORS = [
@@ -26,15 +27,7 @@ export const TextBackground = {
         if (!sel || sel.isCollapsed) return;
 
         if (color === 'transparent' || !color) {
-          // Extract → modify within fragment (always an element) → re-insert
-          const range = sel.getRangeAt(0);
-          const frag = range.extractContents();
-          frag.querySelectorAll('span[style*="background"]').forEach(s => {
-            s.style.background = '';
-            s.style.backgroundColor = '';
-            if (!s.getAttribute('style')?.trim()) s.replaceWith(...s.childNodes);
-          });
-          range.insertNode(frag);
+          clearSelectedStyle(sel, ['background', 'backgroundColor']);
         } else {
           document.execCommand('hiliteColor', false, color);
           // fallback for browsers that don't support hiliteColor

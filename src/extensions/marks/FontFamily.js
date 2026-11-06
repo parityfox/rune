@@ -27,7 +27,7 @@ export const FontFamily = {
         const range = sel.getRangeAt(0);
 
         if (family === 'inherit' || !family) {
-          clearSelectedStyle(sel, 'fontFamily');
+          clearSelectedStyle(sel, ['fontFamily']);
         } else {
           const frag = range.extractContents();
           const div  = document.createElement('div');

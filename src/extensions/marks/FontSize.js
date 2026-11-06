@@ -1,3 +1,4 @@
+import { clearSelectedStyle } from './_clearStyle.js';
 import { el } from '../../utils/dom.js';
 
 const SIZES = [
@@ -39,14 +40,7 @@ export const FontSize = {
       clearFontSize() {
         const sel = window.getSelection();
         if (!sel || sel.isCollapsed) return;
-        const range = sel.getRangeAt(0);
-        // Extract → modify within the fragment (always an element) → re-insert
-        const frag = range.extractContents();
-        frag.querySelectorAll('span[style*="font-size"]').forEach(s => {
-          s.style.fontSize = '';
-          if (!s.getAttribute('style')?.trim()) s.replaceWith(...s.childNodes);
-        });
-        range.insertNode(frag);
+        clearSelectedStyle(sel, ['fontSize']);
         editor._notifyChange();
       },
     };

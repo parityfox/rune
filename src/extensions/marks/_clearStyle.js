@@ -4,11 +4,11 @@
  * keeps it. Other marks (bold, links…) are left alone.
  *
  * @param {Selection} sel  a non-collapsed selection
- * @param {string}    prop camelCase style property, e.g. 'color'
+ * @param {string[]}  props camelCase style properties, e.g. ['color']
  */
-export function clearSelectedStyle(sel, prop) {
+export function clearSelectedStyle(sel, props) {
   const range = sel.getRangeAt(0);
-  const isStyled = (n) => n.nodeType === 1 && n.tagName === 'SPAN' && !!n.style[prop];
+  const isStyled = (n) => n.nodeType === 1 && n.tagName === 'SPAN' && props.some((p) => n.style[p]);
 
   const anchor = range.commonAncestorContainer;
   const inner = anchor.nodeType === 1 ? anchor : anchor.parentElement;
@@ -25,7 +25,7 @@ export function clearSelectedStyle(sel, prop) {
   }
 
   const frag = range.extractContents();
-  for (const span of [...frag.querySelectorAll('span')]) _strip(span, prop);
+  for (const span of [...frag.querySelectorAll('span')]) _strip(span, props);
 
   let nodes = [...frag.childNodes];
   if (wrapper) {
@@ -35,6 +35,13 @@ export function clearSelectedStyle(sel, prop) {
       const copy = n.cloneNode(false);
       copy.appendChild(piece);
       piece = copy;
+    }
+    // The selected text keeps whatever else the wrapper styled.
+    const rest = wrapper.cloneNode(false);
+    _clear(rest, props);
+    if (_hasStyle(rest)) {
+      rest.appendChild(piece);
+      piece = rest;
     }
     if (piece !== frag) nodes = [piece];
     const tailRange = document.createRange();
@@ -57,7 +64,16 @@ export function clearSelectedStyle(sel, prop) {
   }
 }
 
-function _strip(span, prop) {
-  span.style[prop] = '';
-  if (!span.getAttribute('style')?.trim()) span.replaceWith(...span.childNodes);
+function _clear(span, props) {
+  for (const p of props) span.style[p] = '';
+}
+
+function _hasStyle(span) {
+  return !!span.getAttribute('style')?.trim();
+}
+
+function _strip(span, props) {
+  if (!props.some((p) => span.style[p])) return;
+  _clear(span, props);
+  if (!_hasStyle(span)) span.replaceWith(...span.childNodes);
 }

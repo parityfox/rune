@@ -1,11 +1,18 @@
+import { createElement } from 'react';
 import { useRune } from './useRune.js';
 
 /**
  * RuneEditor — drop-in React component.
  *
+ * Plain JS (no JSX) on purpose: bundlers don't compile JSX inside
+ * node_modules, so shipping JSX breaks consumers' production builds.
+ *
  * Usage (Next.js):
  *   import dynamic from 'next/dynamic';
- *   const RuneEditor = dynamic(() => import('../../rune/adapters/react/RuneEditor.jsx'), { ssr: false });
+ *   const RuneEditor = dynamic(
+ *     () => import('@parityfox/rune-editor/react').then((m) => m.RuneEditor),
+ *     { ssr: false },
+ *   );
  *
  *   <RuneEditor
  *     extensions={StarterKit}
@@ -40,11 +47,9 @@ export default function RuneEditor({
     attribution,
   });
 
-  return (
-    <div
-      ref={ref}
-      className={`rune-editor-container ${className}`}
-      style={style}
-    />
-  );
+  return createElement('div', {
+    ref,
+    className: `rune-editor-container ${className}`,
+    style,
+  });
 }

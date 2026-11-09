@@ -6,6 +6,14 @@ This project adheres to [Semantic Versioning](https://semver.org/). Dates follow
 
 ---
 
+## [Unreleased]
+
+### 🐛 Fixed
+
+- **React adapter breaks production builds:** `@parityfox/rune-editor/react` shipped uncompiled JSX (`RuneEditor.jsx`), so `next build` and other bundlers failed with `Expected ';', got 'ident'`. The component is now plain JavaScript and works without extra bundler configuration. You can remove the `transpilePackages` workaround ([#193](https://github.com/parityfox/rune/issues/193))
+
+---
+
 ## [2.0.0] — 2026-11-06
 
 Includes security fixes, so all users should upgrade.

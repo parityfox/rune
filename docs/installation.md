@@ -80,9 +80,10 @@ Vite, webpack 5, Rollup, esbuild, and Parcel all handle Rune's ESM source out of
 the box — `npm install` then import. No special configuration needed. The
 snippets below assume a bundler unless stated otherwise.
 
-> If your bundler complains about `.jsx` in the React adapter, ensure JSX/ESM
-> transforms apply to `node_modules/@parityfox/rune-editor/adapters` (most setups do this
-> by default; some require adding it to the transform include list).
+> All published files are plain JavaScript (no JSX), so no transform config is
+> needed. Version `2.0.0` was the exception: its React adapter shipped a `.jsx`
+> file that breaks production builds. Upgrade to `2.0.1`+ (or, on Next.js, add
+> `transpilePackages: ['@parityfox/rune-editor']`).
 
 ### Vanilla JS
 
@@ -342,7 +343,7 @@ console.log(ed.getHtml());
 | **`Cannot use import statement` / CJS error** | Rune is ESM-only. Use a bundler, `<script type="module">`, or Node ESM — not `require()`. |
 | **Crashes during SSR / "document is not defined"** | Render client-side only (Next.js: `dynamic(..., { ssr: false })`; others: mount in `onMounted`/`onMount`). |
 | **Bare specifier `@parityfox/rune-editor` not found in the browser** | Add an [import map](#plain-html--no-bundler) (use the full scoped, version-pinned name) or use a bundler/CDN. |
-| **React adapter `.jsx` won't transform** | Let your bundler transform `node_modules/@parityfox/rune-editor/adapters`. |
+| **`Expected ';', got 'ident'` / JSX parse error in `RuneEditor.jsx`** | You're on `2.0.0`, which shipped uncompiled JSX. Upgrade to `2.0.1`+ (Next.js workaround: `transpilePackages: ['@parityfox/rune-editor']`). |
 | **`Cannot find package 'yjs'`** | Install the [collaboration deps](#enabling-collaboration); for no-bundler, bundle them (`npm run build:demo`) or use a CDN. |
 | **Editor not destroyed on unmount (leaks)** | Call `editor.destroy()` in your framework's teardown hook. |
 

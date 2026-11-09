@@ -103,6 +103,10 @@ export default function App() {
 >   { ssr: false }
 > );
 > ```
+>
+> On `2.0.0` only, the React adapter shipped uncompiled JSX and `next build`
+> fails with `Expected ';', got 'ident'`. Upgrade to `2.0.1`+, or add
+> `transpilePackages: ['@parityfox/rune-editor']` to `next.config.js`.
 
 ### Vue 3
 

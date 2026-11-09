@@ -1,2 +1,2 @@
 export { useRune }           from './useRune.js';
-export { default as RuneEditor } from './RuneEditor.jsx';
+export { default as RuneEditor } from './RuneEditor.js';
